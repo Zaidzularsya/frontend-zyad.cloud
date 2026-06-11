@@ -1,0 +1,12 @@
+{
+  "include": ["vite.config.ts", "vitest.config.ts", "eslint.config.js", "playwright.config.ts"],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "types": ["node"]
+  }
+}
