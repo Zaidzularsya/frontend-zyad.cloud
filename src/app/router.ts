@@ -36,13 +36,20 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/DashboardLayout.vue'),
+    redirect: { name: 'profile' },
     meta: { requiresAuth: true, requiresTenant: true },
     children: [
       {
-        path: '',
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/features/profile/pages/ProfilePage.vue'),
+        meta: { title: 'Profile' },
+      },
+      {
+        path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/features/dashboard/pages/DashboardPage.vue'),
-        meta: { title: 'Dashboard', permissions: ['dashboard.read'] },
+        meta: { title: 'Dashboard' },
       },
       {
         path: 'crm',
@@ -58,14 +65,32 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         name: 'users',
         component: () => import('@/features/users/pages/UsersPage.vue'),
-        meta: { title: 'Users', permissions: ['users.read'] },
+        meta: { title: 'Users', permissions: ['user.read'] },
       },
       {
-        path: 'roles',
-        name: 'roles',
-        component: placeholder,
-        props: { title: 'Roles', description: 'Kelola role dan matriks permission workspace.' },
-        meta: { title: 'Roles', permissions: ['roles.read'] },
+        path: 'users/:id',
+        name: 'user-detail',
+        component: () => import('@/features/users/pages/UserDetailPage.vue'),
+        meta: { title: 'User Detail', permissions: ['user.read'] },
+      },
+      {
+        path: 'rbac',
+        alias: ['/roles'],
+        name: 'rbac',
+        component: () => import('@/features/rbac/pages/RbacPage.vue'),
+        meta: {
+          title: 'Core Permission & RBAC',
+          permissions: ['role.read', 'permission.read'],
+        },
+      },
+      {
+        path: 'notifications',
+        name: 'notifications',
+        component: () => import('@/features/notifications/pages/NotificationManagementPage.vue'),
+        meta: {
+          title: 'Notification Management',
+          permissions: ['notification_template.read'],
+        },
       },
       {
         path: 'billing',
@@ -75,14 +100,13 @@ const routes: RouteRecordRaw[] = [
           title: 'Billing',
           description: 'Invoice, metode pembayaran, dan penggunaan paket.',
         },
-        meta: { title: 'Billing', permissions: ['billing.read'] },
+        meta: { title: 'Billing' },
       },
       {
         path: 'audit-logs',
         name: 'audit-logs',
-        component: placeholder,
-        props: { title: 'Audit Logs', description: 'Jejak aktivitas penting di dalam organisasi.' },
-        meta: { title: 'Audit Logs', permissions: ['audit-logs.read'] },
+        component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
+        meta: { title: 'Audit Logs', permissions: ['audit.read'] },
       },
       {
         path: 'settings',
@@ -92,7 +116,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Settings',
           description: 'Preferensi organisasi, branding, dan integrasi.',
         },
-        meta: { title: 'Settings', permissions: ['settings.read'] },
+        meta: { title: 'Settings' },
       },
       {
         path: 'forbidden',

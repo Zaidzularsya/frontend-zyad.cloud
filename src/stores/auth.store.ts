@@ -20,7 +20,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function applySession(session: Awaited<ReturnType<typeof authApi.session>>) {
     user.value = session.user
-    tokenStorage.set(session.accessToken)
+    if (session.accessToken !== undefined) {
+      tokenStorage.set(session.accessToken)
+    }
+    if (session.refreshToken !== undefined) {
+      tokenStorage.setRefreshToken(session.refreshToken)
+    }
     useTenantStore().hydrate(session.tenants, session.activeTenantId)
   }
 
@@ -51,6 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
   function clearSession() {
     user.value = null
     tokenStorage.set()
+    tokenStorage.setRefreshToken()
     useTenantStore().clear()
     queryClient.clear()
   }

@@ -1,4 +1,4 @@
-import type { AuthSession } from '@/types/auth'
+import type { AuthUser } from '@/types/auth'
 import type { Tenant } from '@/types/tenant'
 
 export interface LoginPayload {
@@ -7,7 +7,10 @@ export interface LoginPayload {
   remember: boolean
 }
 
-export interface SessionResponse extends AuthSession {
+export interface SessionResponse {
+  user: AuthUser
+  accessToken?: string
+  refreshToken?: string
   tenants: Tenant[]
   activeTenantId?: string
 }

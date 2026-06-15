@@ -1,13 +1,5 @@
 import type { Component } from 'vue'
-import {
-  ChartNoAxesCombined,
-  CreditCard,
-  FileClock,
-  LayoutDashboard,
-  Settings,
-  ShieldCheck,
-  Users,
-} from 'lucide-vue-next'
+import { Bell, FileClock, ShieldCheck, Users } from 'lucide-vue-next'
 
 import type { Permission } from '@/types/auth'
 
@@ -15,7 +7,7 @@ export interface MenuItem {
   label: string
   route: string
   icon: Component
-  permission?: Permission
+  permission?: Permission | Permission[]
 }
 
 export interface MenuGroup {
@@ -25,35 +17,32 @@ export interface MenuGroup {
 
 export const menuGroups: MenuGroup[] = [
   {
-    label: 'Workspace',
+    label: 'Access',
     items: [
+      { label: 'Users', route: 'users', icon: Users, permission: 'user.read' },
       {
-        label: 'Dashboard',
-        route: 'dashboard',
-        icon: LayoutDashboard,
-        permission: 'dashboard.read',
+        label: 'Core Permission & RBAC',
+        route: 'rbac',
+        icon: ShieldCheck,
+        permission: ['role.read', 'permission.read'],
       },
-      { label: 'CRM Overview', route: 'crm', icon: ChartNoAxesCombined },
-    ],
-  },
-  {
-    label: 'Organization',
-    items: [
-      { label: 'Users', route: 'users', icon: Users, permission: 'users.read' },
-      { label: 'Roles', route: 'roles', icon: ShieldCheck, permission: 'roles.read' },
-      { label: 'Billing', route: 'billing', icon: CreditCard, permission: 'billing.read' },
     ],
   },
   {
     label: 'System',
     items: [
       {
+        label: 'Notifications',
+        route: 'notifications',
+        icon: Bell,
+        permission: 'notification_template.read',
+      },
+      {
         label: 'Audit Logs',
         route: 'audit-logs',
         icon: FileClock,
-        permission: 'audit-logs.read',
+        permission: 'audit.read',
       },
-      { label: 'Settings', route: 'settings', icon: Settings, permission: 'settings.read' },
     ],
   },
 ]

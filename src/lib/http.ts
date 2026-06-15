@@ -30,6 +30,16 @@ http.interceptors.request.use((config) => {
 
 let refreshPromise: Promise<string | undefined> | null = null
 
+interface RefreshResponse {
+  success: boolean
+  data: {
+    access_token: string
+    refresh_token: string
+    token_type: string
+    expires_in: number
+  }
+}
+
 http.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiErrorPayload>) => {
@@ -42,10 +52,15 @@ http.interceptors.response.use(
 
     request._retry = true
     refreshPromise ??= http
-      .post<{ data: { accessToken?: string } }>('/auth/refresh')
+      .post<RefreshResponse>('/auth/refresh-token', {
+        refresh_token: tokenStorage.getRefreshToken() || undefined,
+      })
       .then(({ data }) => {
-        tokenStorage.set(data.data.accessToken)
-        return data.data.accessToken
+        const nextAccessToken = data.data.access_token
+        const nextRefreshToken = data.data.refresh_token
+        tokenStorage.set(nextAccessToken)
+        tokenStorage.setRefreshToken(nextRefreshToken)
+        return nextAccessToken
       })
       .finally(() => {
         refreshPromise = null
@@ -57,6 +72,7 @@ http.interceptors.response.use(
       return http(request)
     } catch {
       tokenStorage.set()
+      tokenStorage.setRefreshToken()
       window.dispatchEvent(new CustomEvent('auth:expired'))
       return Promise.reject(error)
     }

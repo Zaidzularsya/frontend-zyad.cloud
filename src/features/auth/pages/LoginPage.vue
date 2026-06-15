@@ -36,7 +36,7 @@ const onSubmit = handleSubmit(async (values) => {
   submitError.value = ''
   try {
     await auth.login(values)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/profile'
     await router.replace(redirect)
   } catch {
     submitError.value = 'Email atau password tidak sesuai, atau server sedang tidak tersedia.'

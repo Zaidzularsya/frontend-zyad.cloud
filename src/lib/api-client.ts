@@ -16,6 +16,10 @@ export const apiClient = {
     const response = await http.put<ApiEnvelope<T>>(url, body, config)
     return response.data.data
   },
+  async patch<T, TBody = unknown>(url: string, body?: TBody, config?: AxiosRequestConfig) {
+    const response = await http.patch<ApiEnvelope<T>>(url, body, config)
+    return response.data.data
+  },
   async delete<T = void>(url: string, config?: AxiosRequestConfig) {
     const response = await http.delete<ApiEnvelope<T>>(url, config)
     return response.data.data
