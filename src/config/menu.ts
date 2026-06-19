@@ -12,12 +12,26 @@ import {
   Users,
 } from 'lucide-vue-next'
 
+import { buildLandingManagementMenuItems } from '@/features/landing-management/landing-menu'
 import type { Permission } from '@/types/auth'
 
 export interface MenuItem {
   label: string
-  route: string
+  route?: string
   icon: Component
+  tone?: string
+  description?: string
+  children?: MenuChildItem[]
+  permission?: Permission | Permission[]
+}
+
+export interface MenuChildItem {
+  label: string
+  route?: string
+  icon?: Component
+  tone?: string
+  description?: string
+  children?: MenuChildItem[]
   permission?: Permission | Permission[]
 }
 
@@ -31,7 +45,12 @@ export const platformMenuGroups: MenuGroup[] = [
     label: 'Platform Control',
     items: [
       { label: 'Overview', route: 'platform-dashboard', icon: LayoutDashboard },
-      { label: 'Landing Page', route: 'platform-landing-pages', icon: Globe },
+      {
+        label: 'Landing Page',
+        route: 'platform-landing-pages',
+        icon: Globe,
+        children: buildLandingManagementMenuItems('platform-landing-pages'),
+      },
       { label: 'Branding', route: 'platform-branding', icon: Brush },
       { label: 'Admins & Roles', route: 'platform-users', icon: ShieldCheck },
       {
@@ -61,7 +80,12 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Workspace',
     items: [
-      { label: 'Landing Page', route: 'landing-pages', icon: Globe },
+      {
+        label: 'Landing Page',
+        route: 'landing-pages',
+        icon: Globe,
+        children: buildLandingManagementMenuItems('landing-pages'),
+      },
       { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
     ],
   },

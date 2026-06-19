@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { env } from '@/config/env'
+import { buildLandingManagementRoutes } from '@/features/landing-management/landing-menu'
 import { authGuard } from '@/middleware/auth.guard'
 import { guestGuard } from '@/middleware/guest.guard'
 import { permissionGuard } from '@/middleware/permission.guard'
@@ -85,6 +86,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/landing-management/pages/LandingPageList.vue'),
         meta: { title: 'Landing Page Management' },
       },
+      ...buildLandingManagementRoutes('landing-pages'),
       {
         path: 'users',
         name: 'users',
@@ -179,6 +181,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/platform/pages/LandingPageList.vue'),
         meta: { title: 'Landing Page Management' },
       },
+      ...buildLandingManagementRoutes('platform-landing-pages'),
       {
         path: 'branding',
         name: 'platform-branding',

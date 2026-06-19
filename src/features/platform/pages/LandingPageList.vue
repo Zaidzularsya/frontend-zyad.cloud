@@ -4,8 +4,8 @@ import LandingManagementWorkspace from '@/features/landing/components/LandingMan
 
 <template>
   <LandingManagementWorkspace
-    title="Platform Landing Pages"
-    description="Monitor dan kelola landing page tenant, publikasi, aset, navigasi, dan lead integration."
+    title="Landing Page Management"
+    description="Kelola page, slug, status publish, aset, navigasi, dan lead delivery dari satu cockpit platform."
     mode="platform"
   />
 </template>

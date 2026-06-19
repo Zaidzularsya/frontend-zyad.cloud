@@ -284,9 +284,6 @@ const publishedCount = computed(
   () => pages.value.filter((page) => page.status === 'published').length,
 )
 const draftCount = computed(() => pages.value.filter((page) => page.status === 'draft').length)
-const archivedCount = computed(
-  () => pages.value.filter((page) => page.status === 'archived').length,
-)
 const selectedMenuItems = computed(() =>
   selectedMenuId.value ? (menuItems.value[selectedMenuId.value] ?? []) : [],
 )
@@ -298,6 +295,29 @@ const selectedFieldItems = computed(() =>
 )
 
 const publicUrl = computed(() => (selectedPage.value ? `/${selectedPage.value.slug}` : ''))
+const statusOptions: Array<{ value: 'all' | PageStatus; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'published', label: 'Published' },
+  { value: 'unpublished', label: 'Unpublished' },
+  { value: 'archived', label: 'Archived' },
+]
+const selectedStatusLabel = computed(() =>
+  selectedPage.value ? selectedPage.value.status.replaceAll('_', ' ') : 'Draft',
+)
+const isSelectedPublished = computed(() => selectedPage.value?.status === 'published')
+const pageFormCompleteness = computed(() => {
+  const filled = [
+    pageForm.name,
+    pageForm.title,
+    pageForm.slug,
+    pageForm.page_type,
+    pageForm.visibility,
+    pageForm.locale,
+    pageForm.timezone,
+  ].filter(Boolean).length
+  return Math.round((filled / 7) * 100)
+})
 const seoScore = computed(() => {
   let score = 0
   if (seoForm.meta_title.length >= 25) score += 25
@@ -333,6 +353,20 @@ function resetPageForm() {
   pageForm.timezone = 'Asia/Jakarta'
   pageForm.is_homepage = false
   resetSeoForm()
+}
+
+function startNewPage() {
+  selectedPageId.value = null
+  resetPageForm()
+  sections.value = []
+  forms.value = []
+  revisions.value = []
+  pageBranding.value = null
+  domainBindings.value = []
+  selectedMenuId.value = null
+  activeTab.value = 'overview'
+  notice.value = ''
+  errorMessage.value = ''
 }
 
 function resetSeoForm() {
@@ -374,6 +408,19 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+function generateSlug() {
+  const source = pageForm.title || pageForm.name
+  pageForm.slug = slugify(source)
+}
+
+function getStatusBadgeClass(status?: PageStatus) {
+  if (status === 'published') return 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+  if (status === 'draft') return 'bg-amber-50 text-amber-700 ring-amber-200'
+  if (status === 'unpublished') return 'bg-sky-50 text-sky-700 ring-sky-200'
+  if (status === 'archived') return 'bg-gray-100 text-gray-600 ring-gray-200'
+  return 'bg-gray-100 text-gray-600 ring-gray-200'
 }
 
 function stringifyJson(value: unknown) {
@@ -529,6 +576,7 @@ async function savePage() {
   saving.value = true
   errorMessage.value = ''
   try {
+    if (!pageForm.slug) generateSlug()
     const payload = {
       ...pageForm,
       is_homepage: pageForm.page_type === 'homepage' || pageForm.is_homepage,
@@ -1332,6 +1380,10 @@ onMounted(() => {
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <PageHeader :title="props.title" :description="props.description" />
       <div class="flex flex-wrap gap-2">
+        <BaseButton variant="secondary" :disabled="saving" @click="startNewPage">
+          <FilePlus2 class="size-4" />
+          New Page
+        </BaseButton>
         <BaseButton variant="outline" :disabled="loading || saving" @click="refreshAll">
           <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
           Refresh
@@ -1386,10 +1438,12 @@ onMounted(() => {
       </BaseCard>
       <BaseCard>
         <div class="flex items-center justify-between">
-          <p class="text-sm text-gray-500">Archived</p>
-          <Archive class="size-5 text-gray-500" />
+          <p class="text-sm text-gray-500">Readiness</p>
+          <CheckCircle2 class="size-5 text-sky-500" />
         </div>
-        <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ archivedCount }}</p>
+        <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+          {{ pageFormCompleteness }}%
+        </p>
       </BaseCard>
     </div>
 
@@ -1408,19 +1462,19 @@ onMounted(() => {
             />
           </div>
 
-          <div class="mt-3 grid grid-cols-4 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-950">
+          <div class="mt-3 flex flex-wrap gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-950">
             <button
-              v-for="status in ['all', 'draft', 'published', 'unpublished', 'archived']"
-              :key="status"
-              class="rounded-md px-2 py-1.5 text-xs font-semibold capitalize transition"
+              v-for="status in statusOptions"
+              :key="status.value"
+              class="flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition"
               :class="
-                statusFilter === status
+                statusFilter === status.value
                   ? 'bg-white text-brand-600 shadow-sm dark:bg-gray-900'
                   : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
               "
-              @click="statusFilter = status as 'all' | PageStatus"
+              @click="statusFilter = status.value"
             >
-              {{ status }}
+              {{ status.label }}
             </button>
           </div>
 
@@ -1444,12 +1498,8 @@ onMounted(() => {
                   <p class="mt-1 truncate text-xs text-gray-500">/{{ page.slug }}</p>
                 </div>
                 <span
-                  class="rounded-full px-2 py-1 text-[11px] font-bold capitalize"
-                  :class="{
-                    'bg-emerald-50 text-emerald-700': page.status === 'published',
-                    'bg-amber-50 text-amber-700': page.status === 'draft',
-                    'bg-gray-100 text-gray-600': page.status === 'archived',
-                  }"
+                  class="rounded-full px-2 py-1 text-[11px] font-bold capitalize ring-1"
+                  :class="getStatusBadgeClass(page.status)"
                 >
                   {{ page.status }}
                 </span>
@@ -1471,49 +1521,89 @@ onMounted(() => {
       </aside>
 
       <main class="space-y-5">
-        <BaseCard>
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+        <BaseCard class="overflow-hidden !p-0">
+          <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div class="space-y-4 p-5">
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white">
                   {{ selectedPage?.title || 'New landing page' }}
                 </h2>
                 <span
                   v-if="selectedPage"
-                  class="rounded-full px-2 py-1 text-xs font-bold capitalize"
-                  :class="{
-                    'bg-emerald-50 text-emerald-700': selectedPage.status === 'published',
-                    'bg-amber-50 text-amber-700': selectedPage.status === 'draft',
-                    'bg-gray-100 text-gray-600': selectedPage.status === 'archived',
-                  }"
+                  class="rounded-full px-2 py-1 text-xs font-bold capitalize ring-1"
+                  :class="getStatusBadgeClass(selectedPage.status)"
                 >
                   {{ selectedPage.status }}
                 </span>
               </div>
-              <p class="mt-1 text-sm text-gray-500">
+              <p class="text-sm text-gray-500">
                 {{
                   selectedPage
                     ? publicUrl
                     : 'Buat halaman baru, lalu kelola konten dan publikasinya.'
                 }}
               </p>
+              <div class="grid gap-3 sm:grid-cols-3">
+                <div class="rounded-lg border bg-gray-50 p-3 dark:bg-gray-950">
+                  <p class="text-xs font-medium text-gray-500">Status</p>
+                  <p class="mt-1 text-sm font-semibold capitalize text-gray-900 dark:text-white">
+                    {{ selectedStatusLabel }}
+                  </p>
+                </div>
+                <div class="rounded-lg border bg-gray-50 p-3 dark:bg-gray-950">
+                  <p class="text-xs font-medium text-gray-500">Slug</p>
+                  <p class="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white">
+                    /{{ pageForm.slug || 'new-page' }}
+                  </p>
+                </div>
+                <div class="rounded-lg border bg-gray-50 p-3 dark:bg-gray-950">
+                  <p class="text-xs font-medium text-gray-500">Last update</p>
+                  <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ formatDate(selectedPage?.updated_at) }}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div v-if="selectedPage" class="flex flex-wrap gap-2">
-              <BaseButton variant="outline" @click="runPageAction('duplicate')">
-                <Copy class="size-4" />
-                Duplicate
-              </BaseButton>
-              <BaseButton
-                v-if="selectedPage.status !== 'published'"
-                @click="runPageAction('publish')"
-              >
-                <Rocket class="size-4" />
-                Publish
-              </BaseButton>
-              <BaseButton v-else variant="secondary" @click="runPageAction('unpublish')">
-                <Eye class="size-4" />
-                Unpublish
-              </BaseButton>
+            <div
+              class="border-t bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-950 lg:border-l lg:border-t-0"
+            >
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">Publishing</p>
+              <p class="mt-1 text-xs text-gray-500">
+                Simpan perubahan sebelum publish agar revision terbaru ikut terkirim.
+              </p>
+              <div class="mt-4 grid gap-2">
+                <BaseButton :disabled="saving" @click="savePage">
+                  <Loader2 v-if="saving" class="size-4 animate-spin" />
+                  {{ selectedPageId ? 'Save changes' : 'Create page' }}
+                </BaseButton>
+                <template v-if="selectedPage">
+                  <BaseButton
+                    v-if="!isSelectedPublished"
+                    :disabled="saving"
+                    @click="runPageAction('publish')"
+                  >
+                    <Rocket class="size-4" />
+                    Publish
+                  </BaseButton>
+                  <BaseButton
+                    v-else
+                    variant="secondary"
+                    :disabled="saving"
+                    @click="runPageAction('unpublish')"
+                  >
+                    <Eye class="size-4" />
+                    Unpublish
+                  </BaseButton>
+                  <BaseButton
+                    variant="outline"
+                    :disabled="saving"
+                    @click="runPageAction('duplicate')"
+                  >
+                    <Copy class="size-4" />
+                    Duplicate
+                  </BaseButton>
+                </template>
+              </div>
             </div>
           </div>
         </BaseCard>
@@ -1569,12 +1659,36 @@ onMounted(() => {
                     label="Page title"
                     placeholder="Internet Cepat untuk Bisnis"
                   />
-                  <TextField
-                    v-model="pageForm.slug"
-                    name="slug"
-                    label="Slug"
-                    placeholder="promo-bisnis"
-                  />
+                  <div class="space-y-1.5">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Slug
+                    </label>
+                    <div class="flex gap-2">
+                      <div
+                        class="flex min-w-0 flex-1 items-center rounded-lg border bg-white px-3.5 py-2.5 focus-within:border-brand-500 focus-within:ring-3 focus-within:ring-brand-100 dark:bg-gray-950"
+                      >
+                        <span class="mr-1 text-sm text-gray-400">/</span>
+                        <input
+                          v-model="pageForm.slug"
+                          name="slug"
+                          placeholder="promo-bisnis"
+                          class="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
+                          @blur="pageForm.slug = slugify(pageForm.slug)"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+                        @click="generateSlug"
+                      >
+                        <Link2 class="size-4" />
+                        Generate
+                      </button>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                      Slug dipakai sebagai URL publik dan otomatis dirapikan saat field keluar.
+                    </p>
+                  </div>
                   <TextField
                     v-model="pageForm.locale"
                     name="locale"
