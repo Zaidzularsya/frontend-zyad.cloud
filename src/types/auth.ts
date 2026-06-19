@@ -42,6 +42,7 @@ export interface AuthUser {
   email: string
   avatarUrl?: string
   permissions: Permission[]
+  roles?: string[]
 }
 
 export interface AuthSession {

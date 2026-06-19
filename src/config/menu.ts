@@ -1,5 +1,16 @@
 import type { Component } from 'vue'
-import { Bell, FileClock, ShieldCheck, Users } from 'lucide-vue-next'
+import {
+  Bell,
+  Brush,
+  CreditCard,
+  FileClock,
+  Globe,
+  LayoutDashboard,
+  LifeBuoy,
+  Magnet,
+  ShieldCheck,
+  Users,
+} from 'lucide-vue-next'
 
 import type { Permission } from '@/types/auth'
 
@@ -15,34 +26,50 @@ export interface MenuGroup {
   items: MenuItem[]
 }
 
-export const menuGroups: MenuGroup[] = [
+export const platformMenuGroups: MenuGroup[] = [
   {
-    label: 'Access',
+    label: 'Platform Control',
     items: [
-      { label: 'Users', route: 'users', icon: Users, permission: 'user.read' },
-      {
-        label: 'Core Permission & RBAC',
-        route: 'rbac',
-        icon: ShieldCheck,
-        permission: ['role.read', 'permission.read'],
-      },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
+      { label: 'Overview', route: 'platform-dashboard', icon: LayoutDashboard },
+      { label: 'Landing Page', route: 'platform-landing-pages', icon: Globe },
+      { label: 'Branding', route: 'platform-branding', icon: Brush },
+      { label: 'Admins & Roles', route: 'platform-users', icon: ShieldCheck },
       {
         label: 'Notifications',
-        route: 'notifications',
+        route: 'platform-notifications',
         icon: Bell,
         permission: 'notification_template.read',
       },
       {
         label: 'Audit Logs',
-        route: 'audit-logs',
+        route: 'platform-audit-logs',
         icon: FileClock,
         permission: 'audit.read',
       },
+    ],
+  },
+  {
+    label: 'Business Management',
+    items: [
+      { label: 'Customers', route: 'platform-customers', icon: Users },
+      { label: 'Leads', route: 'platform-leads', icon: Magnet },
+    ],
+  },
+]
+
+export const customerMenuGroups: MenuGroup[] = [
+  {
+    label: 'Workspace',
+    items: [
+      { label: 'Landing Page', route: 'landing-pages', icon: Globe },
+      { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: 'Account Services',
+    items: [
+      { label: 'Plan & Billing', route: 'plan-upgrade', icon: CreditCard },
+      { label: 'Support Tickets', route: 'ticketing', icon: LifeBuoy },
     ],
   },
 ]

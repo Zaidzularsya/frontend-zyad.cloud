@@ -21,9 +21,11 @@ export const http = axios.create({
 http.interceptors.request.use((config) => {
   const token = tokenStorage.get()
   const tenantId = tenantStorage.get()
+  const url = config.url ?? ''
+  const isPublicEndpoint = url.startsWith('/public/') || url.includes('/api/v1/public/')
 
   if (token) config.headers.Authorization = `Bearer ${token}`
-  if (tenantId) config.headers[env.VITE_TENANT_HEADER] = tenantId
+  if (tenantId && !isPublicEndpoint) config.headers[env.VITE_TENANT_HEADER] = tenantId
 
   return config
 })

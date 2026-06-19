@@ -12,9 +12,13 @@ const auth = useAuthStore()
 const tenantStore = useTenantStore()
 
 async function select(tenantId: string) {
-  tenantStore.select(tenantId)
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
-  await router.replace(redirect)
+  try {
+    await tenantStore.select(tenantId)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/app'
+    await router.replace(redirect)
+  } catch (err) {
+    console.error('Failed to switch workspace:', err)
+  }
 }
 
 async function logout() {

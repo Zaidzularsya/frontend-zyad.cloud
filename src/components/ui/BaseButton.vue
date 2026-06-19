@@ -2,7 +2,7 @@
 withDefaults(
   defineProps<{
     type?: 'button' | 'submit' | 'reset'
-    variant?: 'primary' | 'secondary' | 'danger'
+    variant?: 'primary' | 'secondary' | 'outline' | 'danger'
     disabled?: boolean
   }>(),
   {
@@ -23,6 +23,8 @@ withDefaults(
         variant === 'primary',
       'border bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-100 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800':
         variant === 'secondary',
+      'border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800':
+        variant === 'outline',
       'bg-red-600 text-white hover:bg-red-700 focus:ring-red-100': variant === 'danger',
     }"
   >

@@ -1,22 +1,36 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronDown, LogOut, Menu, Moon, Search, Sun } from 'lucide-vue-next'
+import { Check, ChevronDown, Copy, LogOut, Menu, Moon, Search, Sun } from 'lucide-vue-next'
 
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { useTenantStore } from '@/stores/tenant.store'
 
 const app = useAppStore()
 const auth = useAuthStore()
+const tenant = useTenantStore()
 const router = useRouter()
 
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref<HTMLElement | null>(null)
+const copiedOrganizationId = ref(false)
 
 async function logout() {
   accountMenuOpen.value = false
   await auth.logout()
   await router.replace({ name: 'login' })
+}
+
+async function copyOrganizationId() {
+  const organizationId = tenant.activeTenantId
+  if (!organizationId) return
+
+  await navigator.clipboard.writeText(organizationId)
+  copiedOrganizationId.value = true
+  window.setTimeout(() => {
+    copiedOrganizationId.value = false
+  }, 1800)
 }
 
 function closeAccountMenu(event: MouseEvent) {
@@ -56,6 +70,24 @@ onBeforeUnmount(() => {
     </label>
 
     <div class="ml-auto flex items-center gap-3">
+      <div
+        v-if="tenant.activeTenantId"
+        class="hidden items-center gap-2 rounded-lg border bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300 lg:flex"
+      >
+        <span class="font-semibold text-gray-500 dark:text-gray-400">Organization ID</span>
+        <code class="max-w-40 truncate font-mono text-gray-900 dark:text-white">
+          {{ tenant.activeTenantId }}
+        </code>
+        <button
+          class="grid size-7 place-items-center rounded-md border bg-white text-gray-500 hover:text-brand-600 dark:bg-gray-950"
+          type="button"
+          :title="copiedOrganizationId ? 'Copied' : 'Copy organization ID'"
+          @click="copyOrganizationId"
+        >
+          <Check v-if="copiedOrganizationId" class="size-4 text-emerald-600" />
+          <Copy v-else class="size-4" />
+        </button>
+      </div>
       <button
         class="grid size-10 place-items-center rounded-full border hover:bg-gray-50 dark:hover:bg-gray-900"
         aria-label="Ganti tema"
@@ -89,6 +121,23 @@ onBeforeUnmount(() => {
             <p class="text-sm font-semibold">{{ auth.user?.name }}</p>
             <p class="mt-0.5 truncate text-xs text-gray-500">{{ auth.user?.email }}</p>
           </div>
+          <button
+            v-if="tenant.activeTenantId"
+            class="flex w-full items-center gap-3 border-b px-4 py-3 text-left text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
+            type="button"
+            @click="copyOrganizationId"
+          >
+            <Check v-if="copiedOrganizationId" class="size-4 text-emerald-600" />
+            <Copy v-else class="size-4 text-gray-500" />
+            <span class="min-w-0">
+              <span class="block text-xs font-semibold uppercase text-gray-400">
+                Organization ID
+              </span>
+              <code class="block truncate font-mono text-xs text-gray-700 dark:text-gray-200">
+                {{ tenant.activeTenantId }}
+              </code>
+            </span>
+          </button>
           <button
             class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             @click="logout"

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import VueApexCharts from 'vue3-apexcharts'
 import { ArrowUpRight, BadgeDollarSign, Handshake, UsersRound } from 'lucide-vue-next'
 
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -18,26 +17,43 @@ const metrics = [
   },
 ]
 
-const chartOptions = computed(() => ({
-  chart: { toolbar: { show: false }, fontFamily: 'Inter, sans-serif' },
-  colors: ['#465fff'],
-  dataLabels: { enabled: false },
-  stroke: { curve: 'smooth' as const, width: 3 },
-  grid: { borderColor: '#e5e7eb', strokeDashArray: 4 },
-  xaxis: { categories: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'] },
-  yaxis: {
-    labels: {
-      formatter: (value: number) => `${Math.round(value / 1_000_000)} jt`,
-    },
-  },
-  tooltip: {
-    y: { formatter: (value: number) => formatCurrency(value) },
-  },
-}))
-
-const chartSeries = [
-  { name: 'Revenue', data: [92, 108, 104, 138, 151, 184].map((v) => v * 1_000_000) },
+const revenueData = [
+  { label: 'Jan', value: 92_000_000 },
+  { label: 'Feb', value: 108_000_000 },
+  { label: 'Mar', value: 104_000_000 },
+  { label: 'Apr', value: 138_000_000 },
+  { label: 'Mei', value: 151_000_000 },
+  { label: 'Jun', value: 184_000_000 },
 ]
+
+const chartPoints = computed(() => {
+  const width = 600
+  const height = 240
+  const padding = 28
+  const max = Math.max(...revenueData.map((item) => item.value))
+  const min = Math.min(...revenueData.map((item) => item.value))
+  const range = max - min || 1
+
+  return revenueData.map((item, index) => {
+    const x = padding + (index / (revenueData.length - 1)) * (width - padding * 2)
+    const y = padding + ((max - item.value) / range) * (height - padding * 2)
+    return { ...item, x, y }
+  })
+})
+
+const chartPath = computed(() =>
+  chartPoints.value
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' '),
+)
+
+const chartAreaPath = computed(() => {
+  const points = chartPoints.value
+  const first = points[0]
+  const last = points.at(-1)
+  if (!first || !last) return ''
+  return `${chartPath.value} L ${last.x} 240 L ${first.x} 240 Z`
+})
 
 const activities = [
   ['Deal “Enterprise Migration” berpindah ke Negotiation', '12 menit lalu'],
@@ -77,7 +93,52 @@ const activities = [
           <h2 class="font-semibold">Revenue</h2>
           <p class="text-sm text-gray-500">Enam bulan terakhir</p>
         </div>
-        <VueApexCharts type="area" height="310" :options="chartOptions" :series="chartSeries" />
+        <div class="h-[310px]">
+          <svg
+            viewBox="0 0 600 300"
+            role="img"
+            aria-label="Revenue enam bulan terakhir"
+            class="h-full w-full"
+          >
+            <defs>
+              <linearGradient id="revenueGradient" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#465fff" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="#465fff" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+
+            <g class="text-gray-200 dark:text-gray-800">
+              <line
+                v-for="y in [40, 90, 140, 190, 240]"
+                :key="y"
+                x1="28"
+                x2="572"
+                :y1="y"
+                :y2="y"
+                stroke="currentColor"
+                stroke-dasharray="6 8"
+              />
+            </g>
+
+            <path :d="chartAreaPath" fill="url(#revenueGradient)" />
+            <path
+              :d="chartPath"
+              fill="none"
+              stroke="#465fff"
+              stroke-width="4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+
+            <g v-for="point in chartPoints" :key="point.label">
+              <circle :cx="point.x" :cy="point.y" r="5" fill="#465fff" />
+              <circle :cx="point.x" :cy="point.y" r="9" fill="#465fff" opacity="0.12" />
+              <text :x="point.x" y="278" text-anchor="middle" class="fill-gray-500 text-[13px]">
+                {{ point.label }}
+              </text>
+            </g>
+          </svg>
+        </div>
       </BaseCard>
 
       <BaseCard>

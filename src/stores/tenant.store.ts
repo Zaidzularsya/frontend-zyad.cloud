@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 
 import { tenantStorage } from '@/lib/tenant'
 import { queryClient } from '@/lib/query-client'
+import { http } from '@/lib/http'
 import type { Tenant } from '@/types/tenant'
 
 export const useTenantStore = defineStore('tenant', () => {
@@ -23,8 +24,20 @@ export const useTenantStore = defineStore('tenant', () => {
     else activeTenantId.value = null
   }
 
-  function select(tenantId: string, invalidate = true) {
+  async function select(tenantId: string, invalidate = true) {
     if (!tenants.value.some((tenant) => tenant.id === tenantId)) return
+
+    if (invalidate) {
+      try {
+        await http.post('/users/me/switch-organization', {
+          organization_id: tenantId,
+        })
+      } catch (err) {
+        console.error('Failed to switch organization on backend:', err)
+        throw err
+      }
+    }
+
     activeTenantId.value = tenantId
     tenantStorage.set(tenantId)
     if (invalidate) queryClient.clear()

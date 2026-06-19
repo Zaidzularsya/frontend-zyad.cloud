@@ -36,7 +36,12 @@ const onSubmit = handleSubmit(async (values) => {
   submitError.value = ''
   try {
     await auth.login(values)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/profile'
+
+    const isSuperAdmin = auth.user?.roles?.includes('super_admin')
+    const defaultRedirect = isSuperAdmin ? '/platform/dashboard' : '/app/profile'
+
+    const redirect =
+      typeof route.query.redirect === 'string' ? route.query.redirect : defaultRedirect
     await router.replace(redirect)
   } catch {
     submitError.value = 'Email atau password tidak sesuai, atau server sedang tidak tersedia.'

@@ -19,6 +19,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/auth/pages/LoginPage.vue'),
         meta: { title: 'Masuk', guestOnly: true },
       },
+      {
+        path: 'register',
+        name: 'register',
+        component: () => import('@/features/auth/pages/RegisterPage.vue'),
+        meta: { title: 'Daftar', guestOnly: true },
+      },
     ],
   },
   {
@@ -35,6 +41,18 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
+    component: () => import('@/layouts/MarketingLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'home',
+        component: () => import('@/features/public/pages/MarketingLandingPage.vue'),
+        meta: { title: 'Zyad Cloud - Platform Multi-Tenant' },
+      },
+    ],
+  },
+  {
+    path: '/app',
     component: () => import('@/layouts/DashboardLayout.vue'),
     redirect: { name: 'profile' },
     meta: { requiresAuth: true, requiresTenant: true },
@@ -60,6 +78,12 @@ const routes: RouteRecordRaw[] = [
           description: 'Pipeline, kontak, perusahaan, aktivitas, dan deal.',
         },
         meta: { title: 'CRM Overview' },
+      },
+      {
+        path: 'landing-pages',
+        name: 'landing-pages',
+        component: () => import('@/features/landing-management/pages/LandingPageList.vue'),
+        meta: { title: 'Landing Page Management' },
       },
       {
         path: 'users',
@@ -119,10 +143,80 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Settings' },
       },
       {
+        path: 'plan-upgrade',
+        name: 'plan-upgrade',
+        component: () => import('@/features/customer/pages/PlanUpgradePage.vue'),
+        meta: { title: 'Plan & Billing' },
+      },
+      {
+        path: 'ticketing',
+        name: 'ticketing',
+        component: () => import('@/features/customer/pages/TicketingPage.vue'),
+        meta: { title: 'Support & Ticketing' },
+      },
+      {
         path: 'forbidden',
         name: 'forbidden',
         component: () => import('@/views/ForbiddenPage.vue'),
         meta: { title: 'Akses Ditolak' },
+      },
+    ],
+  },
+  {
+    path: '/platform',
+    component: () => import('@/layouts/DashboardLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'platform-dashboard',
+        component: () => import('@/features/platform/pages/PlatformDashboardPage.vue'),
+        meta: { title: 'Platform Overview' },
+      },
+      {
+        path: 'landing-pages',
+        name: 'platform-landing-pages',
+        component: () => import('@/features/platform/pages/LandingPageList.vue'),
+        meta: { title: 'Landing Page Management' },
+      },
+      {
+        path: 'branding',
+        name: 'platform-branding',
+        component: () => import('@/features/platform/pages/BrandingManagementPage.vue'),
+        meta: { title: 'Branding Management' },
+      },
+      {
+        path: 'users',
+        name: 'platform-users',
+        component: () => import('@/features/users/pages/UsersPage.vue'),
+        meta: { title: 'Admins & Roles' },
+      },
+      {
+        path: 'customers',
+        name: 'platform-customers',
+        component: () => import('@/features/platform/pages/CustomerManagementPage.vue'),
+        meta: { title: 'Customer Management' },
+      },
+      {
+        path: 'leads',
+        name: 'platform-leads',
+        component: () => import('@/features/platform/pages/LeadManagementPage.vue'),
+        meta: { title: 'Lead Management' },
+      },
+      {
+        path: 'notifications',
+        name: 'platform-notifications',
+        component: () => import('@/features/notifications/pages/NotificationManagementPage.vue'),
+        meta: {
+          title: 'Notification Management',
+          permissions: ['notification_template.read'],
+        },
+      },
+      {
+        path: 'audit-logs',
+        name: 'platform-audit-logs',
+        component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
+        meta: { title: 'Audit Logs', permissions: ['audit.read'] },
       },
     ],
   },

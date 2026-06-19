@@ -3,24 +3,29 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { UserCircle2, X } from 'lucide-vue-next'
 
-import { menuGroups } from '@/config/menu'
+import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import { hasPermission } from '@/lib/permission'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
+import { useTenantStore } from '@/stores/tenant.store'
+import { useRoute } from 'vue-router'
 
 const app = useAppStore()
 const auth = useAuthStore()
+const tenant = useTenantStore()
+const route = useRoute()
 
-const visibleGroups = computed(() =>
-  menuGroups
+const visibleGroups = computed(() => {
+  const groups = route.path.startsWith('/platform') ? platformMenuGroups : customerMenuGroups
+  return groups
     .map((group) => ({
       ...group,
       items: group.items.filter(
         (item) => !item.permission || hasPermission(auth.user?.permissions ?? [], item.permission),
       ),
     }))
-    .filter((group) => group.items.length),
-)
+    .filter((group) => group.items.length)
+})
 </script>
 
 <template>
@@ -33,12 +38,14 @@ const visibleGroups = computed(() =>
         <span
           class="grid size-10 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white"
         >
-          Z
+          {{ (tenant.activeTenant?.name || 'Zyad').charAt(0).toUpperCase() }}
         </span>
-        <span>
-          <strong class="block text-lg leading-5">Zyad Cloud</strong>
-          <small class="text-gray-500">Frontend Console</small>
-        </span>
+        <div class="min-w-0">
+          <strong class="block truncate text-lg leading-5">{{
+            tenant.activeTenant?.name || 'Zyad Cloud'
+          }}</strong>
+          <small class="text-gray-500">Workspace Console</small>
+        </div>
       </RouterLink>
       <button
         class="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-900 lg:hidden"
