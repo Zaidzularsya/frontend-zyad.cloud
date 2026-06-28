@@ -1,12 +1,12 @@
 <script setup lang="ts">
 defineProps<{
   content: {
-    title: string
-    description: string
-    primaryButtonText: string
-    secondaryButtonText: string
-    primaryUrl: string
-    secondaryUrl: string
+    title?: string
+    description?: string
+    primaryButtonText?: string
+    secondaryButtonText?: string
+    primaryUrl?: string
+    secondaryUrl?: string
   }
 }>()
 </script>
@@ -25,7 +25,7 @@ defineProps<{
       class="max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop text-center relative z-10 fade-up visible"
     >
       <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6">
-        {{ content.title }}
+        {{ content.title || 'Ready to get started?' }}
       </h2>
       <p class="font-body-lg text-on-primary-container mb-10 max-w-2xl mx-auto">
         {{ content.description }}
@@ -33,20 +33,20 @@ defineProps<{
 
       <div class="flex flex-col sm:flex-row justify-center gap-stack-md">
         <a
-          :href="content.primaryUrl"
+          :href="content.primaryUrl || '#contact'"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center justify-center px-8 py-4 bg-secondary text-on-secondary font-label-sm text-label-sm rounded-lg hover:bg-secondary/90 transition-all hover:-translate-y-1 shadow-lg shadow-secondary/20"
         >
-          {{ content.primaryButtonText }}
+          {{ content.primaryButtonText || 'Contact us' }}
         </a>
         <a
-          :href="content.secondaryUrl"
+          :href="content.secondaryUrl || '#features'"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-outline-variant/30 text-on-primary font-label-sm text-label-sm rounded-lg hover:bg-white/10 transition-all hover:-translate-y-1"
         >
-          {{ content.secondaryButtonText }}
+          {{ content.secondaryButtonText || 'Learn more' }}
         </a>
       </div>
     </div>

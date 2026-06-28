@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LandingManagementWorkspace from '@/features/landing/components/LandingManagementWorkspace.vue'
+import LandingManagementWorkspace from '@/features/landing/builder/components/LandingManagementWorkspace.vue'
 </script>
 
 <template>

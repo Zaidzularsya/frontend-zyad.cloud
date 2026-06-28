@@ -1,0 +1,256 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { http } from '@/lib/http'
+import LandingPageRenderer from '../components/LandingPageRenderer.vue'
+import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
+
+/**
+ * DynamicLandingPage
+ *
+ * Halaman public yang membaca slug dari route, memanggil API backend,
+ * lalu merender landing page menggunakan LandingPageRenderer.
+ *
+ * Flow:
+ *   Route slug → GET /public/landing/resolve?slug=<slug> → LandingPageRenderer
+ *
+ * Props: slug bisa dari route param (:slug) atau prop langsung.
+ */
+
+const props = defineProps<{
+  /** Override slug jika tidak dari route. */
+  slug?: string
+}>()
+
+const emit = defineEmits<{
+  (event: 'landing-navigation', items: NavItem[]): void
+}>()
+
+type NavItem = {
+  id?: string
+  label: string
+  href: string
+  target?: string
+  children?: NavItem[]
+}
+
+type RawRecord = Record<string, unknown>
+
+const route = useRoute()
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+const sections = ref<LandingSection[]>([])
+const pageData = ref<Partial<LandingPage>>({
+  id: '',
+  title: '',
+  slug: '',
+})
+
+const resolvedSlug = computed(
+  () => props.slug ?? (route.params.slug as string) ?? 'public-marketing',
+)
+
+onMounted(async () => {
+  await fetchPage(resolvedSlug.value)
+})
+
+async function fetchPage(slug: string) {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await http.get<{ data: RawRecord } | RawRecord>(
+      `/public/landing/resolve?slug=${slug}`,
+    )
+    const result: RawRecord = (res.data as { data?: RawRecord }).data ?? (res.data as RawRecord)
+    const rawPage = pickObject(result, 'Page', 'page')
+
+    sections.value = normalizeSections(resolveSectionsPayload(result))
+    pageData.value = {
+      id: pickString(rawPage, 'id', 'ID'),
+      title: pickString(rawPage, 'title', 'Title', 'name', 'Name'),
+      name: pickString(rawPage, 'name', 'Name', 'title', 'Title'),
+      slug: pickString(rawPage, 'slug', 'Slug') || slug,
+    }
+
+    const rawMenus = pickArray(result, 'Menus', 'menus')
+    const menus = normalizeMenus(rawMenus)
+    emit('landing-navigation', getHeaderNavigation(menus))
+  } catch (err) {
+    console.error('DynamicLandingPage: failed to load page', err)
+    error.value = 'Halaman tidak dapat dimuat. Silakan coba beberapa saat lagi.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ─── Normalize helpers ───────────────────────────────────────────────────────
+
+function resolveSectionsPayload(result: RawRecord): RawRecord[] {
+  const directSections = pickArray(result, 'Sections', 'sections')
+  if (directSections.length > 0) return directSections
+
+  const snapshot = pickObject(result, 'Snapshot', 'snapshot')
+  return pickArray(snapshot, 'sections', 'Sections')
+}
+
+function normalizeSections(rawSections: RawRecord[]): LandingSection[] {
+  return rawSections.map((section) => ({
+    id: pickString(section, 'id', 'ID'),
+    key: pickString(section, 'key', 'Key', 'section_key', 'SectionKey'),
+    type: pickString(section, 'type', 'Type', 'section_type', 'SectionType'),
+    name: pickString(section, 'name', 'Name'),
+    sort_order: pickNumber(section, 'sort_order', 'SortOrder'),
+    is_enabled: pickBoolean(section, ['is_enabled', 'IsEnabled'], true),
+    content: pickObject(section, 'content', 'Content'),
+    style: pickObject(section, 'style', 'Style'),
+    created_at: pickString(section, 'created_at', 'CreatedAt'),
+    updated_at: pickString(section, 'updated_at', 'UpdatedAt'),
+    variant: pickString(section, 'variant', 'Variant') || undefined,
+  }))
+}
+
+type RawMenuItem = {
+  id: string
+  label: string
+  link_type: string
+  destination: string
+  target: string
+  sort_order: number
+  is_enabled: boolean
+  children?: RawMenuItem[]
+}
+
+type RawMenu = {
+  id: string
+  name: string
+  location: string
+  is_active: boolean
+  items: RawMenuItem[]
+}
+
+function normalizeMenus(rawMenus: RawRecord[]): RawMenu[] {
+  return rawMenus.map((menu) => ({
+    id: pickString(menu, 'id', 'ID'),
+    name: pickString(menu, 'name', 'Name'),
+    location: pickString(menu, 'location', 'Location'),
+    is_active: pickBoolean(menu, ['is_active', 'IsActive'], true),
+    items: normalizeMenuItems(pickArray(menu, 'items', 'Items')),
+  }))
+}
+
+function normalizeMenuItems(rawItems: RawRecord[]): RawMenuItem[] {
+  return rawItems
+    .map((item) => ({
+      id: pickString(item, 'id', 'ID'),
+      label: pickString(item, 'label', 'Label'),
+      link_type: pickString(item, 'link_type', 'LinkType'),
+      destination: pickString(item, 'destination', 'Destination'),
+      target: pickString(item, 'target', 'Target') || 'self',
+      sort_order: pickNumber(item, 'sort_order', 'SortOrder'),
+      is_enabled: pickBoolean(item, ['is_enabled', 'IsEnabled'], true),
+      children: normalizeMenuItems(pickArray(item, 'children', 'Children')),
+    }))
+    .filter((item) => item.is_enabled)
+    .sort((a, b) => a.sort_order - b.sort_order)
+}
+
+function getHeaderNavigation(menuList: RawMenu[]): NavItem[] {
+  const headerMenu = menuList.find(
+    (menu) => menu.location === 'header' && menu.is_active && menu.items.length > 0,
+  )
+  return headerMenu?.items.map(toNavItem) ?? []
+}
+
+function toNavItem(item: RawMenuItem): NavItem {
+  const dest = normalizeNavigationDestination(item)
+  return {
+    id: item.id,
+    label: item.label,
+    href: dest,
+    target: item.target,
+    children: item.children?.map(toNavItem),
+  }
+}
+
+function normalizeNavigationDestination(item: RawMenuItem) {
+  const destination = item.destination.trim()
+  if (item.link_type === 'anchor') {
+    return destination.startsWith('#') ? destination : `#${destination}`
+  }
+  if (item.link_type === 'internal_page' || item.link_type === 'button') {
+    if (!destination || destination === 'public-marketing') return '/'
+    return destination.startsWith('/') ? destination : `/${destination}`
+  }
+  return destination || '#'
+}
+
+// ─── Raw record helpers ───────────────────────────────────────────────────────
+
+function pickString(record: RawRecord, ...keys: string[]): string {
+  for (const key of keys) {
+    const val = record?.[key]
+    if (typeof val === 'string' && val) return val
+  }
+  return ''
+}
+
+function pickNumber(record: RawRecord, ...keys: string[]): number {
+  for (const key of keys) {
+    const val = record?.[key]
+    if (typeof val === 'number') return val
+  }
+  return 0
+}
+
+function pickBoolean(record: RawRecord, keys: string[], fallback: boolean): boolean {
+  for (const key of keys) {
+    const val = record?.[key]
+    if (typeof val === 'boolean') return val
+  }
+  return fallback
+}
+
+function pickObject(record: RawRecord, ...keys: string[]): Record<string, unknown> {
+  for (const key of keys) {
+    const val = record?.[key]
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      return val as Record<string, unknown>
+    }
+  }
+  return {}
+}
+
+function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
+  for (const key of keys) {
+    const val = record?.[key]
+    if (Array.isArray(val)) return val as RawRecord[]
+  }
+  return []
+}
+</script>
+
+<template>
+  <div>
+    <!-- Loading state -->
+    <div v-if="loading" class="min-h-screen flex items-center justify-center bg-surface">
+      <div class="flex flex-col items-center gap-4">
+        <div
+          class="w-12 h-12 rounded-full border-4 border-secondary border-t-transparent animate-spin"
+        ></div>
+        <span class="text-xs text-on-surface-variant">Memuat Halaman...</span>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div v-else-if="error" class="min-h-screen flex items-center justify-center">
+      <div class="max-w-md text-center px-6">
+        <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">Halaman tidak tersedia</p>
+        <p class="mt-2 text-sm text-gray-500">{{ error }}</p>
+      </div>
+    </div>
+
+    <!-- Render sections via LandingPageRenderer -->
+    <LandingPageRenderer v-else :page="pageData as LandingPage" :sections="sections" />
+  </div>
+</template>

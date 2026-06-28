@@ -49,5 +49,13 @@ export const useTenantStore = defineStore('tenant', () => {
     tenantStorage.clear()
   }
 
-  return { tenants, activeTenantId, activeTenant, hasTenant, hydrate, select, clear }
+  return {
+    tenants,
+    activeTenantId,
+    activeTenant,
+    hasTenant,
+    hydrate,
+    select,
+    clear,
+  }
 })

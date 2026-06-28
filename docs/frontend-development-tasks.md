@@ -6,6 +6,7 @@ Dokumen ini memecah pekerjaan UI/UX dan integrasi API untuk Frontend Zyad Cloud,
 
 - [x] Pembuatan `MarketingLandingPage.vue` di rute `/`.
 - [x] Pembuatan Layout `MarketingLayout.vue`.
+- [x] Pembuatan login Google di `LoginPage.vue` memakai Google Identity Services dan `POST /auth/google`.
 - [ ] Pembuatan `RegisterPage.vue` dengan Mock Social Login via CTA di Landing Page.
 
 ## Tahap 2: Super Admin Platform (`/platform`)

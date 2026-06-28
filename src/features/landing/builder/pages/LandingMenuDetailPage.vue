@@ -4,8 +4,8 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
-import type { LandingMenuPageDefinition } from '@/features/landing-management/landing-menu'
-import { getLandingMenuToneClasses } from '@/features/landing-management/landing-menu'
+import type { LandingMenuPageDefinition } from '../config/landing-menu'
+import { getLandingMenuToneClasses } from '../config/landing-menu'
 
 const props = defineProps<{
   definition: LandingMenuPageDefinition

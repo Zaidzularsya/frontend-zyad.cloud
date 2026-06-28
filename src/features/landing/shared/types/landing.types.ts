@@ -1,3 +1,5 @@
+// ─── Core Enums & Unions ────────────────────────────────────────────────────
+
 export type PageStatus = 'draft' | 'published' | 'unpublished' | 'archived'
 export type PageType =
   | 'homepage'
@@ -11,6 +13,37 @@ export type PageType =
   | 'portfolio_case_study'
 export type PageVisibility = 'public' | 'private' | 'password_protected'
 
+/**
+ * Tipe section yang dikenal oleh renderer.
+ * Renderer menggunakan tipe ini untuk lookup ke section-registry.
+ */
+export type LandingSectionType =
+  | 'hero'
+  | 'benefits'
+  | 'services'
+  | 'problem'
+  | 'solution'
+  | 'demo'
+  | 'faq'
+  | 'cta'
+  | 'footer'
+  | 'features'
+  | 'content'
+  | 'portfolio'
+  | 'about'
+  | 'contact'
+  | 'pricing'
+
+// ─── Page ───────────────────────────────────────────────────────────────────
+
+export interface LandingTheme {
+  code?: string
+  tokens?: Record<string, unknown>
+  colors?: Record<string, unknown>
+  typography?: Record<string, unknown>
+  shape?: Record<string, unknown>
+}
+
 export interface LandingPage {
   id: string
   name: string
@@ -22,6 +55,7 @@ export interface LandingPage {
   locale: string
   timezone: string
   is_homepage: boolean
+  is_template: boolean
   settings?: Record<string, unknown>
   seo?: Record<string, unknown>
   published_version: number
@@ -31,12 +65,20 @@ export interface LandingPage {
   created_at: string
   updated_at: string
   deleted_at?: string | null
+  /** Template key (blueprint) yang dipakai saat page dibuat. */
+  template?: string
+  /** Theme visual tokens. */
+  theme?: LandingTheme | Record<string, unknown>
+  /** Preferensi page/brand/tenant. */
+  preferences?: Record<string, unknown>
 }
+
+// ─── Section ────────────────────────────────────────────────────────────────
 
 export interface LandingSection {
   id: string
   key: string
-  type: string
+  type: LandingSectionType | string
   name: string
   sort_order: number
   is_enabled: boolean
@@ -44,7 +86,15 @@ export interface LandingSection {
   style: Record<string, unknown>
   created_at: string
   updated_at: string
+  /** Variant untuk lookup di section-registry (e.g. 'default', 'three_js'). */
+  variant?: string
+  /** Alias is_enabled untuk konsistensi dengan renderer. */
+  isVisible?: boolean
+  /** Alias sort_order untuk konsistensi dengan renderer. */
+  sortOrder?: number
 }
+
+// ─── Forms ──────────────────────────────────────────────────────────────────
 
 export interface LandingForm {
   id: string
@@ -71,6 +121,8 @@ export interface LandingFormField {
   sort_order: number
 }
 
+// ─── Branding ────────────────────────────────────────────────────────────────
+
 export interface LandingBranding {
   company_name: string
   tagline: string
@@ -87,6 +139,8 @@ export interface LandingBranding {
   created_at?: string
   updated_at?: string
 }
+
+// ─── Domain ──────────────────────────────────────────────────────────────────
 
 export interface LandingDomainBinding {
   id: string
@@ -106,6 +160,8 @@ export interface LandingAvailableDomain {
   [key: string]: unknown
 }
 
+// ─── Templates ───────────────────────────────────────────────────────────────
+
 export interface SectionTemplate {
   id: string
   name: string
@@ -116,6 +172,8 @@ export interface SectionTemplate {
   created_at: string
   updated_at: string
 }
+
+// ─── CTA ─────────────────────────────────────────────────────────────────────
 
 export interface CallToAction {
   id: string
@@ -128,6 +186,8 @@ export interface CallToAction {
   created_at: string
   updated_at: string
 }
+
+// ─── Media ───────────────────────────────────────────────────────────────────
 
 export interface LandingMedia {
   id: string
@@ -143,6 +203,8 @@ export interface LandingMedia {
   created_at: string
   updated_at?: string
 }
+
+// ─── Menu ────────────────────────────────────────────────────────────────────
 
 export interface LandingMenu {
   id: string
@@ -165,6 +227,8 @@ export interface LandingMenuItem {
   children?: LandingMenuItem[]
 }
 
+// ─── Revision ────────────────────────────────────────────────────────────────
+
 export interface LandingRevision {
   id: string
   landing_page_id: string
@@ -175,6 +239,8 @@ export interface LandingRevision {
   created_by?: string
   created_at: string
 }
+
+// ─── Schedule ────────────────────────────────────────────────────────────────
 
 export interface LandingSchedule {
   id: string
@@ -187,6 +253,8 @@ export interface LandingSchedule {
   created_at: string
   updated_at: string
 }
+
+// ─── Integration ─────────────────────────────────────────────────────────────
 
 export interface LandingIntegration {
   id: string
@@ -211,6 +279,8 @@ export interface LandingDeliveryLog {
   created_at: string
   updated_at: string
 }
+
+// ─── Pagination ──────────────────────────────────────────────────────────────
 
 export interface PaginationMeta {
   total: number

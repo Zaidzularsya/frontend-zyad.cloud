@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { LockKeyhole } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
@@ -8,12 +8,22 @@ import { z } from 'zod'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TextField from '@/components/form/TextField.vue'
+import { env } from '@/config/env'
 import { useAuthStore } from '@/stores/auth.store'
+
+interface GoogleCredentialResponse {
+  credential?: string
+  select_by?: string
+}
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const submitError = ref('')
+const googleButton = ref<HTMLElement | null>(null)
+const googleError = ref('')
+const isGoogleSubmitting = ref(false)
+const googleEnabled = Boolean(env.VITE_GOOGLE_CLIENT_ID)
 
 const schema = toTypedSchema(
   z.object({
@@ -32,20 +42,112 @@ const [email] = defineField('email')
 const [password] = defineField('password')
 const [remember] = defineField('remember')
 
+let googleScriptPromise: Promise<void> | null = null
+let disposed = false
+
+function redirectAfterLogin() {
+  const isSuperAdmin = auth.user?.roles?.includes('super_admin')
+  const defaultRedirect = isSuperAdmin ? '/platform/dashboard' : '/app/dashboard'
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : defaultRedirect
+  return router.replace(redirect)
+}
+
 const onSubmit = handleSubmit(async (values) => {
   submitError.value = ''
   try {
     await auth.login(values)
-
-    const isSuperAdmin = auth.user?.roles?.includes('super_admin')
-    const defaultRedirect = isSuperAdmin ? '/platform/dashboard' : '/app/profile'
-
-    const redirect =
-      typeof route.query.redirect === 'string' ? route.query.redirect : defaultRedirect
-    await router.replace(redirect)
+    await redirectAfterLogin()
   } catch {
     submitError.value = 'Email atau password tidak sesuai, atau server sedang tidak tersedia.'
   }
+})
+
+async function handleGoogleCredential(response: GoogleCredentialResponse) {
+  googleError.value = ''
+  if (!response.credential) {
+    googleError.value = 'Login Google gagal. Silakan coba lagi.'
+    return
+  }
+
+  isGoogleSubmitting.value = true
+  try {
+    await auth.loginWithGoogle({
+      idToken: response.credential,
+      remember: remember.value,
+      deviceName: 'Web Browser',
+    })
+    await redirectAfterLogin()
+  } catch {
+    googleError.value = 'Login Google belum berhasil. Pastikan akun Google Anda valid.'
+  } finally {
+    isGoogleSubmitting.value = false
+  }
+}
+
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) return Promise.resolve()
+  if (googleScriptPromise) return googleScriptPromise
+
+  googleScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    )
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(), { once: true })
+      existingScript.addEventListener('error', () => reject(new Error('google script failed')), {
+        once: true,
+      })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('google script failed'))
+    document.head.appendChild(script)
+  })
+
+  return googleScriptPromise
+}
+
+async function renderGoogleButton() {
+  if (!googleEnabled) return
+
+  try {
+    await loadGoogleScript()
+    await nextTick()
+    if (disposed || !googleButton.value || !window.google?.accounts?.id) return
+
+    googleButton.value.innerHTML = ''
+    window.google.accounts.id.initialize({
+      client_id: env.VITE_GOOGLE_CLIENT_ID,
+      callback: (response) => void handleGoogleCredential(response),
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    })
+    window.google.accounts.id.renderButton(googleButton.value, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: googleButton.value.clientWidth || 384,
+    })
+  } catch {
+    googleError.value = 'Tombol Google belum bisa dimuat. Coba refresh halaman.'
+  }
+}
+
+onMounted(() => {
+  void renderGoogleButton()
+})
+
+onUnmounted(() => {
+  disposed = true
+  window.google?.accounts?.id?.cancel()
 })
 </script>
 
@@ -102,5 +204,22 @@ const onSubmit = handleSubmit(async (values) => {
         {{ isSubmitting ? 'Memverifikasi...' : 'Masuk' }}
       </BaseButton>
     </form>
+
+    <div v-if="googleEnabled" class="my-6 flex items-center gap-3">
+      <span class="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+      <span class="text-xs font-medium text-gray-400">atau</span>
+      <span class="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+    </div>
+
+    <div v-if="googleEnabled" class="space-y-3">
+      <div
+        ref="googleButton"
+        class="min-h-11 w-full overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
+        :class="{ 'pointer-events-none opacity-60': isGoogleSubmitting }"
+      />
+      <p v-if="googleError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        {{ googleError }}
+      </p>
+    </div>
   </div>
 </template>

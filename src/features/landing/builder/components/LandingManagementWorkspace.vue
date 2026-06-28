@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Archive,
   Brush,
@@ -22,6 +23,7 @@ import {
   Rocket,
   Search,
   Settings,
+  Sparkles,
   Trash2,
   Upload,
 } from 'lucide-vue-next'
@@ -30,7 +32,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import TextField from '@/components/form/TextField.vue'
-import { landingApi } from '@/features/landing/api'
+import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
   CallToAction,
   LandingAvailableDomain,
@@ -50,7 +52,7 @@ import type {
   PageType,
   PageVisibility,
   SectionTemplate,
-} from '@/features/landing/types'
+} from '@/features/landing/shared/types/landing.types'
 
 const props = withDefaults(
   defineProps<{
@@ -64,6 +66,9 @@ const props = withDefaults(
     mode: 'workspace',
   },
 )
+
+const route = useRoute()
+const router = useRouter()
 
 type TabKey =
   | 'overview'
@@ -86,6 +91,25 @@ interface PageForm {
   timezone: string
   is_homepage: boolean
 }
+
+interface SectionDraft {
+  key: string
+  type: string
+  name: string
+  sort_order: number
+  source_template_id?: string
+  contentText: string
+  styleText: string
+}
+
+const templateThumbnailUrls = [
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+]
 
 interface SeoForm {
   meta_title: string
@@ -126,6 +150,7 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings }> = [
 ]
 
 const loading = ref(true)
+const templateCatalogLoading = ref(false)
 const sectionLoading = ref(false)
 const saving = ref(false)
 const selectedPageId = ref<string | null>(null)
@@ -136,6 +161,7 @@ const notice = ref('')
 const errorMessage = ref('')
 
 const pages = ref<LandingPage[]>([])
+const templatePages = ref<LandingPage[]>([])
 const sections = ref<LandingSection[]>([])
 const forms = ref<LandingForm[]>([])
 const formFields = ref<Record<string, LandingFormField[]>>({})
@@ -155,6 +181,10 @@ const editingMenuId = ref<string | null>(null)
 const editingMenuItemId = ref<string | null>(null)
 const navigationCapabilityMessage = ref('')
 const deliveryCapabilityMessage = ref('')
+const createFlowStep = ref<'idle' | 'catalog' | 'customize'>('idle')
+const selectedTemplatePage = ref<LandingPage | null>(null)
+const templateSearchQuery = ref('')
+const sectionDrafts = ref<SectionDraft[]>([])
 
 const pageForm = reactive<PageForm>({
   name: '',
@@ -267,6 +297,16 @@ const selectedPage = computed(() =>
   selectedPageId.value ? pages.value.find((page) => page.id === selectedPageId.value) : null,
 )
 
+const templateCatalog = computed(() => {
+  const query = templateSearchQuery.value.trim().toLowerCase()
+  return templatePages.value.filter((page) => {
+    if (!query) return true
+    return [page.name, page.title, page.slug, page.page_type].some((value) =>
+      value.toLowerCase().includes(query),
+    )
+  })
+})
+
 const filteredPages = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   return pages.value.filter((page) => {
@@ -295,6 +335,13 @@ const selectedFieldItems = computed(() =>
 )
 
 const publicUrl = computed(() => (selectedPage.value ? `/${selectedPage.value.slug}` : ''))
+const createActionLabel = computed(() =>
+  createFlowStep.value === 'customize'
+    ? 'Submit as draft'
+    : selectedPageId.value
+      ? 'Save Page'
+      : 'Create Page',
+)
 const statusOptions: Array<{ value: 'all' | PageStatus; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'draft', label: 'Draft' },
@@ -357,6 +404,9 @@ function resetPageForm() {
 
 function startNewPage() {
   selectedPageId.value = null
+  createFlowStep.value = 'idle'
+  selectedTemplatePage.value = null
+  sectionDrafts.value = []
   resetPageForm()
   sections.value = []
   forms.value = []
@@ -367,6 +417,101 @@ function startNewPage() {
   activeTab.value = 'overview'
   notice.value = ''
   errorMessage.value = ''
+}
+
+async function openTemplateCatalog() {
+  startNewPage()
+  createFlowStep.value = 'catalog'
+  await loadTemplateCatalog()
+}
+
+async function loadTemplateCatalog() {
+  if (templateCatalogLoading.value) return
+  templateCatalogLoading.value = true
+  errorMessage.value = ''
+  try {
+    const response = await landingApi.getTemplatePages({
+      per_page: 100,
+    })
+    templatePages.value = response.data
+  } catch (error) {
+    errorMessage.value = getApiMessage(error, 'Gagal memuat katalog template.')
+  } finally {
+    templateCatalogLoading.value = false
+  }
+}
+
+function previewTemplate(template: LandingPage) {
+  const resolved = router.resolve({
+    name: 'landing-preview',
+    params: { slug: template.slug },
+    query: {
+      mode: 'template',
+      pageId: template.id,
+      returnTo: route.fullPath,
+    },
+  })
+  window.open(resolved.href, '_blank', 'noopener,noreferrer')
+}
+
+async function useTemplate(template: LandingPage) {
+  selectedTemplatePage.value = template
+  selectedPageId.value = null
+  createFlowStep.value = 'customize'
+  pageForm.name = `${template.name} Draft`
+  pageForm.title = template.title
+  pageForm.slug = ''
+  pageForm.page_type = template.page_type
+  pageForm.visibility = 'public'
+  pageForm.locale = template.locale || 'id-ID'
+  pageForm.timezone = template.timezone || 'Asia/Jakarta'
+  pageForm.is_homepage = false
+  resetSeoForm()
+  seoForm.meta_title = template.title
+  seoForm.meta_description =
+    typeof template.seo?.meta_description === 'string' ? template.seo.meta_description : ''
+
+  sectionLoading.value = true
+  errorMessage.value = ''
+  try {
+    const response = await landingApi.getSections(template.id)
+    sectionDrafts.value = response.data.map((section, index) => ({
+      key: section.key,
+      type: section.type,
+      name: section.name,
+      sort_order: section.sort_order || (index + 1) * 10,
+      source_template_id: sourceTemplateId(section.content),
+      contentText: stringifyJson(section.content),
+      styleText: stringifyJson(section.style),
+    }))
+    activeTab.value = 'content'
+  } catch (error) {
+    errorMessage.value = getApiMessage(error, 'Gagal mengambil section template.')
+  } finally {
+    sectionLoading.value = false
+  }
+}
+
+function previewDraft() {
+  if (!selectedPage.value) return
+  const resolved = router.resolve({
+    name: 'landing-preview',
+    params: { slug: selectedPage.value.slug },
+    query: {
+      mode: 'draft',
+      pageId: selectedPage.value.id,
+      returnTo: route.fullPath,
+    },
+  })
+  window.open(resolved.href, '_blank', 'noopener,noreferrer')
+}
+
+async function primaryPageAction() {
+  if (createFlowStep.value === 'customize') {
+    await submitTemplateDraft()
+    return
+  }
+  await savePage()
 }
 
 function resetSeoForm() {
@@ -428,6 +573,20 @@ function stringifyJson(value: unknown) {
   return JSON.stringify(value, null, 2)
 }
 
+function sourceTemplateId(content: Record<string, unknown>) {
+  const source = content.source
+  if (
+    source &&
+    typeof source === 'object' &&
+    !Array.isArray(source) &&
+    'sectionTemplateId' in source &&
+    typeof source.sectionTemplateId === 'string'
+  ) {
+    return source.sectionTemplateId
+  }
+  return ''
+}
+
 function fillBrandingForm(branding: LandingBranding | null) {
   brandingForm.company_name = branding?.company_name ?? ''
   brandingForm.tagline = branding?.tagline ?? ''
@@ -466,7 +625,7 @@ function selectPage(page: LandingPage) {
 }
 
 async function loadPages() {
-  const response = await landingApi.getPages({ per_page: 50 })
+  const response = await landingApi.getPages({ per_page: 50, is_template: false })
   pages.value = response.data
   const selectedStillExists = pages.value.some((page) => page.id === selectedPageId.value)
   const nextPage = selectedStillExists
@@ -479,6 +638,18 @@ async function loadPages() {
   } else {
     selectedPageId.value = null
     resetPageForm()
+  }
+}
+
+async function applyTemplateFromRoute() {
+  const templateSlug = typeof route.query.template === 'string' ? route.query.template : ''
+  if (!templateSlug) return
+
+  await loadTemplateCatalog()
+  const template = templatePages.value.find((item) => item.slug === templateSlug)
+  if (template) {
+    await useTemplate(template)
+    await router.replace({ path: route.path, query: {} })
   }
 }
 
@@ -594,6 +765,64 @@ async function savePage() {
     await refreshAll()
   } catch (error) {
     errorMessage.value = getApiMessage(error, 'Gagal menyimpan halaman.')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function submitTemplateDraft() {
+  if (!selectedTemplatePage.value) return
+  saving.value = true
+  errorMessage.value = ''
+  try {
+    if (!pageForm.slug) generateSlug()
+    const pageResponse = await landingApi.createPage({
+      ...pageForm,
+      is_homepage: pageForm.page_type === 'homepage' || pageForm.is_homepage,
+      is_template: false,
+    })
+
+    for (const draft of sectionDrafts.value) {
+      if (draft.source_template_id) {
+        const sectionResponse = await landingApi.instantiateTemplate(pageResponse.data.id, {
+          template_id: draft.source_template_id,
+          section_key: draft.key || slugify(draft.name),
+          sort_order: draft.sort_order,
+        })
+        await landingApi.updateSection(pageResponse.data.id, sectionResponse.data.id, {
+          name: draft.name,
+          is_enabled: true,
+          content: parseJsonField(draft.contentText),
+          style: parseJsonField(draft.styleText),
+        })
+      } else {
+        await landingApi.createSection(pageResponse.data.id, {
+          key: draft.key || slugify(draft.name),
+          type: draft.type,
+          name: draft.name,
+          sort_order: draft.sort_order,
+          is_enabled: true,
+          content: parseJsonField(draft.contentText),
+          style: parseJsonField(draft.styleText),
+        })
+      }
+    }
+
+    selectedPageId.value = pageResponse.data.id
+    createFlowStep.value = 'idle'
+    selectedTemplatePage.value = null
+    sectionDrafts.value = []
+    showNotice('Draft berhasil dibuat dari template.')
+    await refreshAll()
+    if (selectedPageId.value) {
+      activeTab.value = 'content'
+      await loadPageDetails(selectedPageId.value)
+    }
+  } catch (error) {
+    errorMessage.value = getApiMessage(
+      error,
+      'Gagal membuat draft dari template. Pastikan JSON section valid.',
+    )
   } finally {
     saving.value = false
   }
@@ -1370,8 +1599,21 @@ function formatBytes(value: number) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`
 }
 
-onMounted(() => {
-  void refreshAll()
+function templateThumbnail(template: LandingPage, index: number) {
+  const imageFromSettings = template.settings?.thumbnail_url
+  if (typeof imageFromSettings === 'string' && imageFromSettings.trim()) return imageFromSettings
+  return templateThumbnailUrls[index % templateThumbnailUrls.length]
+}
+
+function templateDescription(template: LandingPage) {
+  const metaDescription = template.seo?.meta_description
+  if (typeof metaDescription === 'string' && metaDescription.trim()) return metaDescription
+  return template.name || template.title || 'Template landing page siap pakai.'
+}
+
+onMounted(async () => {
+  await refreshAll()
+  await applyTemplateFromRoute()
 })
 </script>
 
@@ -1380,17 +1622,17 @@ onMounted(() => {
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <PageHeader :title="props.title" :description="props.description" />
       <div class="flex flex-wrap gap-2">
-        <BaseButton variant="secondary" :disabled="saving" @click="startNewPage">
-          <FilePlus2 class="size-4" />
-          New Page
+        <BaseButton variant="secondary" :disabled="saving" @click="openTemplateCatalog">
+          <Sparkles class="size-4" />
+          Create Page
         </BaseButton>
         <BaseButton variant="outline" :disabled="loading || saving" @click="refreshAll">
           <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
           Refresh
         </BaseButton>
-        <BaseButton :disabled="saving" @click="savePage">
+        <BaseButton :disabled="saving" @click="primaryPageAction">
           <FilePlus2 class="size-4" />
-          {{ selectedPageId ? 'Save Page' : 'Create Page' }}
+          {{ createActionLabel }}
         </BaseButton>
       </div>
     </div>
@@ -1413,6 +1655,117 @@ onMounted(() => {
         {{ errorMessage }}
       </div>
     </div>
+
+    <BaseCard v-if="createFlowStep !== 'idle'" class="overflow-hidden">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p
+            class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-600"
+          >
+            <Sparkles class="size-4" />
+            Template create flow
+          </p>
+          <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+            {{
+              createFlowStep === 'catalog'
+                ? 'Pilih template landing page'
+                : `Isi konten untuk ${selectedTemplatePage?.name}`
+            }}
+          </h2>
+          <p class="mt-1 text-sm text-gray-500">
+            {{
+              createFlowStep === 'catalog'
+                ? 'Preview template di tab baru atau langsung pakai sebagai draft baru.'
+                : 'Edit content tiap section, lalu submit sebagai draft sebelum dipreview dan dipublish.'
+            }}
+          </p>
+        </div>
+        <BaseButton variant="outline" @click="startNewPage">Cancel flow</BaseButton>
+      </div>
+
+      <div v-if="createFlowStep === 'catalog'" class="mt-6 space-y-4">
+        <div
+          class="flex items-center gap-2 rounded-lg border bg-gray-50 px-3 py-2 dark:bg-gray-950"
+        >
+          <Search class="size-4 text-gray-400" />
+          <input
+            v-model="templateSearchQuery"
+            type="search"
+            placeholder="Cari template, industri, atau slug..."
+            class="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+          />
+        </div>
+
+        <div
+          v-if="templateCatalogLoading"
+          class="rounded-xl border p-8 text-center text-sm text-gray-500"
+        >
+          <Loader2 class="mx-auto mb-3 size-6 animate-spin text-brand-500" />
+          Memuat template...
+        </div>
+
+        <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <article
+            v-for="(template, index) in templateCatalog"
+            :key="template.id"
+            class="group overflow-hidden rounded-xl border bg-white shadow-sm transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-xl dark:border-gray-800 dark:bg-gray-950"
+          >
+            <div class="relative aspect-[16/10] overflow-hidden text-white">
+              <img
+                :src="templateThumbnail(template, index)"
+                :alt="template.name"
+                class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                loading="lazy"
+              />
+              <div
+                class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"
+              ></div>
+              <div class="absolute left-4 right-4 top-4 flex items-center justify-between">
+                <span
+                  class="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase text-gray-900"
+                >
+                  {{ template.page_type.replaceAll('_', ' ') }}
+                </span>
+                <span
+                  class="rounded-full bg-emerald-400/90 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-950"
+                >
+                  Template
+                </span>
+              </div>
+              <div class="absolute bottom-4 left-4 right-4">
+                <p class="line-clamp-2 text-lg font-black leading-tight">{{ template.title }}</p>
+                <p class="mt-2 line-clamp-2 text-xs leading-relaxed text-white/75">
+                  {{ templateDescription(template) }}
+                </p>
+              </div>
+            </div>
+            <div class="space-y-4 p-4">
+              <div>
+                <h3 class="font-bold text-gray-900 dark:text-white">{{ template.name }}</h3>
+                <p class="mt-1 text-xs text-gray-500">/{{ template.slug }}</p>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <BaseButton variant="outline" @click="previewTemplate(template)">
+                  <Eye class="size-4" />
+                  Preview
+                </BaseButton>
+                <BaseButton @click="useTemplate(template)">
+                  <Sparkles class="size-4" />
+                  Use this template
+                </BaseButton>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div
+          v-if="!templateCatalogLoading && templateCatalog.length === 0"
+          class="rounded-xl border border-dashed p-8 text-center text-sm text-gray-500"
+        >
+          Template belum tersedia untuk scope ini.
+        </div>
+      </div>
+    </BaseCard>
 
     <div class="grid gap-4 md:grid-cols-4">
       <BaseCard>
@@ -1577,6 +1930,10 @@ onMounted(() => {
                   {{ selectedPageId ? 'Save changes' : 'Create page' }}
                 </BaseButton>
                 <template v-if="selectedPage">
+                  <BaseButton variant="outline" :disabled="saving" @click="previewDraft">
+                    <Eye class="size-4" />
+                    Preview draft
+                  </BaseButton>
                   <BaseButton
                     v-if="!isSelectedPublished"
                     :disabled="saving"
@@ -1821,6 +2178,92 @@ onMounted(() => {
           </section>
 
           <section v-if="activeTab === 'content'" class="grid gap-5 xl:grid-cols-2">
+            <BaseCard v-if="createFlowStep === 'customize'" class="xl:col-span-2">
+              <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p class="text-xs font-bold uppercase tracking-wide text-brand-600">
+                    Template content
+                  </p>
+                  <h3 class="mt-1 font-semibold text-gray-900 dark:text-white">
+                    Isi content section sebelum menjadi draft
+                  </h3>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Section akan dicopy ke landing page baru saat kamu submit sebagai draft.
+                  </p>
+                </div>
+                <BaseButton
+                  :disabled="saving || sectionDrafts.length === 0"
+                  @click="submitTemplateDraft"
+                >
+                  <Loader2 v-if="saving" class="size-4 animate-spin" />
+                  Submit as draft
+                </BaseButton>
+              </div>
+
+              <div class="space-y-4">
+                <details
+                  v-for="(draft, index) in sectionDrafts"
+                  :key="`${draft.key}-${index}`"
+                  class="rounded-xl border bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
+                  :open="index === 0"
+                >
+                  <summary class="cursor-pointer list-none">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p class="font-semibold text-gray-900 dark:text-white">
+                          {{ draft.name }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                          {{ draft.type }} · #{{ draft.key }} · order {{ draft.sort_order }}
+                        </p>
+                      </div>
+                      <span
+                        class="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-gray-500 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+                      >
+                        Edit JSON
+                      </span>
+                    </div>
+                  </summary>
+                  <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <TextField
+                      v-model="draft.name"
+                      :name="`draft-name-${index}`"
+                      label="Section name"
+                    />
+                    <TextField
+                      v-model="draft.key"
+                      :name="`draft-key-${index}`"
+                      label="Section key"
+                    />
+                    <label class="block md:col-span-2">
+                      <span
+                        class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Content JSON
+                      </span>
+                      <textarea
+                        v-model="draft.contentText"
+                        rows="8"
+                        class="w-full rounded-lg border bg-white px-3.5 py-2.5 font-mono text-xs outline-none focus:border-brand-500 dark:bg-gray-900"
+                      ></textarea>
+                    </label>
+                    <label class="block md:col-span-2">
+                      <span
+                        class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Style JSON
+                      </span>
+                      <textarea
+                        v-model="draft.styleText"
+                        rows="5"
+                        class="w-full rounded-lg border bg-white px-3.5 py-2.5 font-mono text-xs outline-none focus:border-brand-500 dark:bg-gray-900"
+                      ></textarea>
+                    </label>
+                  </div>
+                </details>
+              </div>
+            </BaseCard>
+
             <BaseCard>
               <div class="mb-5 flex items-center gap-3">
                 <FilePlus2 class="size-5 text-brand-500" />

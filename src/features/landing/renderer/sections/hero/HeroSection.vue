@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   content: {
     badge?: string
-    titleHtml: string
-    description: string
-    primaryCta: string
-    secondaryCta: string
-    primaryCtaUrl: string
-    secondaryCtaUrl: string
+    eyebrow?: string
+    titleHtml?: string
+    title?: string
+    description?: string
+    primaryCta?: string
+    secondaryCta?: string
+    primaryCtaUrl?: string
+    secondaryCtaUrl?: string
   }
 }>()
+
+const titleText = computed(() =>
+  stripHtmlTags(props.content.titleHtml || props.content.title || ''),
+)
+const badgeText = computed(() => props.content.badge || props.content.eyebrow)
 
 const isMobile = ref(false)
 const hasWebGL = ref(false)
@@ -19,6 +26,10 @@ const isLowSpec = ref(false)
 const userWants3D = ref(false)
 
 const ThreeJSHero = defineAsyncComponent(() => import('./ThreeJSHero.vue'))
+
+function stripHtmlTags(value: string) {
+  return value.replace(/<[^>]*>/g, '')
+}
 
 onMounted(() => {
   // WebGL support detection
@@ -78,7 +89,7 @@ onMounted(() => {
         <!-- Left Content Side -->
         <div class="lg:col-span-6 flex flex-col gap-stack-lg fade-up visible">
           <div
-            v-if="content.badge"
+            v-if="badgeText"
             class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-secondary-fixed/30 border border-secondary/20 text-secondary font-label-sm text-xs font-semibold self-start shadow-sm"
           >
             <span class="relative flex h-2 w-2">
@@ -87,14 +98,12 @@ onMounted(() => {
               ></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
             </span>
-            {{ content.badge }}
+            {{ badgeText }}
           </div>
 
-          <h1
-            class="font-display-xl text-display-xl text-primary"
-            aria-label="Hero heading"
-            v-html="content.titleHtml"
-          ></h1>
+          <h1 class="font-display-xl text-display-xl text-primary" aria-label="Hero heading">
+            {{ titleText }}
+          </h1>
 
           <p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
             {{ content.description }}
@@ -102,18 +111,18 @@ onMounted(() => {
 
           <div class="flex flex-col sm:flex-row gap-stack-md pt-4">
             <a
-              :href="content.primaryCtaUrl"
+              :href="content.primaryCtaUrl || '#contact'"
               target="_blank"
               rel="noopener noreferrer"
               class="inline-flex items-center justify-center px-8 py-4 bg-secondary text-on-secondary font-label-sm text-label-sm rounded-lg hover:bg-secondary/90 transition-all hover:-translate-y-1 shadow-lg shadow-secondary/20 text-center"
             >
-              {{ content.primaryCta }}
+              {{ content.primaryCta || 'Get started' }}
             </a>
             <a
-              :href="content.secondaryCtaUrl"
+              :href="content.secondaryCtaUrl || '#features'"
               class="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-outline text-on-surface font-label-sm text-label-sm rounded-lg hover:border-secondary hover:text-secondary transition-all hover:-translate-y-1 text-center"
             >
-              {{ content.secondaryCta }}
+              {{ content.secondaryCta || 'Learn more' }}
             </a>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { env } from '@/config/env'
-import { buildLandingManagementRoutes } from '@/features/landing-management/landing-menu'
+import { buildLandingManagementRoutes } from '@/features/landing/builder/config/landing-menu'
 import { authGuard } from '@/middleware/auth.guard'
 import { guestGuard } from '@/middleware/guest.guard'
 import { permissionGuard } from '@/middleware/permission.guard'
@@ -50,12 +50,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/public/pages/MarketingLandingPage.vue'),
         meta: { title: 'Zyad Cloud - Platform Multi-Tenant' },
       },
+      {
+        path: ':slug',
+        name: 'public-landing-page',
+        component: () => import('@/features/landing/renderer/pages/DynamicLandingPage.vue'),
+        meta: { title: 'Landing Page' },
+      },
     ],
   },
   {
     path: '/app',
     component: () => import('@/layouts/DashboardLayout.vue'),
-    redirect: { name: 'profile' },
+    redirect: { name: 'dashboard' },
     meta: { requiresAuth: true, requiresTenant: true },
     children: [
       {
@@ -83,7 +89,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'landing-pages',
         name: 'landing-pages',
-        component: () => import('@/features/landing-management/pages/LandingPageList.vue'),
+        component: () => import('@/features/landing/builder/pages/LandingPageList.vue'),
         meta: { title: 'Landing Page Management' },
       },
       ...buildLandingManagementRoutes('landing-pages'),
@@ -222,6 +228,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Audit Logs', permissions: ['audit.read'] },
       },
     ],
+  },
+  {
+    path: '/landing-preview/:slug',
+    name: 'landing-preview',
+    component: () => import('@/features/landing/renderer/pages/LandingPreviewPage.vue'),
+    meta: { title: 'Landing Preview', requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',

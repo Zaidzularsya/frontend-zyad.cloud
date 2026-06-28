@@ -8,7 +8,7 @@ import type { MenuChildItem, MenuItem } from '@/config/menu'
 import {
   getLandingMenuToneClasses,
   type LandingMenuTone,
-} from '@/features/landing-management/landing-menu'
+} from '@/features/landing/builder/config/landing-menu'
 import { hasPermission } from '@/lib/permission'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -116,7 +116,7 @@ function closeMobileSidebar() {
       </button>
     </div>
 
-    <nav class="flex-1 space-y-6 overflow-y-auto px-4 py-5 pb-6">
+    <nav class="scrollbar-soft flex-1 space-y-6 overflow-y-auto px-4 py-5 pb-6">
       <section v-for="group in visibleGroups" :key="group.label">
         <p class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
           {{ group.label }}

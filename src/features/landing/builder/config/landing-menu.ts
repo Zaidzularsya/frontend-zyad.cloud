@@ -5,10 +5,9 @@ import {
   CheckSquare2,
   FileText,
   Folders,
-  LayoutGrid,
+  Globe2,
   Menu,
   Palette,
-  PanelTop,
   SlidersHorizontal,
   Sparkles,
   SquareMenu,
@@ -37,6 +36,7 @@ export interface LandingMenuPageDefinition {
   tone: LandingMenuTone
   stats: LandingMenuStat[]
   sections: LandingMenuSection[]
+  hiddenFromMenu?: boolean
 }
 
 export const landingMenuPages: LandingMenuPageDefinition[] = [
@@ -85,80 +85,27 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
     routeNameSuffix: 'templates',
     label: 'Templates',
     description:
-      'Susun pola template untuk company profile, SaaS, product, agency, portfolio, dan event.',
-    icon: LayoutGrid,
+      'Kelola katalog page template dan master section template yang menjadi dasar create page tenant.',
+    icon: Sparkles,
     tone: 'violet',
     stats: [
-      { label: 'Template families', value: '6' },
-      { label: 'Core blocks', value: '18' },
-      { label: 'Reusable layouts', value: '1 set' },
+      { label: 'Page templates', value: '32' },
+      { label: 'Section masters', value: '256' },
+      { label: 'Source tables', value: '2' },
     ],
+    hiddenFromMenu: true,
     sections: [
       {
-        title: 'Template families',
-        items: [
-          'Company Profile Template',
-          'SaaS Landing Template',
-          'Product Landing Template',
-          'Agency Template',
-          'Portfolio Template',
-          'Event / Campaign Template',
-        ],
+        title: 'Page template source',
+        items: ['landing_pages', 'is_template=true', 'Preview', 'Use as draft'],
       },
       {
-        title: 'Company profile blocks',
-        items: [
-          'Hero',
-          'About',
-          'Vision Mission',
-          'Services',
-          'Portfolio',
-          'FAQ',
-          'CTA',
-          'Contact',
-        ],
+        title: 'Section template source',
+        items: ['landing_section_templates', 'templateSlug', 'sectionKey', 'variant'],
       },
       {
-        title: 'SaaS landing blocks',
-        items: ['Hero', 'Problem', 'Features', 'Benefits', 'Pricing', 'FAQ', 'CTA'],
-      },
-    ],
-  },
-  {
-    key: 'sections',
-    routeNameSuffix: 'sections',
-    label: 'Sections',
-    description: 'Kelola section reusable yang bisa dipakai ulang di berbagai halaman landing.',
-    icon: PanelTop,
-    tone: 'emerald',
-    stats: [
-      { label: 'Section types', value: '10' },
-      { label: 'Reusable blocks', value: '10' },
-      { label: 'Common CTAs', value: '4' },
-    ],
-    sections: [
-      {
-        title: 'Reusable sections',
-        items: [
-          'Hero Section',
-          'About Section',
-          'Service Grid',
-          'Feature Grid',
-          'Portfolio Grid',
-          'Testimonial',
-          'FAQ',
-          'CTA',
-          'Contact Form',
-          'Pricing',
-        ],
-      },
-      {
-        title: 'Editorial flow',
-        items: ['Arrange section order', 'Preview section density', 'Duplicate reusable blocks'],
-      },
-      {
-        title: 'Content polish',
-        items: ['Spacing rhythm', 'Visual hierarchy', 'CTA placement'],
+        title: 'Draft flow',
+        items: ['Select page template', 'Instantiate section masters', 'Customize content'],
       },
     ],
   },
@@ -222,6 +169,33 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
       {
         title: 'Contact and social',
         items: ['Social media', 'Contact info'],
+      },
+    ],
+  },
+  {
+    key: 'domains',
+    routeNameSuffix: 'domains',
+    label: 'Domains',
+    description: 'Kelola domain, verifikasi DNS, SSL, dan primary domain untuk landing page.',
+    icon: Globe2,
+    tone: 'emerald',
+    stats: [
+      { label: 'Domain types', value: '2' },
+      { label: 'DNS checks', value: 'TXT' },
+      { label: 'SSL states', value: '4' },
+    ],
+    sections: [
+      {
+        title: 'Domain setup',
+        items: ['Custom domain', 'Workspace subdomain', 'DNS ownership TXT'],
+      },
+      {
+        title: 'Publication routing',
+        items: ['Primary domain', 'Landing page binding', 'CNAME and root records'],
+      },
+      {
+        title: 'Operations',
+        items: ['Verification status', 'SSL status', 'Disable domain'],
       },
     ],
   },
@@ -296,13 +270,15 @@ export function getLandingMenuToneClasses(tone: LandingMenuTone) {
 }
 
 export function buildLandingManagementMenuItems(routePrefix: string) {
-  return landingMenuPages.map((page) => ({
-    label: page.label,
-    route: `${routePrefix}-${page.routeNameSuffix}`,
-    icon: page.icon,
-    tone: page.tone,
-    description: page.description,
-  }))
+  return landingMenuPages
+    .filter((page) => !page.hiddenFromMenu)
+    .map((page) => ({
+      label: page.label,
+      route: `${routePrefix}-${page.routeNameSuffix}`,
+      icon: page.icon,
+      tone: page.tone,
+      description: page.description,
+    }))
 }
 
 export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRaw[] {
@@ -313,8 +289,16 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
     name: `${routePrefix}-${page.routeNameSuffix}`,
     component:
       page.key === 'pages'
-        ? () => import('./pages/LandingPagesManagementPage.vue')
-        : () => import('./pages/LandingMenuDetailPage.vue'),
+        ? () => import('../pages/LandingPagesManagementPage.vue')
+        : page.key === 'navigation'
+          ? () => import('../pages/LandingNavigationManagementPage.vue')
+          : page.key === 'brand-theme'
+            ? () => import('../pages/LandingBrandThemeManagementPage.vue')
+            : page.key === 'templates'
+              ? () => import('../pages/LandingTemplatesManagementPage.vue')
+              : page.key === 'domains'
+                ? () => import('@/features/domains/pages/DomainManagementPage.vue')
+                : () => import('../pages/LandingMenuDetailPage.vue'),
     props:
       page.key === 'pages'
         ? {
@@ -324,7 +308,40 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
               : 'Kelola page, create slug, status publish, dan unpublish untuk landing page workspace.',
             mode: isPlatformRoute ? 'platform' : 'workspace',
           }
-        : { definition: page, parentRouteName: routePrefix, parentLabel: 'Landing Page' },
+        : page.key === 'templates'
+          ? {
+              title: isPlatformRoute ? 'Platform Landing Templates' : 'Landing Templates',
+              description:
+                'Lihat page template dan master section template yang dipakai flow create landing page.',
+              mode: isPlatformRoute ? 'platform' : 'workspace',
+              parentRouteName: routePrefix,
+            }
+          : page.key === 'navigation'
+            ? {
+                title: isPlatformRoute ? 'Platform Landing Navigation' : 'Landing Navigation',
+                description:
+                  'Kelola header, footer, anchor, route publik, dan CTA menu tanpa mengetik destination mentah.',
+                mode: isPlatformRoute ? 'platform' : 'workspace',
+                parentRouteName: routePrefix,
+              }
+            : page.key === 'brand-theme'
+              ? {
+                  title: isPlatformRoute ? 'Platform Brand & Theme' : 'Landing Brand & Theme',
+                  description:
+                    'Kelola identitas brand, asset visual, theme token, kontak, dan social link landing page.',
+                  mode: isPlatformRoute ? 'platform' : 'workspace',
+                  parentRouteName: routePrefix,
+                }
+              : page.key === 'domains'
+                ? {
+                    title: isPlatformRoute ? 'Landing Domain Bindings' : 'Domains',
+                    description: isPlatformRoute
+                      ? 'Kelola domain yang tersedia dan binding domain ke landing page pada platform landing page management.'
+                      : 'Kelola domain, subdomain, verifikasi DNS, SSL, dan primary domain untuk landing page workspace.',
+                    mode: isPlatformRoute ? 'platform' : 'workspace',
+                    parentRouteName: routePrefix,
+                  }
+                : { definition: page, parentRouteName: routePrefix, parentLabel: 'Landing Page' },
     meta: { title: page.label },
   }))
 }

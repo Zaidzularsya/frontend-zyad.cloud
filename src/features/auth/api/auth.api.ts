@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client'
-import type { LoginPayload, SessionResponse } from '@/features/auth/types'
+import type { GoogleLoginPayload, LoginPayload, SessionResponse } from '@/features/auth/types'
 import type { Permission } from '@/types/auth'
 import type { Tenant } from '@/types/tenant'
 
@@ -17,6 +17,10 @@ interface RawLoginResponse {
     roles: string[]
     permissions: string[]
   }
+}
+
+interface RawGoogleLoginResponse extends RawLoginResponse {
+  is_new_user: boolean
 }
 
 interface RawCurrentUserResponse {
@@ -49,6 +53,10 @@ interface UserOrganizationRaw {
   is_current: boolean
 }
 
+interface CreateWorkspaceResponse {
+  current_organization: UserOrganizationRaw
+}
+
 function mapOrganizationToTenant(org: UserOrganizationRaw): Tenant {
   return {
     id: org.organization.id,
@@ -57,6 +65,58 @@ function mapOrganizationToTenant(org: UserOrganizationRaw): Tenant {
     logoUrl: org.organization.metadata?.logo_url,
     plan: org.organization.type === 'platform' ? 'enterprise' : 'growth',
     status: org.organization.status === 'active' ? 'active' : 'suspended',
+  }
+}
+
+async function loadOrganizations(accessToken?: string) {
+  const orgs = await apiClient.get<UserOrganizationRaw[]>(
+    '/users/me/organizations',
+    accessToken
+      ? {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      : undefined,
+  )
+  const tenants = orgs.map(mapOrganizationToTenant)
+  const currentOrg = orgs.find((o) => o.is_current)
+  return {
+    tenants,
+    activeTenantId: currentOrg?.organization.id || tenants[0]?.id,
+  }
+}
+
+function temporaryWorkspaceSlug(name: string, userId: string) {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+  const suffix = userId.replace(/-/g, '').slice(0, 8)
+  return [base || 'workspace', suffix].join('-').slice(0, 63)
+}
+
+async function createTemporaryWorkspace(raw: RawLoginResponse) {
+  const response = await apiClient.post<CreateWorkspaceResponse>(
+    '/onboarding/workspace',
+    {
+      name: raw.user.name || 'Workspace',
+      slug: temporaryWorkspaceSlug(raw.user.name || 'Workspace', raw.user.id),
+      timezone: 'Asia/Jakarta',
+      locale: 'id-ID',
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${raw.access_token}`,
+      },
+    },
+  )
+  const tenant = mapOrganizationToTenant(response.current_organization)
+  return {
+    tenants: [tenant],
+    activeTenantId: tenant.id,
   }
 }
 
@@ -73,16 +133,49 @@ export const authApi = {
     let activeTenantId: string | undefined
 
     try {
-      const orgs = await apiClient.get<UserOrganizationRaw[]>('/users/me/organizations', {
-        headers: {
-          Authorization: `Bearer ${raw.access_token}`,
-        },
-      })
-      tenants = orgs.map(mapOrganizationToTenant)
-      const currentOrg = orgs.find((o) => o.is_current)
-      activeTenantId = currentOrg?.organization.id || tenants[0]?.id
+      const organizations = await loadOrganizations(raw.access_token)
+      tenants = organizations.tenants
+      activeTenantId = organizations.activeTenantId
     } catch (err) {
       console.error('Failed to load organizations during login:', err)
+    }
+
+    return {
+      user: {
+        id: raw.user.id,
+        name: raw.user.name,
+        email: raw.user.email,
+        permissions: raw.user.permissions as Permission[],
+        roles: raw.user.roles,
+      },
+      accessToken: raw.access_token,
+      refreshToken: raw.refresh_token,
+      tenants,
+      activeTenantId,
+    }
+  },
+
+  async googleLogin(payload: GoogleLoginPayload): Promise<SessionResponse> {
+    const raw = await apiClient.post<RawGoogleLoginResponse>('/auth/google', {
+      id_token: payload.idToken,
+      remember_me: payload.remember ?? true,
+      device_name: payload.deviceName || 'Web Browser',
+    })
+
+    let tenants: Tenant[] = []
+    let activeTenantId: string | undefined
+
+    try {
+      const organizations = await loadOrganizations(raw.access_token)
+      tenants = organizations.tenants
+      activeTenantId = organizations.activeTenantId
+      if (raw.is_new_user && tenants.length === 0) {
+        const workspace = await createTemporaryWorkspace(raw)
+        tenants = workspace.tenants
+        activeTenantId = workspace.activeTenantId
+      }
+    } catch (err) {
+      console.error('Failed to load organizations during Google login:', err)
     }
 
     return {
@@ -107,10 +200,9 @@ export const authApi = {
     let activeTenantId: string | undefined
 
     try {
-      const orgs = await apiClient.get<UserOrganizationRaw[]>('/users/me/organizations')
-      tenants = orgs.map(mapOrganizationToTenant)
-      const currentOrg = orgs.find((o) => o.is_current)
-      activeTenantId = currentOrg?.organization.id || tenants[0]?.id
+      const organizations = await loadOrganizations()
+      tenants = organizations.tenants
+      activeTenantId = organizations.activeTenantId
     } catch (err) {
       console.error('Failed to load organizations during session bootstrap:', err)
     }

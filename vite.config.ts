@@ -23,5 +23,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: ['.zyad.test', 'localhost', '127.0.0.1'],
+
+    hmr: {
+      host: 'app.zyad.test',
+      protocol: 'ws',
+    },
   },
 })

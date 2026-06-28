@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { authApi } from '@/features/auth/api/auth.api'
-import type { LoginPayload } from '@/features/auth/types'
+import type { GoogleLoginPayload, LoginPayload } from '@/features/auth/types'
 import { tokenStorage } from '@/lib/auth'
 import { queryClient } from '@/lib/query-client'
 import type { AuthUser, Permission } from '@/types/auth'
@@ -45,6 +45,11 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = true
   }
 
+  async function loginWithGoogle(payload: GoogleLoginPayload) {
+    await applySession(await authApi.googleLogin(payload))
+    initialized.value = true
+  }
+
   async function logout() {
     try {
       await authApi.logout()
@@ -61,5 +66,15 @@ export const useAuthStore = defineStore('auth', () => {
     queryClient.clear()
   }
 
-  return { user, initialized, isAuthenticated, can, bootstrap, login, logout, clearSession }
+  return {
+    user,
+    initialized,
+    isAuthenticated,
+    can,
+    bootstrap,
+    login,
+    loginWithGoogle,
+    logout,
+    clearSession,
+  }
 })

@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-vue-next'
 
-import { buildLandingManagementMenuItems } from '@/features/landing-management/landing-menu'
+import { buildLandingManagementMenuItems } from '@/features/landing/builder/config/landing-menu'
 import type { Permission } from '@/types/auth'
 
 export interface MenuItem {

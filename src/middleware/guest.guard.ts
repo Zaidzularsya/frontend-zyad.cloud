@@ -6,5 +6,7 @@ export const guestGuard: NavigationGuard = async (to) => {
   const auth = useAuthStore()
   await auth.bootstrap()
 
-  if (to.meta.guestOnly && auth.isAuthenticated) return { name: 'profile' }
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { name: auth.user?.roles?.includes('super_admin') ? 'platform-dashboard' : 'dashboard' }
+  }
 }

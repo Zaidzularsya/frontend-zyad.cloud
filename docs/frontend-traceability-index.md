@@ -4,11 +4,12 @@ Dokumen pelacakan fitur antarmuka (UI) Vue dan integrasinya dengan backend API (
 
 ## 1. Public & Lead Flow
 
-| Fitur UI                | Rute Vue         | API Endpoint Target       | Status UI | Status Integrasi | Keterangan                                              |
-| ----------------------- | ---------------- | ------------------------- | --------- | ---------------- | ------------------------------------------------------- |
-| Platform Marketing Page | `/`              | N/A                       | done      | N/A              | Landing page publik                                     |
-| Social Login / Reg      | `/auth/register` | TBD (Auth API)            | planned   | N/A              | Entry point dari lead -> registrasi (Social Media Mock) |
-| Login Page              | `/auth/login`    | `POST /api/v1/auth/login` | done      | done             | -                                                       |
+| Fitur UI                | Rute Vue         | API Endpoint Target        | Status UI | Status Integrasi | Keterangan                                                   |
+| ----------------------- | ---------------- | -------------------------- | --------- | ---------------- | ------------------------------------------------------------ |
+| Platform Marketing Page | `/`              | N/A                        | done      | N/A              | Landing page publik                                          |
+| Social Login / Reg      | `/auth/register` | TBD (Auth API)             | planned   | N/A              | Entry point dari lead -> registrasi (Social Media Mock)      |
+| Login Page              | `/auth/login`    | `POST /api/v1/auth/login`  | done      | done             | -                                                            |
+| Google Login/Register   | `/auth/login`    | `POST /api/v1/auth/google` | done      | done             | Memakai Google Identity Services dan `VITE_GOOGLE_CLIENT_ID` |
 
 ## 2. Super Admin Dashboard (`/platform`)
 

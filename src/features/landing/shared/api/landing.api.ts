@@ -17,7 +17,7 @@ import type {
   LandingSection,
   PaginatedResponse,
   SectionTemplate,
-} from '@/features/landing/types'
+} from '@/features/landing/shared/types/landing.types'
 
 interface ApiEnvelope<T> {
   success: boolean
@@ -50,6 +50,7 @@ function normalizePage(raw: RawRecord): LandingPage {
     locale: pick(raw, 'locale', 'Locale', 'id-ID'),
     timezone: pick(raw, 'timezone', 'Timezone', 'Asia/Jakarta'),
     is_homepage: pick(raw, 'is_homepage', 'IsHomepage', false),
+    is_template: pick(raw, 'is_template', 'IsTemplate', false),
     settings: pick(raw, 'settings', 'Settings', {}),
     seo: pick(raw, 'seo', 'SEO', {}),
     published_version: pick(raw, 'published_version', 'PublishedVersion', 0),
@@ -59,6 +60,9 @@ function normalizePage(raw: RawRecord): LandingPage {
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
     deleted_at: pick(raw, 'deleted_at', 'DeletedAt', null),
+    template: pick(raw, 'template', 'Template', undefined),
+    theme: pick(raw, 'theme', 'Theme', undefined),
+    preferences: pick(raw, 'preferences', 'Preferences', undefined),
   }
 }
 
@@ -88,6 +92,7 @@ function normalizeSection(raw: RawRecord): LandingSection {
     style: pick(raw, 'style', 'Style', {}),
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
+    variant: pick(raw, 'variant', 'Variant', undefined),
   }
 }
 
@@ -380,9 +385,38 @@ async function deleteData<T = null>(url: string): Promise<BaseResponse<T>> {
   }
 }
 
+async function getBase<T>(url: string, params?: QueryParams): Promise<BaseResponse<T>> {
+  const response = await http.get<ApiEnvelope<T>>(url, { params })
+  return {
+    success: response.data.success,
+    message: response.data.message ?? '',
+    data: response.data.data,
+    meta: null,
+  }
+}
+
 export const landingApi = {
   getPages: async (params?: QueryParams) =>
-    mapList(await getList<RawRecord>('/admin/landing-pages', params), normalizePage),
+    mapList(
+      await getList<RawRecord>('/admin/landing-pages', {
+        is_template: false,
+        ...params,
+      }),
+      normalizePage,
+    ),
+  getTemplatePages: async (params?: QueryParams) => {
+    const response = mapList(
+      await getList<RawRecord>('/admin/landing-pages', {
+        ...params,
+        is_template: true,
+      }),
+      normalizePage,
+    )
+    return {
+      ...response,
+      data: response.data.map((page) => ({ ...page, is_template: true })),
+    }
+  },
   getPage: async (id: string) => {
     const response = await getBase<RawRecord>(`/admin/landing-pages/${id}`)
     return { ...response, data: normalizePage(response.data) }
@@ -547,7 +581,12 @@ export const landingApi = {
     })),
   deleteTemplate: (id: string) => deleteData<null>(`/admin/landing/section-templates/${id}`),
   instantiateTemplate: (id: string, data: unknown) =>
-    postData<LandingSection>(`/admin/landing-pages/${id}/sections/from-template`, data),
+    postData<RawRecord>(`/admin/landing-pages/${id}/sections/from-template`, data).then(
+      (response) => ({
+        ...response,
+        data: normalizeSection(response.data),
+      }),
+    ),
 
   getMenus: async (params?: QueryParams) =>
     mapList(await getList<RawRecord>('/admin/landing/menus', params), normalizeMenu),
@@ -603,14 +642,13 @@ export const landingApi = {
       mapList(response, normalizeDelivery),
     ),
   retryDelivery: (id: string) => postData<null>(`/admin/landing/lead-deliveries/${id}/retry`),
-}
 
-async function getBase<T>(url: string, params?: QueryParams): Promise<BaseResponse<T>> {
-  const response = await http.get<ApiEnvelope<T>>(url, { params })
-  return {
-    success: response.data.success,
-    message: response.data.message ?? '',
-    data: response.data.data,
-    meta: null,
-  }
+  /**
+   * Public API — tidak memerlukan auth.
+   * Digunakan oleh renderer untuk mengambil data landing page berdasarkan slug.
+   */
+  getPublicPage: async (slug: string) => {
+    const response = await http.get<ApiEnvelope<RawRecord>>(`/public/landing/resolve?slug=${slug}`)
+    return response.data.data ?? response.data
+  },
 }
