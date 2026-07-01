@@ -127,11 +127,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'billing',
         name: 'billing',
-        component: placeholder,
-        props: {
-          title: 'Billing',
-          description: 'Invoice, metode pembayaran, dan penggunaan paket.',
-        },
+        component: () => import('@/features/customer/pages/PlanUpgradePage.vue'),
         meta: { title: 'Billing' },
       },
       {
@@ -153,7 +149,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'plan-upgrade',
         name: 'plan-upgrade',
-        component: () => import('@/features/customer/pages/PlanUpgradePage.vue'),
+        redirect: { name: 'billing' },
         meta: { title: 'Plan & Billing' },
       },
       {
@@ -205,6 +201,15 @@ const routes: RouteRecordRaw[] = [
         name: 'platform-customers',
         component: () => import('@/features/platform/pages/CustomerManagementPage.vue'),
         meta: { title: 'Customer Management' },
+      },
+      {
+        path: 'billing/plans',
+        name: 'platform-billing-plans',
+        component: () => import('@/features/billing/pages/PlatformBillingPlansPage.vue'),
+        meta: {
+          title: 'Billing Plan Management',
+          permissions: ['platform.billing.plan.read'],
+        },
       },
       {
         path: 'leads',

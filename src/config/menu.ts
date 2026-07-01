@@ -54,6 +54,12 @@ export const platformMenuGroups: MenuGroup[] = [
       { label: 'Branding', route: 'platform-branding', icon: Brush },
       { label: 'Admins & Roles', route: 'platform-users', icon: ShieldCheck },
       {
+        label: 'Billing Plans',
+        route: 'platform-billing-plans',
+        icon: CreditCard,
+        description: 'Plan catalog, pricing, and entitlement mapping.',
+      },
+      {
         label: 'Notifications',
         route: 'platform-notifications',
         icon: Bell,
@@ -92,7 +98,7 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Account Services',
     items: [
-      { label: 'Plan & Billing', route: 'plan-upgrade', icon: CreditCard },
+      { label: 'Plan & Billing', route: 'billing', icon: CreditCard },
       { label: 'Support Tickets', route: 'ticketing', icon: LifeBuoy },
     ],
   },

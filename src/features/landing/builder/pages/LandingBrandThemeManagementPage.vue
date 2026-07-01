@@ -49,6 +49,8 @@ const defaultColors = {
   muted: '#64748b',
 }
 
+type ThemeColorKey = keyof typeof defaultColors
+
 const defaultTypography = {
   heading_font: 'Inter',
   body_font: 'Inter',
@@ -105,7 +107,7 @@ const form = reactive({
   } as Record<SocialPlatform, string>,
 })
 
-const paletteItems = computed(() => [
+const paletteItems = computed<Array<{ key: ThemeColorKey; label: string; value: string }>>(() => [
   { key: 'primary', label: 'Primary', value: form.colors.primary },
   { key: 'secondary', label: 'Secondary', value: form.colors.secondary },
   { key: 'accent', label: 'Accent', value: form.colors.accent },
@@ -400,12 +402,12 @@ function showNotice(message: string) {
               </span>
               <div class="flex overflow-hidden rounded-lg border bg-white dark:bg-gray-950">
                 <input
-                  v-model="form.colors[item.key as keyof typeof form.colors]"
+                  v-model="form.colors[item.key]"
                   type="color"
                   class="h-11 w-14 cursor-pointer border-0 bg-transparent p-1"
                 />
                 <input
-                  v-model="form.colors[item.key as keyof typeof form.colors]"
+                  v-model="form.colors[item.key]"
                   class="min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
                 />
               </div>
