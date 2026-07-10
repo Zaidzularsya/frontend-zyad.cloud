@@ -64,6 +64,7 @@ const itemForm = reactive({
   external_url: '',
   target: 'self',
   is_enabled: true,
+  parent_id: '',
 })
 
 const selectedMenu = computed(
@@ -76,6 +77,51 @@ const publishedPages = computed(() =>
   pages.value.filter((page) => page.status === 'published' && !page.is_template),
 )
 const previewDestination = computed(() => buildDestination())
+const eligibleParentItems = computed(() =>
+  selectedItems.value.filter((item) => item.id !== editingItemId.value),
+)
+
+// The backend never actually populates LandingMenuItem.children (confirmed
+// dead field) — items come back flat with parent_id set, so the nav tree is
+// built client-side here for display, and "parent item" is a plain select
+// backed by parent_id rather than relying on any server-side nesting.
+const itemsWithDepth = computed(() => {
+  const byParent = new Map<string, LandingMenuItem[]>()
+  for (const item of selectedItems.value) {
+    const key = item.parent_id ?? ''
+    const bucket = byParent.get(key) ?? []
+    bucket.push(item)
+    byParent.set(key, bucket)
+  }
+  for (const bucket of byParent.values()) {
+    bucket.sort((a, b) => a.sort_order - b.sort_order)
+  }
+
+  const result: Array<{ item: LandingMenuItem; depth: number }> = []
+  function walk(parentKey: string, depth: number) {
+    for (const item of byParent.get(parentKey) ?? []) {
+      result.push({ item, depth })
+      walk(item.id, depth + 1)
+    }
+  }
+  walk('', 0)
+  return result
+})
+
+function sortIndex(item: LandingMenuItem) {
+  return selectedItems.value.findIndex((entry) => entry.id === item.id)
+}
+
+function pageOptionLabel(page: LandingPage) {
+  return `${page.title || page.name} (${humanizePageType(page.page_type)}) — /${page.slug}`
+}
+
+function humanizePageType(value: string) {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
 
 onMounted(() => {
   void loadAll()
@@ -139,6 +185,7 @@ function resetItemForm() {
   itemForm.external_url = ''
   itemForm.target = 'self'
   itemForm.is_enabled = true
+  itemForm.parent_id = ''
 }
 
 function selectMenu(menuId: string) {
@@ -161,6 +208,7 @@ function fillItemForm(item: LandingMenuItem) {
   itemForm.link_type = normalizeLinkType(item.link_type)
   itemForm.target = item.target || 'self'
   itemForm.is_enabled = item.is_enabled
+  itemForm.parent_id = item.parent_id ?? ''
 
   if (itemForm.link_type === 'anchor') {
     itemForm.anchor = item.destination.replace(/^#/, '')
@@ -272,6 +320,7 @@ async function saveItem() {
       target: itemForm.target,
       sort_order: editingItemId.value ? undefined : selectedItems.value.length * 10 + 10,
       is_enabled: itemForm.is_enabled,
+      parent_id: itemForm.parent_id || null,
     }
     if (editingItemId.value) {
       await landingApi.updateMenuItem(selectedMenuId.value, editingItemId.value, payload)
@@ -489,13 +538,15 @@ async function moveItem(item: LandingMenuItem, direction: -1 | 1) {
 
           <div v-else class="mt-6 space-y-3">
             <article
-              v-for="(item, index) in selectedItems"
+              v-for="({ item, depth }, index) in itemsWithDepth"
               :key="item.id"
               class="rounded-2xl border p-4 dark:border-gray-800"
+              :style="{ marginLeft: `${depth * 24}px` }"
             >
               <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <div class="flex flex-wrap items-center gap-2">
+                    <span v-if="depth > 0" class="text-xs text-gray-400">↳</span>
                     <span class="text-xs font-black text-gray-400">#{{ index + 1 }}</span>
                     <h3 class="font-black text-gray-900 dark:text-white">{{ item.label }}</h3>
                     <span
@@ -523,14 +574,14 @@ async function moveItem(item: LandingMenuItem, direction: -1 | 1) {
                   <BaseButton
                     type="button"
                     variant="secondary"
-                    :disabled="index === 0"
+                    :disabled="sortIndex(item) === 0"
                     @click="moveItem(item, -1)"
                     >Up</BaseButton
                   >
                   <BaseButton
                     type="button"
                     variant="secondary"
-                    :disabled="index === selectedItems.length - 1"
+                    :disabled="sortIndex(item) === selectedItems.length - 1"
                     @click="moveItem(item, 1)"
                     >Down</BaseButton
                   >
@@ -600,11 +651,13 @@ async function moveItem(item: LandingMenuItem, direction: -1 | 1) {
                 class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
               >
                 <option v-for="page in publishedPages" :key="page.id" :value="page.slug">
-                  {{ page.title || page.name }} /{{ page.slug }}
+                  {{ pageOptionLabel(page) }}
                 </option>
               </select>
               <span class="mt-1 block text-xs text-gray-500">
-                Disimpan sebagai slug backend, dipakai frontend sebagai route publik.
+                Disimpan sebagai slug backend, dipakai frontend sebagai route publik. Page type
+                ditampilkan agar situs multi-page (mis. Blog terpisah dari Homepage) mudah
+                dibedakan.
               </span>
             </label>
 
@@ -638,6 +691,22 @@ async function moveItem(item: LandingMenuItem, direction: -1 | 1) {
                 <option value="self">Same tab</option>
                 <option value="new_tab">New tab</option>
               </select>
+            </label>
+
+            <label class="block text-sm font-medium">
+              Parent item (optional)
+              <select
+                v-model="itemForm.parent_id"
+                class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              >
+                <option value="">No parent (top level)</option>
+                <option v-for="parent in eligibleParentItems" :key="parent.id" :value="parent.id">
+                  {{ parent.label }}
+                </option>
+              </select>
+              <span class="mt-1 block text-xs text-gray-500">
+                Nesting dibatasi hingga 3 level oleh backend.
+              </span>
             </label>
 
             <label

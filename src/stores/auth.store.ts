@@ -50,6 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = true
   }
 
+  async function completeGoogleRedirect(code: string) {
+    await applySession(await authApi.googleExchange(code))
+    initialized.value = true
+  }
+
   async function logout() {
     try {
       await authApi.logout()
@@ -74,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
     bootstrap,
     login,
     loginWithGoogle,
+    completeGoogleRedirect,
     logout,
     clearSession,
   }

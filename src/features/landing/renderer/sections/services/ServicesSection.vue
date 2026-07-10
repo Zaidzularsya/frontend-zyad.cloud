@@ -42,7 +42,7 @@ function cardDescription(card: { desc?: string; description?: string }) {
 <template>
   <section id="solusi" class="py-section-gap bg-surface">
     <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
-      <div class="text-center max-w-3xl mx-auto mb-16 fade-up visible">
+      <div class="text-center max-w-3xl mx-auto mb-16 fade-up">
         <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-6">
           {{ content.title || 'Services' }}
         </h2>
@@ -55,7 +55,7 @@ function cardDescription(card: { desc?: string; description?: string }) {
         <div
           v-for="(service, idx) in cards"
           :key="idx"
-          class="group bg-surface-container-lowest rounded-2xl p-8 border border-outline-variant/30 hover:border-secondary transition-colors hover-lift fade-up visible"
+          class="group bg-surface-container-lowest rounded-2xl p-8 border border-outline-variant/30 hover:border-secondary transition-colors hover-lift fade-up"
           :style="{ transitionDelay: `${idx * 100}ms` }"
         >
           <div

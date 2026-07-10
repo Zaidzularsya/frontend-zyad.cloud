@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Magnet,
+  Package,
   ShieldCheck,
   Users,
 } from 'lucide-vue-next'
@@ -54,10 +55,10 @@ export const platformMenuGroups: MenuGroup[] = [
       { label: 'Branding', route: 'platform-branding', icon: Brush },
       { label: 'Admins & Roles', route: 'platform-users', icon: ShieldCheck },
       {
-        label: 'Billing Plans',
+        label: 'Product Catalog',
         route: 'platform-billing-plans',
-        icon: CreditCard,
-        description: 'Plan catalog, pricing, and entitlement mapping.',
+        icon: Package,
+        description: 'Katalog plan, harga, dan feature platform untuk berlangganan.',
       },
       {
         label: 'Notifications',

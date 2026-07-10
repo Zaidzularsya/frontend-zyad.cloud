@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import {
   AlarmClock,
   ArrowUpRight,
@@ -25,10 +26,11 @@ import {
 } from '@/features/billing/api/billing.api'
 import {
   useBillingInvoicesQuery,
+  useCreateInvoiceCheckoutMutation,
   useCurrentBillingPlanQuery,
-  useRequestBillingUpgradeMutation,
   useScheduleBillingCancellationMutation,
 } from '@/features/billing/api/billing.queries'
+import { publicCatalogApi, type PublicCatalogPlan } from '@/features/public/api/public-catalog.api'
 import { useTenantStore } from '@/stores/tenant.store'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
@@ -47,24 +49,42 @@ const invoiceQueryParams = computed(() => ({
   status: invoiceFilters.status,
 }))
 
+const router = useRouter()
+
 const upgradeModalOpen = ref(false)
 const cancelModalOpen = ref(false)
 const feedback = ref<{ tone: 'success' | 'error'; message: string } | null>(null)
 
 const upgradeForm = reactive({
-  plan_id: '',
-  billing_interval: 'monthly' as 'monthly' | 'yearly',
-  reason: '',
+  plan_code: '',
+  billing_interval: 'monthly',
 })
 
 const cancelForm = reactive({
   reason: '',
 })
 
+const catalogPlans = ref<PublicCatalogPlan[]>([])
+const catalogLoading = ref(false)
+const catalogError = ref('')
+
 const currentPlanQuery = useCurrentBillingPlanQuery(organizationId)
 const invoicesQuery = useBillingInvoicesQuery(organizationId, invoiceQueryParams)
-const requestUpgradeMutation = useRequestBillingUpgradeMutation()
 const scheduleCancellationMutation = useScheduleBillingCancellationMutation()
+const createCheckoutMutation = useCreateInvoiceCheckoutMutation()
+const payingInvoiceId = ref('')
+
+onMounted(async () => {
+  catalogLoading.value = true
+  catalogError.value = ''
+  try {
+    catalogPlans.value = await publicCatalogApi.listPlans()
+  } catch {
+    catalogError.value = 'Katalog paket tidak dapat dimuat.'
+  } finally {
+    catalogLoading.value = false
+  }
+})
 
 const currentSubscription = computed(() => currentPlanQuery.data.value?.subscription ?? null)
 const currentPlanName = computed(() => currentSubscription.value?.plan?.name || 'Plan aktif')
@@ -142,6 +162,8 @@ function usagePercent(item: BillingUsageItem) {
 
 function openUpgradeModal() {
   feedback.value = null
+  upgradeForm.plan_code = ''
+  upgradeForm.billing_interval = 'monthly'
   upgradeModalOpen.value = true
 }
 
@@ -150,22 +172,61 @@ function openCancelModal() {
   cancelModalOpen.value = true
 }
 
-async function submitUpgrade() {
+const selectablePlans = computed(() =>
+  catalogPlans.value.filter(
+    (plan) =>
+      plan.code !== currentPlanCode.value && plan.prices.some((price) => Number(price.amount) > 0),
+  ),
+)
+
+const selectedUpgradePlan = computed(
+  () => selectablePlans.value.find((plan) => plan.code === upgradeForm.plan_code) ?? null,
+)
+
+const selectedPlanIntervals = computed(() => {
+  if (!selectedUpgradePlan.value) return []
+  return selectedUpgradePlan.value.prices
+    .filter((price) => Number(price.amount) > 0)
+    .map((price) => price.billing_interval)
+})
+
+function selectUpgradePlan(plan: PublicCatalogPlan) {
+  upgradeForm.plan_code = plan.code
+  const intervals = plan.prices
+    .filter((price) => Number(price.amount) > 0)
+    .map((price) => price.billing_interval)
+  if (!intervals.includes(upgradeForm.billing_interval)) {
+    upgradeForm.billing_interval = intervals[0] ?? 'monthly'
+  }
+}
+
+function planPriceLabel(plan: PublicCatalogPlan) {
+  const price =
+    plan.prices.find((item) => item.billing_interval === upgradeForm.billing_interval) ??
+    plan.prices.find((item) => Number(item.amount) > 0)
+  if (!price) return '-'
+  return `${formatMoney(price.amount, price.currency)} / ${price.billing_interval}`
+}
+
+function submitUpgrade() {
+  if (!upgradeForm.plan_code) return
+  upgradeModalOpen.value = false
+  // Satu jalur checkout untuk semua: halaman checkout yang membuat invoice
+  // dan sesi pembayaran DOKU saat tombol bayar diklik.
+  void router.push(
+    `/app/checkout?plan=${encodeURIComponent(upgradeForm.plan_code)}&interval=${encodeURIComponent(upgradeForm.billing_interval)}`,
+  )
+}
+
+async function payInvoice(invoiceId: string) {
   feedback.value = null
+  payingInvoiceId.value = invoiceId
   try {
-    const invoice = await requestUpgradeMutation.mutateAsync({
-      plan_id: upgradeForm.plan_id.trim(),
-      billing_interval: upgradeForm.billing_interval,
-      reason: upgradeForm.reason.trim() || undefined,
-    })
-    upgradeModalOpen.value = false
-    feedback.value = {
-      tone: 'success',
-      message: `Permintaan upgrade berhasil dibuat. Invoice ${invoice.invoice_number || invoice.id} menunggu pembayaran.`,
-    }
-    upgradeForm.reason = ''
+    const checkout = await createCheckoutMutation.mutateAsync(invoiceId)
+    window.location.href = checkout.payment_url
   } catch (error) {
     feedback.value = { tone: 'error', message: extractError(error) }
+    payingInvoiceId.value = ''
   }
 }
 
@@ -252,9 +313,9 @@ function refreshBillingData() {
             <CircleAlert class="size-4" />
             Jadwalkan Cancel
           </BaseButton>
-          <BaseButton :disabled="requestUpgradeMutation.isPending.value" @click="openUpgradeModal">
+          <BaseButton @click="openUpgradeModal">
             <ArrowUpRight class="size-4" />
-            Request Upgrade
+            Upgrade Paket
           </BaseButton>
         </div>
       </div>
@@ -454,6 +515,18 @@ function refreshBillingData() {
             >
               {{ invoice.items[0].description }}
             </p>
+
+            <div v-if="invoice.status === 'open'" class="mt-4">
+              <BaseButton
+                class="w-full"
+                :disabled="createCheckoutMutation.isPending.value"
+                @click="payInvoice(invoice.id)"
+              >
+                <Loader2 v-if="payingInvoiceId === invoice.id" class="size-4 animate-spin" />
+                <CreditCard v-else class="size-4" />
+                Bayar Sekarang
+              </BaseButton>
+            </div>
           </article>
         </div>
 
@@ -468,54 +541,76 @@ function refreshBillingData() {
 
     <BaseModal
       :open="upgradeModalOpen"
-      title="Request upgrade plan"
+      title="Pilih paket upgrade"
       @close="upgradeModalOpen = false"
     >
       <form class="space-y-4" @submit.prevent="submitUpgrade">
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-gray-700 dark:text-gray-200">Plan ID</label>
-          <input
-            v-model="upgradeForm.plan_id"
-            type="text"
-            placeholder="contoh: plan-growth"
-            class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-950"
-          />
-          <p class="text-xs text-gray-500 dark:text-gray-400">
-            Backend tenant billing saat ini menerima request upgrade berdasarkan `plan_id`.
-          </p>
+        <div v-if="catalogLoading" class="space-y-3">
+          <div
+            v-for="index in 2"
+            :key="index"
+            class="h-20 animate-pulse rounded-2xl bg-gray-50 dark:bg-gray-950"
+          ></div>
         </div>
 
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-gray-700 dark:text-gray-200"
-            >Billing interval</label
-          >
-          <select
-            v-model="upgradeForm.billing_interval"
-            class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-950"
-          >
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </div>
+        <p v-else-if="catalogError" class="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {{ catalogError }}
+        </p>
 
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-gray-700 dark:text-gray-200">Reason</label>
-          <textarea
-            v-model="upgradeForm.reason"
-            rows="3"
-            class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-950"
-            placeholder="contoh: butuh kuota automation lebih tinggi"
-          ></textarea>
+        <p
+          v-else-if="!selectablePlans.length"
+          class="rounded-2xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400"
+        >
+          Tidak ada paket lain yang tersedia untuk upgrade saat ini.
+        </p>
+
+        <div v-else class="space-y-3">
+          <button
+            v-for="plan in selectablePlans"
+            :key="plan.code"
+            type="button"
+            class="w-full rounded-2xl border p-4 text-left transition"
+            :class="
+              upgradeForm.plan_code === plan.code
+                ? 'border-brand-500 bg-brand-50/60 ring-1 ring-brand-500 dark:bg-brand-950/40'
+                : 'border-gray-200/80 hover:border-brand-300 dark:border-gray-800'
+            "
+            @click="selectUpgradePlan(plan)"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-semibold text-gray-900 dark:text-gray-100">{{ plan.name }}</p>
+                <p v-if="plan.description" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ plan.description }}
+                </p>
+              </div>
+              <p class="shrink-0 text-sm font-semibold text-brand-600">
+                {{ planPriceLabel(plan) }}
+              </p>
+            </div>
+          </button>
+
+          <div v-if="selectedUpgradePlan" class="space-y-2">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-200"
+              >Billing interval</label
+            >
+            <select
+              v-model="upgradeForm.billing_interval"
+              class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-950"
+            >
+              <option v-for="interval in selectedPlanIntervals" :key="interval" :value="interval">
+                {{
+                  interval === 'yearly' ? 'Tahunan' : interval === 'monthly' ? 'Bulanan' : interval
+                }}
+              </option>
+            </select>
+          </div>
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
           <BaseButton variant="outline" @click="upgradeModalOpen = false">Batal</BaseButton>
-          <BaseButton
-            type="submit"
-            :disabled="requestUpgradeMutation.isPending.value || !upgradeForm.plan_id.trim()"
-          >
-            <Loader2 v-if="requestUpgradeMutation.isPending.value" class="size-4 animate-spin" />
-            Kirim Request
+          <BaseButton type="submit" :disabled="!upgradeForm.plan_code">
+            Lanjut ke Checkout
           </BaseButton>
         </div>
       </form>

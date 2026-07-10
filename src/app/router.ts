@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/auth/pages/RegisterPage.vue'),
         meta: { title: 'Daftar', guestOnly: true },
       },
+      {
+        path: 'google/callback',
+        name: 'google-callback',
+        component: () => import('@/features/auth/pages/GoogleCallbackPage.vue'),
+        meta: { title: 'Login Google' },
+      },
     ],
   },
   {
@@ -49,6 +55,24 @@ const routes: RouteRecordRaw[] = [
         name: 'home',
         component: () => import('@/features/public/pages/MarketingLandingPage.vue'),
         meta: { title: 'Zyad Cloud - Platform Multi-Tenant' },
+      },
+      {
+        path: 'legal/terms',
+        name: 'legal-terms',
+        component: () => import('@/features/public/pages/TermsOfServicePage.vue'),
+        meta: { title: 'Syarat & Ketentuan' },
+      },
+      {
+        path: 'legal/privacy',
+        name: 'legal-privacy',
+        component: () => import('@/features/public/pages/PrivacyPolicyPage.vue'),
+        meta: { title: 'Kebijakan Privasi' },
+      },
+      {
+        path: 'legal/refund',
+        name: 'legal-refund',
+        component: () => import('@/features/public/pages/RefundPolicyPage.vue'),
+        meta: { title: 'Kebijakan Refund' },
       },
       {
         path: ':slug',
@@ -89,7 +113,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'landing-pages',
         name: 'landing-pages',
-        component: () => import('@/features/landing/builder/pages/LandingPageList.vue'),
+        redirect: { name: 'landing-pages-pages' },
         meta: { title: 'Landing Page Management' },
       },
       ...buildLandingManagementRoutes('landing-pages'),
@@ -131,6 +155,24 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Billing' },
       },
       {
+        path: 'checkout',
+        name: 'checkout',
+        component: () => import('@/features/customer/pages/CheckoutPage.vue'),
+        meta: { title: 'Checkout' },
+      },
+      {
+        path: 'checkout/success',
+        name: 'checkout-success',
+        component: () => import('@/features/customer/pages/CheckoutSuccessPage.vue'),
+        meta: { title: 'Status Pembayaran' },
+      },
+      {
+        path: 'checkout/failed',
+        name: 'checkout-failed',
+        component: () => import('@/features/customer/pages/CheckoutFailedPage.vue'),
+        meta: { title: 'Pembayaran Gagal' },
+      },
+      {
         path: 'audit-logs',
         name: 'audit-logs',
         component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
@@ -169,7 +211,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/platform',
     component: () => import('@/layouts/DashboardLayout.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresPlatform: true },
     children: [
       {
         path: 'dashboard',
@@ -180,7 +222,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'landing-pages',
         name: 'platform-landing-pages',
-        component: () => import('@/features/platform/pages/LandingPageList.vue'),
+        redirect: { name: 'platform-landing-pages-pages' },
         meta: { title: 'Landing Page Management' },
       },
       ...buildLandingManagementRoutes('platform-landing-pages'),
@@ -207,8 +249,8 @@ const routes: RouteRecordRaw[] = [
         name: 'platform-billing-plans',
         component: () => import('@/features/billing/pages/PlatformBillingPlansPage.vue'),
         meta: {
-          title: 'Billing Plan Management',
-          permissions: ['platform.billing.plan.read'],
+          title: 'Product Catalog Management',
+          permissions: ['platform.product.plan.read'],
         },
       },
       {

@@ -3,11 +3,13 @@ import { computed, type Ref } from 'vue'
 
 import {
   platformBillingApi,
+  type CreatePlatformBillingFeaturePayload,
   type CreatePlatformBillingPlanPayload,
   type PlatformBillingFeatureListParams,
   type PlatformBillingPlanListParams,
   type PlatformBillingPlanPricePayload,
   type ReplacePlatformBillingPlanEntitlementsPayload,
+  type UpdatePlatformBillingFeaturePayload,
   type UpdatePlatformBillingPlanPayload,
   type UpdatePlatformBillingPlanPricePayload,
 } from '@/features/billing/api/platform-billing.api'
@@ -56,6 +58,30 @@ export function usePlatformBillingFeaturesQuery(params: Ref<PlatformBillingFeatu
     queryKey: computed(() => platformBillingKeys.featureList({ ...params.value })),
     queryFn: () => platformBillingApi.listFeatures(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useCreatePlatformBillingFeatureMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: CreatePlatformBillingFeaturePayload) =>
+      platformBillingApi.createFeature(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: platformBillingKeys.features() })
+    },
+  })
+}
+
+export function useUpdatePlatformBillingFeatureMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdatePlatformBillingFeaturePayload }) =>
+      platformBillingApi.updateFeature(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: platformBillingKeys.features() })
+    },
   })
 }
 

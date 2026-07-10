@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clipboard,
   Globe2,
+  Layout,
   Loader2,
   RefreshCw,
   Search,
@@ -23,6 +24,12 @@ import {
   type OrganizationDomainSslStatus,
   type OrganizationDomainType,
 } from '@/features/domains/api/domain.api'
+import { landingApi } from '@/features/landing/shared/api/landing.api'
+import type {
+  LandingAvailableDomain,
+  LandingDomainBinding,
+  LandingPage,
+} from '@/features/landing/shared/types/landing.types'
 
 const props = defineProps<{
   mode: 'workspace' | 'platform'
@@ -58,6 +65,31 @@ const addDomainForm = reactive({
   canonical_host: '',
   type: 'custom' as OrganizationDomainType,
   error: '',
+})
+
+// Landing page binding: which landing page (if any) a verified domain
+// serves. Only meaningful in workspace mode — a domain must first be
+// verified at the organization level (above) before it can be bound.
+const availableDomains = ref<LandingAvailableDomain[]>([])
+const domainBindings = ref<LandingDomainBinding[]>([])
+const landingPages = ref<LandingPage[]>([])
+const bindingBusyId = ref('')
+const pendingBindPageId = reactive<Record<string, string>>({})
+
+const availableDomainIds = computed(() => new Set(availableDomains.value.map((item) => item.id)))
+const bindingByDomainId = computed(() => {
+  const map = new Map<string, LandingDomainBinding>()
+  for (const binding of domainBindings.value) {
+    map.set(binding.organization_domain_id, binding)
+  }
+  return map
+})
+const pageById = computed(() => {
+  const map = new Map<string, LandingPage>()
+  for (const page of landingPages.value) {
+    map.set(page.id, page)
+  }
+  return map
 })
 
 function extractError(error: unknown) {
@@ -199,9 +231,83 @@ async function loadPlatformDomains() {
   }
 }
 
+async function loadLandingBindingData() {
+  try {
+    const [available, bindings, pages] = await Promise.all([
+      landingApi.getAvailableDomains(),
+      landingApi.getAllDomainBindings(),
+      landingApi.getPages({ per_page: 100, is_template: false }),
+    ])
+    availableDomains.value = available.data
+    domainBindings.value = bindings.data
+    landingPages.value = pages.data
+  } catch {
+    // Non-fatal: the org-level domain table still works without binding data.
+  }
+}
+
 async function refreshData() {
-  if (isPlatform.value) await loadPlatformDomains()
-  else await loadWorkspaceDomains()
+  if (isPlatform.value) {
+    await loadPlatformDomains()
+  } else {
+    await Promise.all([loadWorkspaceDomains(), loadLandingBindingData()])
+  }
+}
+
+async function bindDomainToPage(domain: OrganizationDomain) {
+  const pageId = pendingBindPageId[domain.id]
+  if (!pageId) return
+
+  bindingBusyId.value = domain.id
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await landingApi.createDomainBinding({
+      organization_domain_id: domain.id,
+      landing_page_id: pageId,
+      is_primary: false,
+    })
+    await loadLandingBindingData()
+    successMessage.value = `${domain.canonical_host} berhasil di-bind ke landing page.`
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  } finally {
+    bindingBusyId.value = ''
+  }
+}
+
+async function setPrimaryDomainBinding(binding: LandingDomainBinding) {
+  bindingBusyId.value = binding.organization_domain_id
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await landingApi.updateDomainBinding(binding.id, {
+      organization_domain_id: binding.organization_domain_id,
+      landing_page_id: binding.landing_page_id,
+      is_primary: true,
+    })
+    await loadLandingBindingData()
+    successMessage.value = 'Primary landing page binding berhasil diperbarui.'
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  } finally {
+    bindingBusyId.value = ''
+  }
+}
+
+async function unbindDomain(binding: LandingDomainBinding) {
+  bindingBusyId.value = binding.organization_domain_id
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await landingApi.deleteDomainBinding(binding.id)
+    await loadLandingBindingData()
+    successMessage.value = 'Domain berhasil di-unbind dari landing page.'
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  } finally {
+    bindingBusyId.value = ''
+  }
 }
 
 function openAddDrawer() {
@@ -400,6 +506,7 @@ onMounted(refreshData)
               <th class="px-3 py-3">Primary</th>
               <th class="px-3 py-3">SSL</th>
               <th class="px-3 py-3">Verification</th>
+              <th class="px-3 py-3">Landing page</th>
               <th class="px-3 py-3">Updated</th>
               <th class="px-3 py-3 text-right">Actions</th>
             </tr>
@@ -459,6 +566,65 @@ onMounted(refreshData)
                     </p>
                   </div>
                 </td>
+                <td class="px-3 py-4">
+                  <div v-if="!availableDomainIds.has(domain.id)" class="text-xs text-gray-400">
+                    Verify domain first
+                  </div>
+                  <div v-else-if="bindingByDomainId.get(domain.id)" class="max-w-[200px] space-y-1">
+                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                      {{
+                        pageById.get(bindingByDomainId.get(domain.id)!.landing_page_id)?.title ??
+                        pageById.get(bindingByDomainId.get(domain.id)!.landing_page_id)?.name ??
+                        'Unknown page'
+                      }}
+                      <span
+                        v-if="bindingByDomainId.get(domain.id)!.is_primary"
+                        class="ml-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700 ring-1 ring-brand-200"
+                      >
+                        Primary
+                      </span>
+                    </p>
+                    <div class="flex gap-1.5">
+                      <button
+                        v-if="!bindingByDomainId.get(domain.id)!.is_primary"
+                        type="button"
+                        class="rounded border px-2 py-1 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                        :disabled="bindingBusyId === domain.id"
+                        @click="setPrimaryDomainBinding(bindingByDomainId.get(domain.id)!)"
+                      >
+                        Set primary
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        :disabled="bindingBusyId === domain.id"
+                        @click="unbindDomain(bindingByDomainId.get(domain.id)!)"
+                      >
+                        Unbind
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="flex max-w-[220px] items-center gap-1.5">
+                    <select
+                      v-model="pendingBindPageId[domain.id]"
+                      class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900"
+                    >
+                      <option value="">Pilih page...</option>
+                      <option v-for="page in landingPages" :key="page.id" :value="page.id">
+                        {{ page.title || page.name }}
+                      </option>
+                    </select>
+                    <button
+                      type="button"
+                      class="shrink-0 rounded-lg border p-1.5 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                      title="Bind to page"
+                      :disabled="!pendingBindPageId[domain.id] || bindingBusyId === domain.id"
+                      @click="bindDomainToPage(domain)"
+                    >
+                      <Layout class="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </td>
                 <td class="px-3 py-4">{{ formatDate(domain.updated_at) }}</td>
                 <td class="px-3 py-4">
                   <div class="flex justify-end gap-2">
@@ -496,7 +662,7 @@ onMounted(refreshData)
                 </td>
               </tr>
               <tr v-if="filteredWorkspaceDomains.length === 0">
-                <td colspan="8" class="px-3 py-8 text-center text-gray-500">Belum ada domain.</td>
+                <td colspan="9" class="px-3 py-8 text-center text-gray-500">Belum ada domain.</td>
               </tr>
             </template>
             <template v-else>

@@ -1,158 +1,173 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowUpRight, BadgeDollarSign, Handshake, UsersRound } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
+import { CreditCard, FileClock, FileText, Sparkles } from 'lucide-vue-next'
 
 import BaseCard from '@/components/ui/BaseCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import { formatCurrency } from '@/lib/utils'
+import {
+  useBillingInvoicesQuery,
+  useCurrentBillingPlanQuery,
+} from '@/features/billing/api/billing.queries'
+import { useTenantStore } from '@/stores/tenant.store'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
-const metrics = [
-  { label: 'Total customer', value: '2.420', change: '+12,5%', icon: UsersRound },
-  { label: 'Pipeline aktif', value: formatCurrency(780_000_000), change: '+8,2%', icon: Handshake },
-  {
-    label: 'Revenue bulan ini',
-    value: formatCurrency(184_000_000),
-    change: '+14,1%',
-    icon: BadgeDollarSign,
-  },
-]
+const tenantStore = useTenantStore()
+const { activeTenantId } = storeToRefs(tenantStore)
+const organizationId = computed(() => activeTenantId.value ?? undefined)
 
-const revenueData = [
-  { label: 'Jan', value: 92_000_000 },
-  { label: 'Feb', value: 108_000_000 },
-  { label: 'Mar', value: 104_000_000 },
-  { label: 'Apr', value: 138_000_000 },
-  { label: 'Mei', value: 151_000_000 },
-  { label: 'Jun', value: 184_000_000 },
-]
+const allInvoicesParams = computed(() => ({ page: 1, per_page: 5 }))
+const openInvoicesParams = computed(() => ({ page: 1, per_page: 1, status: 'open' as const }))
 
-const chartPoints = computed(() => {
-  const width = 600
-  const height = 240
-  const padding = 28
-  const max = Math.max(...revenueData.map((item) => item.value))
-  const min = Math.min(...revenueData.map((item) => item.value))
-  const range = max - min || 1
+const currentPlanQuery = useCurrentBillingPlanQuery(organizationId)
+const recentInvoicesQuery = useBillingInvoicesQuery(organizationId, allInvoicesParams)
+const openInvoicesQuery = useBillingInvoicesQuery(organizationId, openInvoicesParams)
 
-  return revenueData.map((item, index) => {
-    const x = padding + (index / (revenueData.length - 1)) * (width - padding * 2)
-    const y = padding + ((max - item.value) / range) * (height - padding * 2)
-    return { ...item, x, y }
-  })
-})
-
-const chartPath = computed(() =>
-  chartPoints.value
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' '),
+const currentSubscription = computed(() => currentPlanQuery.data.value?.subscription ?? null)
+const currentPlanName = computed(
+  () => currentSubscription.value?.plan?.name || 'Belum berlangganan',
 )
+const currentPlanStatus = computed(() => currentSubscription.value?.status ?? null)
 
-const chartAreaPath = computed(() => {
-  const points = chartPoints.value
-  const first = points[0]
-  const last = points.at(-1)
-  if (!first || !last) return ''
-  return `${chartPath.value} L ${last.x} 240 L ${first.x} 240 Z`
-})
+const totalInvoices = computed(() => recentInvoicesQuery.data.value?.meta?.total ?? null)
+const totalOpenInvoices = computed(() => openInvoicesQuery.data.value?.meta?.total ?? null)
+const recentInvoices = computed(() => recentInvoicesQuery.data.value?.data ?? [])
 
-const activities = [
-  ['Deal “Enterprise Migration” berpindah ke Negotiation', '12 menit lalu'],
-  ['PT Nusantara Digital ditambahkan sebagai customer', '38 menit lalu'],
-  ['Invoice INV-2026-081 telah dibayar', '1 jam lalu'],
-  ['Siti mengundang anggota tim baru', '3 jam lalu'],
-]
+const statusLabel: Record<string, string> = {
+  draft: 'Draft',
+  open: 'Belum Dibayar',
+  paid: 'Lunas',
+  void: 'Dibatalkan',
+  expired: 'Kedaluwarsa',
+  failed: 'Gagal',
+}
+
+const statusTone: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+  open: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+  paid: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+  void: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+  expired: 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-300',
+  failed: 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-300',
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <PageHeader
       title="Dashboard"
-      description="Ringkasan performa workspace dan aktivitas terbaru."
+      description="Ringkasan langganan, tagihan, dan aktivitas terbaru workspace Anda."
     />
 
     <div class="grid gap-4 md:grid-cols-3">
-      <BaseCard v-for="metric in metrics" :key="metric.label">
+      <BaseCard>
         <div class="flex items-start justify-between">
           <span
             class="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950"
           >
-            <component :is="metric.icon" class="size-5" />
+            <CreditCard class="size-5" />
           </span>
-          <span class="flex items-center text-xs font-semibold text-emerald-600">
-            {{ metric.change }} <ArrowUpRight class="size-3.5" />
+          <span
+            v-if="currentPlanStatus"
+            class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+          >
+            {{ currentPlanStatus }}
           </span>
         </div>
-        <p class="mt-5 text-sm text-gray-500">{{ metric.label }}</p>
-        <p class="mt-1 text-2xl font-bold">{{ metric.value }}</p>
+        <p class="mt-5 text-sm text-gray-500">Paket Aktif</p>
+        <p
+          v-if="currentPlanQuery.isLoading.value"
+          class="mt-1 h-8 w-32 animate-pulse rounded bg-gray-100 dark:bg-gray-800"
+        />
+        <p v-else class="mt-1 text-2xl font-bold">{{ currentPlanName }}</p>
+      </BaseCard>
+
+      <BaseCard>
+        <div class="flex items-start justify-between">
+          <span
+            class="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950"
+          >
+            <FileText class="size-5" />
+          </span>
+        </div>
+        <p class="mt-5 text-sm text-gray-500">Total Invoice</p>
+        <p
+          v-if="recentInvoicesQuery.isLoading.value"
+          class="mt-1 h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-800"
+        />
+        <p v-else class="mt-1 text-2xl font-bold">{{ totalInvoices ?? '—' }}</p>
+      </BaseCard>
+
+      <BaseCard>
+        <div class="flex items-start justify-between">
+          <span
+            class="grid size-11 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50"
+          >
+            <FileClock class="size-5" />
+          </span>
+        </div>
+        <p class="mt-5 text-sm text-gray-500">Invoice Belum Dibayar</p>
+        <p
+          v-if="openInvoicesQuery.isLoading.value"
+          class="mt-1 h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-800"
+        />
+        <p v-else class="mt-1 text-2xl font-bold">{{ totalOpenInvoices ?? '—' }}</p>
       </BaseCard>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-      <BaseCard>
-        <div class="mb-4">
-          <h2 class="font-semibold">Revenue</h2>
-          <p class="text-sm text-gray-500">Enam bulan terakhir</p>
-        </div>
-        <div class="h-[310px]">
-          <svg
-            viewBox="0 0 600 300"
-            role="img"
-            aria-label="Revenue enam bulan terakhir"
-            class="h-full w-full"
-          >
-            <defs>
-              <linearGradient id="revenueGradient" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stop-color="#465fff" stop-opacity="0.28" />
-                <stop offset="100%" stop-color="#465fff" stop-opacity="0" />
-              </linearGradient>
-            </defs>
-
-            <g class="text-gray-200 dark:text-gray-800">
-              <line
-                v-for="y in [40, 90, 140, 190, 240]"
-                :key="y"
-                x1="28"
-                x2="572"
-                :y1="y"
-                :y2="y"
-                stroke="currentColor"
-                stroke-dasharray="6 8"
-              />
-            </g>
-
-            <path :d="chartAreaPath" fill="url(#revenueGradient)" />
-            <path
-              :d="chartPath"
-              fill="none"
-              stroke="#465fff"
-              stroke-width="4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-
-            <g v-for="point in chartPoints" :key="point.label">
-              <circle :cx="point.x" :cy="point.y" r="5" fill="#465fff" />
-              <circle :cx="point.x" :cy="point.y" r="9" fill="#465fff" opacity="0.12" />
-              <text :x="point.x" y="278" text-anchor="middle" class="fill-gray-500 text-[13px]">
-                {{ point.label }}
-              </text>
-            </g>
-          </svg>
-        </div>
-      </BaseCard>
-
-      <BaseCard>
-        <h2 class="font-semibold">Aktivitas terbaru</h2>
-        <div class="mt-5 space-y-5">
-          <div v-for="[activity, time] in activities" :key="activity" class="flex gap-3">
-            <span class="mt-1.5 size-2 shrink-0 rounded-full bg-brand-500" />
-            <div>
-              <p class="text-sm font-medium leading-5">{{ activity }}</p>
-              <p class="mt-1 text-xs text-gray-500">{{ time }}</p>
-            </div>
+    <BaseCard>
+      <h2 class="font-semibold">Invoice Terbaru</h2>
+      <div v-if="recentInvoicesQuery.isLoading.value" class="mt-5 space-y-3">
+        <div
+          v-for="n in 3"
+          :key="n"
+          class="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800"
+        />
+      </div>
+      <p v-else-if="!recentInvoices.length" class="mt-5 text-sm text-gray-500">
+        Belum ada invoice untuk workspace ini.
+      </p>
+      <div v-else class="mt-5 space-y-3">
+        <div
+          v-for="invoice in recentInvoices"
+          :key="invoice.id"
+          class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 dark:border-gray-800"
+        >
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium">{{ invoice.invoice_number }}</p>
+            <p class="text-xs text-gray-500">
+              {{ invoice.due_date ? formatDate(invoice.due_date) : '—' }}
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span
+              class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              :class="statusTone[invoice.status] ?? 'bg-gray-100 text-gray-600'"
+            >
+              {{ statusLabel[invoice.status] ?? invoice.status }}
+            </span>
+            <span class="text-sm font-semibold">{{
+              formatCurrency(Number(invoice.total_amount))
+            }}</span>
           </div>
         </div>
-      </BaseCard>
-    </div>
+      </div>
+    </BaseCard>
+
+    <BaseCard class="border-dashed">
+      <div class="flex items-center gap-3">
+        <span
+          class="grid size-9 place-items-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-800"
+        >
+          <Sparkles class="size-4" />
+        </span>
+        <div>
+          <p class="text-sm font-medium">CRM &amp; Pipeline Penjualan — Segera Hadir</p>
+          <p class="text-xs text-gray-500">
+            Modul CRM (kontak, pipeline, deal) belum tersedia di backend saat ini.
+          </p>
+        </div>
+      </div>
+    </BaseCard>
   </div>
 </template>

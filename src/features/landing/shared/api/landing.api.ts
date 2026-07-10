@@ -125,7 +125,7 @@ function normalizeFormField(raw: RawRecord): LandingFormField {
   }
 }
 
-function normalizeBranding(raw: RawRecord): LandingBranding {
+export function normalizeBranding(raw: RawRecord): LandingBranding {
   return {
     company_name: pick(raw, 'company_name', 'CompanyName', ''),
     tagline: pick(raw, 'tagline', 'Tagline', ''),
@@ -425,6 +425,10 @@ export const landingApi = {
     const response = await postData<RawRecord>('/admin/landing-pages', data)
     return { ...response, data: normalizePage(response.data) }
   },
+  createPageFromTemplate: async (data: unknown) => {
+    const response = await postData<RawRecord>('/admin/landing-pages/from-template', data)
+    return { ...response, data: normalizePage(response.data) }
+  },
   updatePage: (id: string, data: unknown) =>
     patchData<RawRecord>(`/admin/landing-pages/${id}`, data).then((response) => ({
       ...response,
@@ -524,6 +528,10 @@ export const landingApi = {
     const response = await getBase<RawRecord[]>('/admin/landing/domain-bindings', {
       landing_page_id: landingPageId,
     })
+    return { ...response, data: response.data.map(normalizeDomainBinding) }
+  },
+  getAllDomainBindings: async () => {
+    const response = await getBase<RawRecord[]>('/admin/landing/domain-bindings')
     return { ...response, data: response.data.map(normalizeDomainBinding) }
   },
   createDomainBinding: (data: unknown) =>

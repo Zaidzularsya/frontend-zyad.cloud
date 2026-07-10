@@ -14,8 +14,16 @@ export type PageType =
 export type PageVisibility = 'public' | 'private' | 'password_protected'
 
 /**
- * Tipe section yang dikenal oleh renderer.
+ * Tipe section yang dikenal oleh renderer maupun backend.
  * Renderer menggunakan tipe ini untuk lookup ke section-registry.
+ *
+ * Backend (landing_page_sections.section_type check constraint) mengizinkan:
+ * hero, about, features, services, product_showcase, content, gallery,
+ * portfolio, testimonial, pricing, faq, cta, form, contact, newsletter,
+ * partner_logos, statistics, footer — tenant dapat membuat section dari
+ * daftar ini. `benefits`, `problem`, `solution`, `demo` HANYA dipakai oleh
+ * public marketing page platform (bukan section type yang valid untuk
+ * tenant-authored page) dan sengaja dikecualikan dari section-schemas.ts.
  */
 export type LandingSectionType =
   | 'hero'
@@ -33,6 +41,13 @@ export type LandingSectionType =
   | 'about'
   | 'contact'
   | 'pricing'
+  | 'product_showcase'
+  | 'gallery'
+  | 'testimonial'
+  | 'form'
+  | 'newsletter'
+  | 'partner_logos'
+  | 'statistics'
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 

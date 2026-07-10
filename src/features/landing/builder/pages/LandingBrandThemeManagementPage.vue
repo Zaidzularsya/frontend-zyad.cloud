@@ -4,15 +4,20 @@ import {
   ArrowLeft,
   Brush,
   CheckCircle2,
+  Edit3,
   ExternalLink,
   Globe2,
   ImageIcon,
   Loader2,
   Mail,
+  MessageCircle,
   Palette,
+  Plus,
   RefreshCw,
   Save,
   Sparkles,
+  Trash2,
+  Upload,
 } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 
@@ -20,9 +25,15 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import TextField from '@/components/form/TextField.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
-import type { LandingBranding } from '@/features/landing/shared/types/landing.types'
+import type {
+  CallToAction,
+  LandingBranding,
+  LandingMedia,
+  LandingPage,
+} from '@/features/landing/shared/types/landing.types'
 
-type SocialPlatform = 'instagram' | 'linkedin' | 'x' | 'youtube'
+type SocialPlatform = 'instagram' | 'linkedin' | 'x' | 'youtube' | 'whatsapp'
+type CTAType = CallToAction['type']
 
 const props = withDefaults(
   defineProps<{
@@ -75,6 +86,15 @@ const socialPlatforms: Array<{ key: SocialPlatform; label: string; placeholder: 
   { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/company/brand' },
   { key: 'x', label: 'X / Twitter', placeholder: 'https://x.com/brand' },
   { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@brand' },
+  { key: 'whatsapp', label: 'WhatsApp', placeholder: 'https://wa.me/6281234567890' },
+]
+
+const ctaTypeOptions: Array<{ value: CTAType; label: string }> = [
+  { value: 'external_link', label: 'External link' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'internal_page', label: 'Internal page' },
+  { value: 'contact_form', label: 'Contact form' },
+  { value: 'document_download', label: 'Document download' },
 ]
 
 const loading = ref(false)
@@ -104,6 +124,7 @@ const form = reactive({
     linkedin: '',
     x: '',
     youtube: '',
+    whatsapp: '',
   } as Record<SocialPlatform, string>,
 })
 
@@ -152,9 +173,200 @@ const completedFields = computed(() => {
   return checks.filter(Boolean).length
 })
 
+const ctas = ref<CallToAction[]>([])
+const ctaLoading = ref(false)
+const ctaSaving = ref(false)
+const ctaError = ref('')
+const ctaFormOpen = ref(false)
+const editingCtaId = ref('')
+const availablePages = ref<LandingPage[]>([])
+
+const ctaForm = reactive({
+  name: '',
+  label: '',
+  type: 'external_link' as CTAType,
+  target: 'new_tab' as CallToAction['target'],
+  destination: '',
+  tracking_key: '',
+})
+
+const ctaDestinationLabel = computed(() => {
+  switch (ctaForm.type) {
+    case 'whatsapp':
+      return 'WhatsApp number (e.g. 6281234567890)'
+    case 'internal_page':
+      return 'Target page'
+    case 'contact_form':
+      return 'Form key/id'
+    case 'document_download':
+      return 'Document URL'
+    default:
+      return 'Destination URL'
+  }
+})
+
+const mediaItems = ref<LandingMedia[]>([])
+const mediaLoading = ref(false)
+const mediaUploading = ref(false)
+const mediaError = ref('')
+
 onMounted(() => {
   void loadBranding()
+  void loadCTAs()
+  void loadAvailablePages()
+  void loadMedia()
 })
+
+async function loadMedia() {
+  mediaLoading.value = true
+  mediaError.value = ''
+  try {
+    const response = await landingApi.getMedia({ per_page: 100 })
+    mediaItems.value = response.data
+  } catch (error) {
+    mediaError.value = getApiMessage(error, 'Gagal memuat media library.')
+  } finally {
+    mediaLoading.value = false
+  }
+}
+
+async function uploadMedia(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  mediaUploading.value = true
+  mediaError.value = ''
+  try {
+    const payload = new FormData()
+    payload.append('file', file)
+    await landingApi.uploadMedia(payload)
+    showNotice('Media berhasil diupload.')
+    await loadMedia()
+  } catch (error) {
+    mediaError.value = getApiMessage(error, 'Gagal mengupload media.')
+  } finally {
+    mediaUploading.value = false
+    input.value = ''
+  }
+}
+
+async function deleteMedia(media: LandingMedia) {
+  mediaError.value = ''
+  try {
+    await landingApi.deleteMedia(media.id)
+    showNotice('Media berhasil dihapus.')
+    await loadMedia()
+  } catch (error) {
+    mediaError.value = getApiMessage(error, 'Gagal menghapus media.')
+  }
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`
+  return `${(value / 1024 / 1024).toFixed(1)} MB`
+}
+
+async function loadCTAs() {
+  ctaLoading.value = true
+  ctaError.value = ''
+  try {
+    const response = await landingApi.getCTAs({ per_page: 100 })
+    ctas.value = response.data
+  } catch (error) {
+    ctaError.value = getApiMessage(error, 'Gagal memuat daftar CTA.')
+  } finally {
+    ctaLoading.value = false
+  }
+}
+
+async function loadAvailablePages() {
+  try {
+    const response = await landingApi.getPages({ per_page: 100, is_template: false })
+    availablePages.value = response.data
+  } catch {
+    // Non-fatal: internal_page CTA destination picker just won't have options.
+  }
+}
+
+function openCreateCta() {
+  editingCtaId.value = ''
+  ctaForm.name = ''
+  ctaForm.label = ''
+  ctaForm.type = 'external_link'
+  ctaForm.target = 'new_tab'
+  ctaForm.destination = ''
+  ctaForm.tracking_key = ''
+  ctaFormOpen.value = true
+}
+
+function openEditCta(cta: CallToAction) {
+  editingCtaId.value = cta.id
+  ctaForm.name = cta.name
+  ctaForm.label = cta.label
+  ctaForm.type = cta.type
+  ctaForm.target = cta.target === 'self' ? 'self' : 'new_tab'
+  ctaForm.destination = cta.destination
+  ctaForm.tracking_key = cta.tracking_key
+  ctaFormOpen.value = true
+}
+
+function closeCtaForm() {
+  ctaFormOpen.value = false
+}
+
+async function saveCta() {
+  if (!ctaForm.name.trim() || !ctaForm.label.trim() || !ctaForm.destination.trim()) {
+    ctaError.value = 'Name, label, dan destination wajib diisi.'
+    return
+  }
+  ctaSaving.value = true
+  ctaError.value = ''
+  try {
+    const trackingKey = ctaForm.tracking_key.trim() || makeSlug(ctaForm.name)
+    const payload = {
+      name: ctaForm.name.trim(),
+      label: ctaForm.label.trim(),
+      type: ctaForm.type,
+      target: ctaForm.target,
+      destination: ctaForm.destination.trim(),
+      tracking_key: trackingKey,
+    }
+    if (editingCtaId.value) {
+      await landingApi.updateCTA(editingCtaId.value, payload)
+      showNotice('CTA berhasil diperbarui.')
+    } else {
+      await landingApi.createCTA(payload)
+      showNotice('CTA berhasil dibuat.')
+    }
+    ctaFormOpen.value = false
+    await loadCTAs()
+  } catch (error) {
+    ctaError.value = getApiMessage(error, 'Gagal menyimpan CTA.')
+  } finally {
+    ctaSaving.value = false
+  }
+}
+
+async function deleteCta(cta: CallToAction) {
+  ctaError.value = ''
+  try {
+    await landingApi.deleteCTA(cta.id)
+    showNotice('CTA berhasil dihapus.')
+    await loadCTAs()
+  } catch (error) {
+    ctaError.value = getApiMessage(error, 'Gagal menghapus CTA.')
+  }
+}
+
+function makeSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 async function loadBranding() {
   loading.value = true
@@ -219,6 +431,7 @@ function fillForm(data: LandingBranding | null) {
     linkedin: '',
     x: '',
     youtube: '',
+    whatsapp: '',
   }
 
   for (const item of data?.social_links ?? []) {
@@ -524,6 +737,224 @@ function showNotice(message: string) {
               :label="platform.label"
               :placeholder="platform.placeholder"
             />
+          </div>
+        </div>
+
+        <div class="rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-950">
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-2 text-sm font-semibold text-rose-600">
+              <MessageCircle class="size-4" />
+              Call to Actions
+            </div>
+            <BaseButton type="button" variant="secondary" @click="openCreateCta">
+              <Plus class="size-4" />
+              New CTA
+            </BaseButton>
+          </div>
+          <p class="mt-2 text-sm text-gray-500">
+            CTA reusable dengan tracking key, dipakai bersama oleh hero section, navigasi, dan
+            footer.
+          </p>
+
+          <div
+            v-if="ctaError"
+            class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+          >
+            {{ ctaError }}
+          </div>
+
+          <div
+            v-if="ctaFormOpen"
+            class="mt-4 space-y-4 rounded-xl border bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
+          >
+            <div class="grid gap-3 md:grid-cols-2">
+              <TextField
+                v-model="ctaForm.name"
+                name="cta-name"
+                label="Name"
+                placeholder="Primary CTA"
+              />
+              <TextField
+                v-model="ctaForm.label"
+                name="cta-label"
+                label="Button label"
+                placeholder="Get started"
+              />
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Type
+                </span>
+                <select
+                  v-model="ctaForm.type"
+                  class="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+                >
+                  <option
+                    v-for="option in ctaTypeOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Target
+                </span>
+                <select
+                  v-model="ctaForm.target"
+                  class="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+                >
+                  <option value="new_tab">New tab</option>
+                  <option value="self">Same tab</option>
+                </select>
+              </label>
+            </div>
+            <label v-if="ctaForm.type === 'internal_page'" class="block">
+              <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ ctaDestinationLabel }}
+              </span>
+              <select
+                v-model="ctaForm.destination"
+                class="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+              >
+                <option value="">Select a page</option>
+                <option v-for="page in availablePages" :key="page.id" :value="page.slug">
+                  {{ page.title || page.name }} — /{{ page.slug }}
+                </option>
+              </select>
+            </label>
+            <TextField
+              v-else
+              v-model="ctaForm.destination"
+              name="cta-destination"
+              :label="ctaDestinationLabel"
+              placeholder="https://... or 62812..."
+            />
+            <TextField
+              v-model="ctaForm.tracking_key"
+              name="cta-tracking-key"
+              label="Tracking key"
+              placeholder="(auto dari name jika kosong)"
+            />
+            <div class="flex gap-2">
+              <BaseButton type="button" :disabled="ctaSaving" @click="saveCta">
+                <Loader2 v-if="ctaSaving" class="size-4 animate-spin" />
+                <Save v-else class="size-4" />
+                {{ editingCtaId ? 'Update CTA' : 'Create CTA' }}
+              </BaseButton>
+              <BaseButton type="button" variant="secondary" @click="closeCtaForm"
+                >Cancel</BaseButton
+              >
+            </div>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            <div
+              v-for="cta in ctas"
+              :key="cta.id"
+              class="flex items-center justify-between rounded-xl border px-4 py-3 dark:border-gray-800"
+            >
+              <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {{ cta.label }}
+                  <span
+                    class="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                  >
+                    {{ cta.type }}
+                  </span>
+                </p>
+                <p class="mt-1 truncate text-xs text-gray-500">
+                  {{ cta.destination }} · key: {{ cta.tracking_key }}
+                </p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  title="Edit"
+                  @click="openEditCta(cta)"
+                >
+                  <Edit3 class="size-4" />
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                  title="Delete"
+                  @click="deleteCta(cta)"
+                >
+                  <Trash2 class="size-4" />
+                </button>
+              </div>
+            </div>
+            <div
+              v-if="!ctaLoading && ctas.length === 0"
+              class="rounded-xl border border-dashed p-6 text-center text-sm text-gray-500 dark:border-gray-800"
+            >
+              Belum ada CTA. Buat CTA pertama untuk dipakai di hero, navigasi, atau footer.
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-950">
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-2 text-sm font-semibold text-rose-600">
+              <ImageIcon class="size-4" />
+              Media library
+            </div>
+            <label
+              class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-600"
+              :class="{ 'pointer-events-none opacity-60': mediaUploading }"
+            >
+              <Loader2 v-if="mediaUploading" class="size-4 animate-spin" />
+              <Upload v-else class="size-4" />
+              Upload media
+              <input type="file" class="hidden" :disabled="mediaUploading" @change="uploadMedia" />
+            </label>
+          </div>
+          <p class="mt-2 text-sm text-gray-500">
+            Metadata file (nama, tipe, ukuran). Preview gambar & pemilihan langsung ke field content
+            belum tersedia karena upload binary ke storage backend belum diimplementasikan.
+          </p>
+
+          <div
+            v-if="mediaError"
+            class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+          >
+            {{ mediaError }}
+          </div>
+
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <div
+              v-for="media in mediaItems"
+              :key="media.id"
+              class="flex items-start justify-between gap-3 rounded-xl border p-3 dark:border-gray-800"
+            >
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {{ media.filename }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ media.mime_type }} · {{ formatBytes(media.size_bytes) }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                title="Delete"
+                @click="deleteMedia(media)"
+              >
+                <Trash2 class="size-4" />
+              </button>
+            </div>
+            <div
+              v-if="!mediaLoading && mediaItems.length === 0"
+              class="rounded-xl border border-dashed p-6 text-center text-sm text-gray-500 dark:border-gray-800 md:col-span-2"
+            >
+              Belum ada media yang diupload.
+            </div>
           </div>
         </div>
       </div>

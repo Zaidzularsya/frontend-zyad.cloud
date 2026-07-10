@@ -48,6 +48,17 @@ export function useRequestBillingUpgradeMutation() {
   })
 }
 
+export function useCreateInvoiceCheckoutMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (invoiceId: string) => billingApi.createInvoiceCheckout(invoiceId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: billingKeys.invoices() })
+    },
+  })
+}
+
 export function useScheduleBillingCancellationMutation() {
   const queryClient = useQueryClient()
 

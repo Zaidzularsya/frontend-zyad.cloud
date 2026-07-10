@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import SectionRenderer from './SectionRenderer.vue'
+import { useScrollReveal } from '../composables/useScrollReveal'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
 const props = defineProps<{
@@ -30,10 +31,13 @@ const visibleSections = computed(() => {
       return orderA - orderB
     })
 })
+
+const rootRef = ref<HTMLElement | null>(null)
+useScrollReveal(rootRef)
 </script>
 
 <template>
-  <main>
+  <main ref="rootRef">
     <SectionRenderer
       v-for="section in visibleSections"
       :key="section.id || `${section.type}-${section.sort_order ?? section.sortOrder}`"

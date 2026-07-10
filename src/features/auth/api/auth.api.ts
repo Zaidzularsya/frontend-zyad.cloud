@@ -120,6 +120,38 @@ async function createTemporaryWorkspace(raw: RawLoginResponse) {
   }
 }
 
+async function finalizeGoogleSession(raw: RawGoogleLoginResponse): Promise<SessionResponse> {
+  let tenants: Tenant[] = []
+  let activeTenantId: string | undefined
+
+  try {
+    const organizations = await loadOrganizations(raw.access_token)
+    tenants = organizations.tenants
+    activeTenantId = organizations.activeTenantId
+    if (raw.is_new_user && tenants.length === 0) {
+      const workspace = await createTemporaryWorkspace(raw)
+      tenants = workspace.tenants
+      activeTenantId = workspace.activeTenantId
+    }
+  } catch (err) {
+    console.error('Failed to load organizations during Google login:', err)
+  }
+
+  return {
+    user: {
+      id: raw.user.id,
+      name: raw.user.name,
+      email: raw.user.email,
+      permissions: raw.user.permissions as Permission[],
+      roles: raw.user.roles,
+    },
+    accessToken: raw.access_token,
+    refreshToken: raw.refresh_token,
+    tenants,
+    activeTenantId,
+  }
+}
+
 export const authApi = {
   async login(payload: LoginPayload): Promise<SessionResponse> {
     const raw = await apiClient.post<RawLoginResponse>('/auth/login', {
@@ -162,35 +194,13 @@ export const authApi = {
       device_name: payload.deviceName || 'Web Browser',
     })
 
-    let tenants: Tenant[] = []
-    let activeTenantId: string | undefined
+    return finalizeGoogleSession(raw)
+  },
 
-    try {
-      const organizations = await loadOrganizations(raw.access_token)
-      tenants = organizations.tenants
-      activeTenantId = organizations.activeTenantId
-      if (raw.is_new_user && tenants.length === 0) {
-        const workspace = await createTemporaryWorkspace(raw)
-        tenants = workspace.tenants
-        activeTenantId = workspace.activeTenantId
-      }
-    } catch (err) {
-      console.error('Failed to load organizations during Google login:', err)
-    }
+  async googleExchange(code: string): Promise<SessionResponse> {
+    const raw = await apiClient.post<RawGoogleLoginResponse>('/auth/google/exchange', { code })
 
-    return {
-      user: {
-        id: raw.user.id,
-        name: raw.user.name,
-        email: raw.user.email,
-        permissions: raw.user.permissions as Permission[],
-        roles: raw.user.roles,
-      },
-      accessToken: raw.access_token,
-      refreshToken: raw.refresh_token,
-      tenants,
-      activeTenantId,
-    }
+    return finalizeGoogleSession(raw)
   },
 
   async session(): Promise<SessionResponse> {

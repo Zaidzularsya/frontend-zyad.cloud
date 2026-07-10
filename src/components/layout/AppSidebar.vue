@@ -21,6 +21,8 @@ const tenant = useTenantStore()
 const route = useRoute()
 const openMenus = ref(new Set<string>(['Landing Page']))
 
+const isPlatformMode = computed(() => route.path.startsWith('/platform'))
+
 function hasChildren(
   item: MenuItem | MenuChildItem,
 ): item is MenuItem & { children: MenuChildItem[] } {
@@ -92,20 +94,32 @@ function closeMobileSidebar() {
 <template>
   <aside
     class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r bg-white transition-transform duration-200 dark:bg-gray-950 lg:translate-x-0"
-    :class="app.sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+    :class="[
+      app.sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+      isPlatformMode ? 'border-t-4 border-t-indigo-500' : '',
+    ]"
   >
     <div class="flex h-18 items-center justify-between border-b px-5">
-      <RouterLink :to="{ name: 'profile' }" class="flex items-center gap-3">
+      <RouterLink
+        :to="{ name: isPlatformMode ? 'platform-dashboard' : 'profile' }"
+        class="flex items-center gap-3"
+      >
         <span
-          class="grid size-10 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white"
+          class="grid size-10 shrink-0 place-items-center rounded-xl text-lg font-bold text-white"
+          :class="isPlatformMode ? 'bg-indigo-600' : 'bg-brand-500'"
         >
-          {{ (tenant.activeTenant?.name || 'Zyad').charAt(0).toUpperCase() }}
+          {{ isPlatformMode ? 'Z' : (tenant.activeTenant?.name || 'Zyad').charAt(0).toUpperCase() }}
         </span>
         <div class="min-w-0">
           <strong class="block truncate text-lg leading-5">{{
-            tenant.activeTenant?.name || 'Zyad Cloud'
+            isPlatformMode ? 'Zyad Cloud' : tenant.activeTenant?.name || 'Zyad Cloud'
           }}</strong>
-          <small class="text-gray-500">Workspace Console</small>
+          <small
+            class="font-semibold uppercase tracking-wide"
+            :class="isPlatformMode ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500'"
+          >
+            {{ isPlatformMode ? 'Super Admin Console' : 'Workspace Console' }}
+          </small>
         </div>
       </RouterLink>
       <button
@@ -143,7 +157,11 @@ function closeMobileSidebar() {
               v-else-if="item.route"
               :to="{ name: item.route }"
               class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
-              active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
+              :active-class="
+                isPlatformMode
+                  ? '!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50'
+                  : '!bg-brand-50 !text-brand-600 dark:!bg-brand-950'
+              "
               @click="closeMobileSidebar"
             >
               <component :is="item.icon" class="size-5 shrink-0" />

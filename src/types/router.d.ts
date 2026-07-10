@@ -10,6 +10,7 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     guestOnly?: boolean
     requiresTenant?: boolean
+    requiresPlatform?: boolean
     permissions?: Permission[]
   }
 }

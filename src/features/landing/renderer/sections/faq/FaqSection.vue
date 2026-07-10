@@ -13,13 +13,13 @@ defineProps<{
 <template>
   <section id="faq" class="py-section-gap bg-surface">
     <div class="max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop">
-      <div class="text-center mb-16 fade-up visible">
+      <div class="text-center mb-16 fade-up">
         <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">
           {{ content.title }}
         </h2>
       </div>
 
-      <div class="space-y-4 fade-up visible">
+      <div class="space-y-4 fade-up">
         <div
           v-for="(item, idx) in content.items"
           :key="idx"

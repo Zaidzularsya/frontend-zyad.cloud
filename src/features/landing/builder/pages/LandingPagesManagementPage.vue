@@ -24,7 +24,9 @@ import {
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import SectionContentForm from '@/features/landing/builder/components/SectionContentForm.vue'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
+import { schemaForSectionType } from '@/features/landing/shared/constants/section-schemas'
 import type {
   LandingPage,
   LandingSection,
@@ -82,14 +84,14 @@ type SectionPreset = {
   style: Record<string, unknown>
 }
 
+// Read-only preview of what landingApi.createPageFromTemplate() will copy —
+// content/style editing happens after creation via the Sections tab's
+// schema-driven form (see SectionContentForm.vue), not before creation.
 type SectionDraft = {
   key: string
   type: string
   name: string
   sort_order: number
-  source_template_id?: string
-  contentText: string
-  styleText: string
 }
 
 const templateThumbnailUrls = [
@@ -426,6 +428,9 @@ const activeManagedSection = computed(
     null,
 )
 const activeContentFields = computed(() => contentFields(activeManagedSection.value?.content ?? {}))
+const activeSectionSchema = computed(() =>
+  schemaForSectionType(activeManagedSection.value?.type ?? ''),
+)
 const templateCatalog = computed(() => {
   const keyword = templateSearch.value.trim().toLowerCase()
   return templatePages.value.filter((template) => {
@@ -663,20 +668,6 @@ function updateSectionInState(sectionId: string, patch: Partial<LandingSection>)
       section.id === sectionId ? { ...section, ...patch } : section,
     ),
   }
-}
-
-function sourceTemplateId(content: Record<string, unknown>) {
-  const source = content.source
-  if (
-    source &&
-    typeof source === 'object' &&
-    !Array.isArray(source) &&
-    'sectionTemplateId' in source &&
-    typeof source.sectionTemplateId === 'string'
-  ) {
-    return source.sectionTemplateId
-  }
-  return ''
 }
 
 function isPresetMapped(preset: SectionPreset) {
@@ -958,12 +949,9 @@ async function useTemplate(template: LandingPage) {
       type: section.type,
       name: section.name,
       sort_order: section.sort_order || (index + 1) * 10,
-      source_template_id: sourceTemplateId(section.content),
-      contentText: JSON.stringify(section.content ?? {}, null, 2),
-      styleText: JSON.stringify(section.style ?? {}, null, 2),
     }))
   } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal memuat section template.')
+    errorMessage.value = getApiMessage(error, 'Gagal memuat preview section template.')
   } finally {
     templateCatalogLoading.value = false
   }
@@ -1002,38 +990,23 @@ async function savePage() {
     if (editingPageId.value) {
       await landingApi.updatePage(editingPageId.value, payload)
       showNotice('Landing page berhasil diperbarui.')
+    } else if (createPageMode.value === 'customize' && selectedTemplatePage.value) {
+      // Single call: backend copies sections, SEO, and (optionally) branding
+      // override from the template page in one transaction-scoped operation.
+      await landingApi.createPageFromTemplate({
+        template_page_id: selectedTemplatePage.value.id,
+        name: payload.name,
+        title: payload.title,
+        slug: payload.slug,
+        visibility: payload.visibility,
+        locale: payload.locale,
+        timezone: payload.timezone,
+        include_branding: true,
+      })
+      showNotice('Draft berhasil dibuat dari template.')
     } else {
-      const response = await landingApi.createPage(payload)
-      if (createPageMode.value === 'customize' && selectedTemplatePage.value) {
-        for (const draft of sectionDrafts.value) {
-          if (draft.source_template_id) {
-            const sectionResponse = await landingApi.instantiateTemplate(response.data.id, {
-              template_id: draft.source_template_id,
-              section_key: draft.key || makeSlug(draft.name),
-              sort_order: draft.sort_order,
-            })
-            await landingApi.updateSection(response.data.id, sectionResponse.data.id, {
-              name: draft.name,
-              is_enabled: true,
-              content: parseJsonField(draft.contentText),
-              style: parseJsonField(draft.styleText),
-            })
-          } else {
-            await landingApi.createSection(response.data.id, {
-              key: draft.key || makeSlug(draft.name),
-              type: draft.type,
-              name: draft.name,
-              sort_order: draft.sort_order,
-              is_enabled: true,
-              content: parseJsonField(draft.contentText),
-              style: parseJsonField(draft.styleText),
-            })
-          }
-        }
-        showNotice('Draft berhasil dibuat dari template.')
-      } else {
-        showNotice('Landing page custom berhasil dibuat.')
-      }
+      await landingApi.createPage(payload)
+      showNotice('Landing page custom berhasil dibuat.')
     }
 
     pagePanelOpen.value = false
@@ -1631,7 +1604,15 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
                   />
                 </label>
 
-                <div class="grid gap-4 md:grid-cols-2">
+                <SectionContentForm
+                  v-if="activeSectionSchema"
+                  :content="activeManagedSection.content ?? {}"
+                  :schema="activeSectionSchema"
+                  @field-change="
+                    (key, value) => updateSectionContentField(activeManagedSection!, key, value)
+                  "
+                />
+                <div v-else class="grid gap-4 md:grid-cols-2">
                   <div v-for="[key, value] in activeContentFields" :key="key">
                     <label class="block text-sm font-medium">
                       {{ humanize(key) }}
@@ -2572,8 +2553,8 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
           <div>
             <h3 class="font-semibold text-gray-900 dark:text-gray-100">Start from</h3>
             <p class="text-sm text-gray-500">
-              Pilih template dari katalog seed, preview di tab baru, lalu isi konten section sebelum
-              disimpan sebagai draft.
+              Pilih template dari katalog seed, preview di tab baru, lalu isi basic info untuk
+              membuat draft — section, SEO, dan branding template disalin sekaligus.
             </p>
           </div>
 
@@ -2743,8 +2724,9 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
                   {{ selectedTemplatePage?.name }}
                 </h4>
                 <p class="text-sm text-gray-500">
-                  Isi basic info di bawah, lalu edit content dan style tiap section sebelum draft
-                  dibuat.
+                  Isi basic info di bawah lalu buat draft. Section, SEO, dan branding template ini
+                  akan disalin sekaligus — kamu bisa edit content tiap section (termasuk rich text)
+                  setelah draft dibuat, dari tab Sections.
                 </p>
               </div>
               <BaseButton type="button" variant="secondary" @click="createPageMode = 'catalog'">
@@ -2752,51 +2734,26 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
               </BaseButton>
             </div>
 
-            <div class="space-y-3">
-              <details
-                v-for="(section, index) in sectionDrafts"
-                :key="`${section.key}-${index}`"
-                class="rounded-xl border bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
-                :open="index === 0"
-              >
-                <summary class="cursor-pointer font-semibold text-gray-900 dark:text-gray-100">
-                  {{ index + 1 }}. {{ section.name }} · {{ section.type }}
-                </summary>
-                <div class="mt-4 grid gap-3 md:grid-cols-2">
-                  <label class="block text-sm font-medium">
-                    Section name
-                    <input
-                      v-model="section.name"
-                      class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                    />
-                  </label>
-                  <label class="block text-sm font-medium">
-                    Section key
-                    <input
-                      v-model="section.key"
-                      class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                    />
-                  </label>
-                </div>
-                <div class="mt-3 grid gap-3 lg:grid-cols-2">
-                  <label class="block text-sm font-medium">
-                    Content JSON
-                    <textarea
-                      v-model="section.contentText"
-                      rows="10"
-                      class="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                    ></textarea>
-                  </label>
-                  <label class="block text-sm font-medium">
-                    Style JSON
-                    <textarea
-                      v-model="section.styleText"
-                      rows="10"
-                      class="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                    ></textarea>
-                  </label>
-                </div>
-              </details>
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Sections yang akan disalin ({{ sectionDrafts.length }})
+              </p>
+              <ul class="space-y-1.5">
+                <li
+                  v-for="(section, index) in sectionDrafts"
+                  :key="`${section.key}-${index}`"
+                  class="flex items-center justify-between rounded-xl border bg-white px-4 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <span class="font-medium text-gray-900 dark:text-gray-100">{{
+                    section.name
+                  }}</span>
+                  <span
+                    class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                  >
+                    {{ section.type }}
+                  </span>
+                </li>
+              </ul>
             </div>
 
             <div

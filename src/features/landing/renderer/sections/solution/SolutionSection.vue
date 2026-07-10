@@ -19,7 +19,7 @@ defineProps<{
   <section id="cara-kerja" class="py-section-gap bg-primary-container text-on-primary">
     <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-section-gap items-center">
-        <div class="fade-up visible">
+        <div class="fade-up">
           <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6">
             {{ content.title }}
           </h2>
@@ -42,7 +42,7 @@ defineProps<{
           <div
             v-for="(step, idx) in content.steps"
             :key="idx"
-            :class="`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group fade-up visible ${step.highlight ? 'is-active' : ''}`"
+            :class="`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group fade-up ${step.highlight ? 'is-active' : ''}`"
             :style="{ transitionDelay: `${idx * 150}ms` }"
           >
             <div

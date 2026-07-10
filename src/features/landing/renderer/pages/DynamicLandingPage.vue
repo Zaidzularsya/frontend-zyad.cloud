@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { http } from '@/lib/http'
+import { normalizeBranding } from '../../shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
-import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
+import type { LandingBranding, LandingPage, LandingSection } from '../../shared/types/landing.types'
 
 /**
  * DynamicLandingPage
@@ -24,6 +25,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'landing-navigation', items: NavItem[]): void
+  (event: 'landing-branding', branding: LandingBranding): void
 }>()
 
 type NavItem = {
@@ -76,6 +78,9 @@ async function fetchPage(slug: string) {
     const rawMenus = pickArray(result, 'Menus', 'menus')
     const menus = normalizeMenus(rawMenus)
     emit('landing-navigation', getHeaderNavigation(menus))
+
+    const rawBranding = pickObject(result, 'Branding', 'branding')
+    emit('landing-branding', normalizeBranding(rawBranding))
   } catch (err) {
     console.error('DynamicLandingPage: failed to load page', err)
     error.value = 'Halaman tidak dapat dimuat. Silakan coba beberapa saat lagi.'

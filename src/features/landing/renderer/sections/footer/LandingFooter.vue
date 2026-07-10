@@ -1,7 +1,10 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+
+const props = defineProps<{
   content: {
     brandName: string
+    logoUrl?: string
     description: string
     columns: Array<{
       title: string
@@ -13,6 +16,8 @@ defineProps<{
     copyright: string
   }
 }>()
+
+const brandInitial = computed(() => (props.content.brandName?.trim()?.[0] ?? '').toUpperCase())
 </script>
 
 <template>
@@ -22,10 +27,17 @@ defineProps<{
         <!-- Brand Info -->
         <div class="md:col-span-5">
           <div class="flex items-center gap-2 mb-6">
+            <img
+              v-if="content.logoUrl"
+              :src="content.logoUrl"
+              :alt="content.brandName"
+              class="w-10 h-10 rounded-lg object-contain"
+            />
             <div
+              v-else
               class="w-10 h-10 rounded-lg bg-primary text-on-primary font-bold flex items-center justify-center text-xl"
             >
-              H
+              {{ brandInitial }}
             </div>
             <span class="font-display-xl text-2xl font-bold tracking-tight text-primary">{{
               content.brandName

@@ -22,7 +22,7 @@ defineProps<{
     ></div>
 
     <div
-      class="max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop text-center relative z-10 fade-up visible"
+      class="max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop text-center relative z-10 fade-up"
     >
       <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6">
         {{ content.title || 'Ready to get started?' }}

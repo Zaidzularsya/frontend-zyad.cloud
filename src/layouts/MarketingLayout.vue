@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import type { LandingBranding } from '@/features/landing/shared/types/landing.types'
 
 interface MarketingNavItem {
   id?: string
@@ -11,9 +12,39 @@ interface MarketingNavItem {
   children?: MarketingNavItem[]
 }
 
+const DEFAULT_BRAND_NAME = 'Zyad Cloud'
+
 const isOpen = ref(false)
 const isDark = ref(false)
 const navigationItems = ref<MarketingNavItem[]>([])
+const branding = ref<LandingBranding | null>(null)
+
+const brandName = computed(() => branding.value?.company_name || DEFAULT_BRAND_NAME)
+const brandLogoUrl = computed(() =>
+  isDark.value
+    ? branding.value?.logo_dark_url || branding.value?.logo_light_url
+    : branding.value?.logo_light_url,
+)
+const copyrightText = computed(
+  () => `© ${new Date().getFullYear()} ${brandName.value}. All rights reserved.`,
+)
+
+const setBranding = (value: LandingBranding) => {
+  branding.value = value
+  if (value.favicon_url) {
+    setFavicon(value.favicon_url)
+  }
+}
+
+function setFavicon(url: string) {
+  let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']")
+  if (!link) {
+    link = document.createElement('link')
+    link.rel = 'icon'
+    document.head.appendChild(link)
+  }
+  link.href = url
+}
 
 onMounted(() => {
   const savedTheme = localStorage.getItem('theme')
@@ -69,10 +100,16 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
     >
       <div class="flex justify-between items-center max-w-7xl mx-auto px-4 md:px-8 py-4">
         <a
-          class="font-headline-md text-xl font-bold text-primary dark:text-primary-fixed tracking-tight"
+          class="flex items-center gap-2 font-headline-md text-xl font-bold text-primary dark:text-primary-fixed tracking-tight"
           href="#"
         >
-          HEY Digital Solution
+          <img
+            v-if="brandLogoUrl"
+            :src="brandLogoUrl"
+            :alt="brandName"
+            class="h-8 w-auto object-contain"
+          />
+          <span>{{ brandName }}</span>
         </a>
 
         <!-- Desktop Menu -->
@@ -149,14 +186,34 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
     </nav>
 
     <main>
-      <RouterView @landing-navigation="setNavigation" />
+      <RouterView @landing-navigation="setNavigation" @landing-branding="setBranding" />
     </main>
 
     <footer
       class="border-t border-outline-variant/30 bg-surface-container-low py-12 dark:bg-surface-dim"
     >
       <div class="mx-auto max-w-7xl px-6 text-center text-sm text-on-surface-variant">
-        <p>&copy; 2026 Zyad Cloud Platform. All rights reserved.</p>
+        <div class="mb-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <RouterLink
+            :to="{ name: 'legal-terms' }"
+            class="hover:text-primary dark:hover:text-primary-fixed"
+          >
+            Syarat &amp; Ketentuan
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-privacy' }"
+            class="hover:text-primary dark:hover:text-primary-fixed"
+          >
+            Kebijakan Privasi
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-refund' }"
+            class="hover:text-primary dark:hover:text-primary-fixed"
+          >
+            Kebijakan Refund
+          </RouterLink>
+        </div>
+        <p>{{ copyrightText }}</p>
       </div>
     </footer>
   </div>

@@ -109,6 +109,12 @@ export interface ScheduleBillingCancellationPayload {
   reason?: string
 }
 
+export interface BillingCheckout {
+  payment_url: string
+  provider: string
+  expires_at?: string | null
+}
+
 export const billingApi = {
   currentPlan: () => apiClient.get<BillingCurrentPlan>('/app/billing/current-plan'),
 
@@ -133,6 +139,12 @@ export const billingApi = {
 
   requestUpgrade: (payload: RequestBillingUpgradePayload) =>
     apiClient.post<BillingInvoice, RequestBillingUpgradePayload>('/app/billing/upgrade', payload),
+
+  createInvoiceCheckout: (invoiceId: string) =>
+    apiClient.post<BillingCheckout, Record<string, never>>(
+      `/app/billing/invoices/${invoiceId}/checkout`,
+      {},
+    ),
 
   scheduleCancellation: (payload: ScheduleBillingCancellationPayload) =>
     apiClient.post<BillingSubscription, ScheduleBillingCancellationPayload>(

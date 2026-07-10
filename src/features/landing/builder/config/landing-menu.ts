@@ -298,7 +298,11 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
               ? () => import('../pages/LandingTemplatesManagementPage.vue')
               : page.key === 'domains'
                 ? () => import('@/features/domains/pages/DomainManagementPage.vue')
-                : () => import('../pages/LandingMenuDetailPage.vue'),
+                : page.key === 'footer'
+                  ? () => import('../pages/LandingFooterManagementPage.vue')
+                  : page.key === 'settings'
+                    ? () => import('../pages/LandingSettingsManagementPage.vue')
+                    : () => import('../pages/LandingMenuDetailPage.vue'),
     props:
       page.key === 'pages'
         ? {
@@ -341,7 +345,27 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                     mode: isPlatformRoute ? 'platform' : 'workspace',
                     parentRouteName: routePrefix,
                   }
-                : { definition: page, parentRouteName: routePrefix, parentLabel: 'Landing Page' },
+                : page.key === 'footer'
+                  ? {
+                      title: isPlatformRoute ? 'Platform Landing Footer' : 'Landing Footer',
+                      description:
+                        'Susun footer dari link navigasi, social link brand, copyright, trust badge, dan secondary CTA per page.',
+                      mode: isPlatformRoute ? 'platform' : 'workspace',
+                      parentRouteName: routePrefix,
+                    }
+                  : page.key === 'settings'
+                    ? {
+                        title: isPlatformRoute ? 'Platform Landing Settings' : 'Landing Settings',
+                        description:
+                          'Atur publish rules, lead notification, dan preferensi page lain per landing page.',
+                        mode: isPlatformRoute ? 'platform' : 'workspace',
+                        parentRouteName: routePrefix,
+                      }
+                    : {
+                        definition: page,
+                        parentRouteName: routePrefix,
+                        parentLabel: 'Landing Page',
+                      },
     meta: { title: page.label },
   }))
 }

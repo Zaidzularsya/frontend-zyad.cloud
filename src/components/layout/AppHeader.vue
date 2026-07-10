@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Check, ChevronDown, Copy, LogOut, Menu, Moon, Search, Sun } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  ShieldCheck,
+  Sun,
+} from 'lucide-vue-next'
 
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -11,6 +21,9 @@ const app = useAppStore()
 const auth = useAuthStore()
 const tenant = useTenantStore()
 const router = useRouter()
+const route = useRoute()
+
+const isPlatformMode = computed(() => route.path.startsWith('/platform'))
 
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref<HTMLElement | null>(null)
@@ -71,7 +84,14 @@ onBeforeUnmount(() => {
 
     <div class="ml-auto flex items-center gap-3">
       <div
-        v-if="tenant.activeTenantId"
+        v-if="isPlatformMode"
+        class="hidden items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300 lg:flex"
+      >
+        <ShieldCheck class="size-3.5" />
+        Platform Admin Mode
+      </div>
+      <div
+        v-else-if="tenant.activeTenantId"
         class="hidden items-center gap-2 rounded-lg border bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300 lg:flex"
       >
         <span class="font-semibold text-gray-500 dark:text-gray-400">Organization ID</span>

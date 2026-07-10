@@ -1,6 +1,10 @@
 /**
- * Tipe section yang dikenal oleh renderer.
+ * Tipe section yang dikenal oleh renderer maupun backend.
  * Digunakan untuk validasi, section-registry lookup, dan type narrowing.
+ *
+ * `benefits`, `problem`, `solution`, `demo` HANYA dipakai oleh public
+ * marketing page platform, bukan tipe yang tenant dapat buat — tidak
+ * termasuk dalam SECTION_CONTENT_SCHEMAS (lihat section-schemas.ts).
  */
 export const KNOWN_SECTION_TYPES = [
   'hero',
@@ -18,6 +22,13 @@ export const KNOWN_SECTION_TYPES = [
   'about',
   'contact',
   'pricing',
+  'product_showcase',
+  'gallery',
+  'testimonial',
+  'form',
+  'newsletter',
+  'partner_logos',
+  'statistics',
 ] as const
 
 export type KnownSectionType = (typeof KNOWN_SECTION_TYPES)[number]
@@ -57,6 +68,13 @@ export const SECTION_TYPE_LABELS: Record<KnownSectionType, string> = {
   about: 'About Section',
   contact: 'Contact Section',
   pricing: 'Pricing Section',
+  product_showcase: 'Product Showcase Section',
+  gallery: 'Gallery Section',
+  testimonial: 'Testimonial Section',
+  form: 'Form Section',
+  newsletter: 'Newsletter Section',
+  partner_logos: 'Partner Logos Section',
+  statistics: 'Statistics Section',
 }
 
 /**

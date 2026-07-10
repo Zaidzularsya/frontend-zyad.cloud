@@ -137,10 +137,10 @@ watch(analyticsRange, (newRange) => {
 <template>
   <section
     id="demo-portal"
-    class="bg-background text-on-background py-24 transition-colors duration-300 fade-up visible"
+    class="bg-background text-on-background py-24 transition-colors duration-300 fade-up"
   >
     <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop w-full">
-      <div class="text-center max-w-3xl mx-auto mb-16 fade-up visible">
+      <div class="text-center max-w-3xl mx-auto mb-16 fade-up">
         <span class="text-sm font-bold text-secondary uppercase tracking-wider mb-2 block">
           Live Preview
         </span>

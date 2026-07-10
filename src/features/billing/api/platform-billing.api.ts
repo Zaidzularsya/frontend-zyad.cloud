@@ -122,6 +122,27 @@ export interface UpdatePlatformBillingPlanPricePayload {
   metadata?: Record<string, unknown>
 }
 
+export interface CreatePlatformBillingFeaturePayload {
+  feature_key: string
+  module: string
+  name: string
+  description?: string
+  value_type: PlatformBillingFeatureValueType
+  unit?: string
+  reset_strategy?: PlatformBillingResetStrategy
+  is_active?: boolean
+}
+
+export interface UpdatePlatformBillingFeaturePayload {
+  module?: string
+  name?: string
+  description?: string
+  value_type?: PlatformBillingFeatureValueType
+  unit?: string
+  reset_strategy?: PlatformBillingResetStrategy
+  is_active?: boolean
+}
+
 export interface ReplacePlatformBillingPlanEntitlementsPayload {
   entitlements: Array<{
     feature_key: string
@@ -135,7 +156,7 @@ export interface ReplacePlatformBillingPlanEntitlementsPayload {
 
 export const platformBillingApi = {
   async listPlans(params: PlatformBillingPlanListParams = {}) {
-    const response = await http.get<ApiEnvelope<PlatformBillingPlan[]>>('/platform/billing/plans', {
+    const response = await http.get<ApiEnvelope<PlatformBillingPlan[]>>('/platform/product/plans', {
       params,
     })
 
@@ -146,54 +167,54 @@ export const platformBillingApi = {
   },
 
   getPlan(id: string) {
-    return apiClient.get<PlatformBillingPlan>(`/platform/billing/plans/${id}`)
+    return apiClient.get<PlatformBillingPlan>(`/platform/product/plans/${id}`)
   },
 
   createPlan(payload: CreatePlatformBillingPlanPayload) {
     return apiClient.post<PlatformBillingPlan, CreatePlatformBillingPlanPayload>(
-      '/platform/billing/plans',
+      '/platform/product/plans',
       payload,
     )
   },
 
   updatePlan(id: string, payload: UpdatePlatformBillingPlanPayload) {
     return apiClient.patch<PlatformBillingPlan, UpdatePlatformBillingPlanPayload>(
-      `/platform/billing/plans/${id}`,
+      `/platform/product/plans/${id}`,
       payload,
     )
   },
 
   deletePlan(id: string) {
-    return apiClient.delete<void>(`/platform/billing/plans/${id}`)
+    return apiClient.delete<void>(`/platform/product/plans/${id}`)
   },
 
   listPlanPrices(id: string, includeDeleted = false) {
-    return apiClient.get<PlatformBillingPlanPrice[]>(`/platform/billing/plans/${id}/prices`, {
+    return apiClient.get<PlatformBillingPlanPrice[]>(`/platform/product/plans/${id}/prices`, {
       params: { include_deleted: includeDeleted },
     })
   },
 
   createPlanPrice(id: string, payload: PlatformBillingPlanPricePayload) {
     return apiClient.post<PlatformBillingPlanPrice, PlatformBillingPlanPricePayload>(
-      `/platform/billing/plans/${id}/prices`,
+      `/platform/product/plans/${id}/prices`,
       payload,
     )
   },
 
   updatePlanPrice(id: string, priceId: string, payload: UpdatePlatformBillingPlanPricePayload) {
     return apiClient.patch<PlatformBillingPlanPrice, UpdatePlatformBillingPlanPricePayload>(
-      `/platform/billing/plans/${id}/prices/${priceId}`,
+      `/platform/product/plans/${id}/prices/${priceId}`,
       payload,
     )
   },
 
   deletePlanPrice(id: string, priceId: string) {
-    return apiClient.delete<void>(`/platform/billing/plans/${id}/prices/${priceId}`)
+    return apiClient.delete<void>(`/platform/product/plans/${id}/prices/${priceId}`)
   },
 
   async listFeatures(params: PlatformBillingFeatureListParams = {}) {
     const response = await http.get<ApiEnvelope<PlatformBillingFeature[]>>(
-      '/platform/billing/features',
+      '/platform/product/features',
       {
         params,
       },
@@ -205,9 +226,23 @@ export const platformBillingApi = {
     }
   },
 
+  createFeature(payload: CreatePlatformBillingFeaturePayload) {
+    return apiClient.post<PlatformBillingFeature, CreatePlatformBillingFeaturePayload>(
+      '/platform/product/features',
+      payload,
+    )
+  },
+
+  updateFeature(id: string, payload: UpdatePlatformBillingFeaturePayload) {
+    return apiClient.patch<PlatformBillingFeature, UpdatePlatformBillingFeaturePayload>(
+      `/platform/product/features/${id}`,
+      payload,
+    )
+  },
+
   listPlanEntitlements(id: string) {
     return apiClient.get<PlatformBillingPlanEntitlement[]>(
-      `/platform/billing/plans/${id}/entitlements`,
+      `/platform/product/plans/${id}/entitlements`,
     )
   },
 
@@ -215,6 +250,6 @@ export const platformBillingApi = {
     return apiClient.put<
       PlatformBillingPlanEntitlement[],
       ReplacePlatformBillingPlanEntitlementsPayload
-    >(`/platform/billing/plans/${id}/entitlements`, payload)
+    >(`/platform/product/plans/${id}/entitlements`, payload)
   },
 }
