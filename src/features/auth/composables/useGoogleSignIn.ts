@@ -44,7 +44,12 @@ function loadGoogleScript() {
 }
 
 function googleLoginUri() {
-  return `${env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '')}/api/v1/auth/google/callback`
+  // Wajib same-origin dengan halaman ini (bukan host VITE_API_BASE_URL):
+  // cookie `g_csrf_token` yang di-set GIS discope ke origin saat ini, dan
+  // browser tidak mengirim cookie itu lintas-subdomain ke login_uri. Nginx
+  // di setiap domain (termasuk custom domain tenant) sudah proxy `/api/`
+  // ke backend yang sama, jadi path relatif ini tetap valid di mana pun.
+  return `${window.location.origin}/api/v1/auth/google/callback`
 }
 
 /**
