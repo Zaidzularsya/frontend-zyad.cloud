@@ -115,6 +115,13 @@ export interface BillingCheckout {
   expires_at?: string | null
 }
 
+export interface BillingCheckoutStatus {
+  invoice_id: string
+  invoice_status: string
+  paid: boolean
+  transaction_status?: string
+}
+
 export const billingApi = {
   currentPlan: () => apiClient.get<BillingCurrentPlan>('/app/billing/current-plan'),
 
@@ -143,6 +150,12 @@ export const billingApi = {
   createInvoiceCheckout: (invoiceId: string) =>
     apiClient.post<BillingCheckout, Record<string, never>>(
       `/app/billing/invoices/${invoiceId}/checkout`,
+      {},
+    ),
+
+  syncInvoiceCheckoutStatus: (invoiceId: string) =>
+    apiClient.post<BillingCheckoutStatus, Record<string, never>>(
+      `/app/billing/invoices/${invoiceId}/checkout/sync`,
       {},
     ),
 

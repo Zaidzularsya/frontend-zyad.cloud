@@ -36,10 +36,13 @@ async function checkPaymentStatus() {
   if (disposed) return
   pollCount.value += 1
   try {
-    const found = await findInvoice()
-    invoice.value = found
-    if (found?.status === 'paid') {
+    // Rekonsiliasi aktif: backend menanyakan status transaksi langsung ke
+    // DOKU (Check Status API), jadi invoice tetap ter-settle meskipun
+    // webhook notification DOKU tidak pernah sampai.
+    const status = await billingApi.syncInvoiceCheckoutStatus(invoiceId.value)
+    if (status.paid) {
       outcome.value = 'paid'
+      invoice.value = await findInvoice().catch(() => null)
       try {
         const currentPlan = await billingApi.currentPlan()
         activePlanName.value = currentPlan.subscription?.plan?.name ?? ''
@@ -48,16 +51,22 @@ async function checkPaymentStatus() {
       }
       return
     }
-    if (found && ['expired', 'failed', 'void'].includes(found.status)) {
+    if (['expired', 'failed', 'void'].includes(status.invoice_status)) {
+      invoice.value = await findInvoice().catch(() => null)
       outcome.value = 'failed'
       return
     }
-    if (!found && pollCount.value >= 3) {
-      outcome.value = 'unknown'
+    if (['EXPIRED', 'FAILED'].includes(status.transaction_status ?? '')) {
+      invoice.value = await findInvoice().catch(() => null)
+      outcome.value = 'failed'
       return
     }
   } catch {
     // Kegagalan sementara — biarkan polling berikutnya mencoba lagi.
+    if (!invoiceId.value && pollCount.value >= 3) {
+      outcome.value = 'unknown'
+      return
+    }
   }
   if (pollCount.value >= MAX_POLLS) {
     outcome.value = 'unknown'
