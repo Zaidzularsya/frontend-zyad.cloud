@@ -60,19 +60,25 @@ const routes: RouteRecordRaw[] = [
         path: 'legal/terms',
         name: 'legal-terms',
         component: () => import('@/features/public/pages/TermsOfServicePage.vue'),
-        meta: { title: 'Syarat & Ketentuan' },
+        meta: { title: 'Syarat & Ketentuan', layoutFooter: true },
       },
       {
         path: 'legal/privacy',
         name: 'legal-privacy',
         component: () => import('@/features/public/pages/PrivacyPolicyPage.vue'),
-        meta: { title: 'Kebijakan Privasi' },
+        meta: { title: 'Kebijakan Privasi', layoutFooter: true },
       },
       {
         path: 'legal/refund',
         name: 'legal-refund',
         component: () => import('@/features/public/pages/RefundPolicyPage.vue'),
-        meta: { title: 'Kebijakan Refund' },
+        meta: { title: 'Kebijakan Refund', layoutFooter: true },
+      },
+      {
+        path: 'legal/aup',
+        name: 'legal-aup',
+        component: () => import('@/features/public/pages/AcceptableUsePolicyPage.vue'),
+        meta: { title: 'Acceptable Use Policy', layoutFooter: true },
       },
       {
         path: ':slug',
@@ -115,6 +121,12 @@ const routes: RouteRecordRaw[] = [
         name: 'landing-pages',
         redirect: { name: 'landing-pages-pages' },
         meta: { title: 'Landing Page Management' },
+      },
+      {
+        // Menu "Footer" dibubarkan (link footer pindah ke Navigation, field
+        // footer pindah ke Settings) — redirect supaya bookmark lama tidak 404.
+        path: 'landing-pages/footer',
+        redirect: { name: 'landing-pages-settings' },
       },
       ...buildLandingManagementRoutes('landing-pages'),
       {
@@ -225,6 +237,10 @@ const routes: RouteRecordRaw[] = [
         redirect: { name: 'platform-landing-pages-pages' },
         meta: { title: 'Landing Page Management' },
       },
+      {
+        path: 'landing-pages/footer',
+        redirect: { name: 'platform-landing-pages-settings' },
+      },
       ...buildLandingManagementRoutes('platform-landing-pages'),
       {
         path: 'branding',
@@ -281,6 +297,14 @@ const routes: RouteRecordRaw[] = [
     name: 'landing-preview',
     component: () => import('@/features/landing/renderer/pages/LandingPreviewPage.vue'),
     meta: { title: 'Landing Preview', requiresAuth: true },
+  },
+  {
+    // WYSIWYG canvas iframe host for the visual builder. Rendered inside an
+    // <iframe> by LandingBuilderPage; drives its section list over postMessage.
+    path: '/landing-canvas/:pageId',
+    name: 'landing-canvas',
+    component: () => import('@/features/landing/renderer/pages/LandingCanvasFramePage.vue'),
+    meta: { title: 'Landing Canvas', requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',

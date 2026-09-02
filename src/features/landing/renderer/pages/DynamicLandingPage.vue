@@ -4,7 +4,13 @@ import { useRoute } from 'vue-router'
 import { http } from '@/lib/http'
 import { normalizeBranding } from '../../shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
-import type { LandingBranding, LandingPage, LandingSection } from '../../shared/types/landing.types'
+import { useFooterContent } from '../composables/useFooterContent'
+import type {
+  FooterContent,
+  LandingBranding,
+  LandingPage,
+  LandingSection,
+} from '../../shared/types/landing.types'
 
 /**
  * DynamicLandingPage
@@ -14,12 +20,14 @@ import type { LandingBranding, LandingPage, LandingSection } from '../../shared/
  *
  * Flow:
  *   Route slug → GET /public/landing/resolve?slug=<slug> → LandingPageRenderer
+ *   Tanpa slug (mis. root path di domain tenant) → GET /public/landing/resolve
+ *   tanpa slug → backend resolve berdasarkan Host header (domain binding).
  *
  * Props: slug bisa dari route param (:slug) atau prop langsung.
  */
 
 const props = defineProps<{
-  /** Override slug jika tidak dari route. */
+  /** Override slug jika tidak dari route. Kosongkan untuk resolve berdasarkan Host header. */
   slug?: string
 }>()
 
@@ -48,10 +56,17 @@ const pageData = ref<Partial<LandingPage>>({
   title: '',
   slug: '',
 })
+// Data footer diturunkan dari branding + menu location=footer + page.settings —
+// section type "footer" tidak diedit langsung sebagai konten mentah (lihat
+// menu Content/Settings), tapi otomatis diisi di sini supaya logo, link, dan
+// copyright selalu sinkron dengan pengaturan tenant, bukan fallback platform.
+const footerContent = ref<FooterContent>({
+  brandName: '',
+  columns: [],
+  copyright: '',
+})
 
-const resolvedSlug = computed(
-  () => props.slug ?? (route.params.slug as string) ?? 'public-marketing',
-)
+const resolvedSlug = computed(() => props.slug ?? (route.params.slug as string) ?? '')
 
 onMounted(async () => {
   await fetchPage(resolvedSlug.value)
@@ -62,7 +77,7 @@ async function fetchPage(slug: string) {
   error.value = null
   try {
     const res = await http.get<{ data: RawRecord } | RawRecord>(
-      `/public/landing/resolve?slug=${slug}`,
+      slug ? `/public/landing/resolve?slug=${slug}` : '/public/landing/resolve',
     )
     const result: RawRecord = (res.data as { data?: RawRecord }).data ?? (res.data as RawRecord)
     const rawPage = pickObject(result, 'Page', 'page')
@@ -80,7 +95,10 @@ async function fetchPage(slug: string) {
     emit('landing-navigation', getHeaderNavigation(menus))
 
     const rawBranding = pickObject(result, 'Branding', 'branding')
-    emit('landing-branding', normalizeBranding(rawBranding))
+    const branding = normalizeBranding(rawBranding)
+    emit('landing-branding', branding)
+
+    footerContent.value = useFooterContent(result, pageData.value.title ?? '')
   } catch (err) {
     console.error('DynamicLandingPage: failed to load page', err)
     error.value = 'Halaman tidak dapat dimuat. Silakan coba beberapa saat lagi.'
@@ -256,6 +274,11 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
     </div>
 
     <!-- Render sections via LandingPageRenderer -->
-    <LandingPageRenderer v-else :page="pageData as LandingPage" :sections="sections" />
+    <LandingPageRenderer
+      v-else
+      :page="pageData as LandingPage"
+      :sections="sections"
+      :footer-content="footerContent"
+    />
   </div>
 </template>

@@ -1,0 +1,33 @@
+<svg viewBox="0 0 540 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="zyadLogoLightTitle">
+<title id="zyadLogoLightTitle">Zyad Cloud — PT Zyad Technovation Indonesia</title>
+<defs>
+  <linearGradient id="gradLeft" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#38BDF8"/>
+    <stop offset="100%" stop-color="#0B1F3A"/>
+  </linearGradient>
+  <linearGradient id="gradCenter" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#2DD4BF"/>
+    <stop offset="100%" stop-color="#0EA5E9"/>
+  </linearGradient>
+  <linearGradient id="gradRight" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#7DD3FC"/>
+    <stop offset="100%" stop-color="#14B8A6"/>
+  </linearGradient>
+  <linearGradient id="gradDot" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#22D3EE"/>
+    <stop offset="100%" stop-color="#14B8A6"/>
+  </linearGradient>
+</defs>
+
+<!-- Left mound -->
+<path d="M 50 240 L 210 240 A 20 20 0 0 0 230 220 L 230 215 A 100 100 0 0 0 30 215 L 30 220 A 20 20 0 0 0 50 240 Z" fill="url(#gradLeft)"/>
+
+<!-- Center mound (largest) -->
+<path d="M 170 240 L 390 240 A 20 20 0 0 0 410 220 L 410 170 A 130 130 0 0 0 150 170 L 150 220 A 20 20 0 0 0 170 240 Z" fill="url(#gradCenter)"/>
+
+<!-- Right mound -->
+<path d="M 351 240 L 489 240 A 16 16 0 0 0 505 224 L 505 215 A 85 85 0 0 0 335 215 L 335 224 A 16 16 0 0 0 351 240 Z" fill="url(#gradRight)"/>
+
+<!-- Small floating node/circle -->
+<circle cx="445" cy="85" r="26" fill="url(#gradDot)"/>
+</svg>

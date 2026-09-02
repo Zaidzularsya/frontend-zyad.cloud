@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import SectionRenderer from './SectionRenderer.vue'
 import { useScrollReveal } from '../composables/useScrollReveal'
+import { provideEditMode } from '../composables/useEditMode'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
 const props = defineProps<{
@@ -12,7 +13,21 @@ const props = defineProps<{
    * Untuk backward compat dengan renderer yang mendapat sections dari luar.
    */
   sections?: LandingSection[]
+  /**
+   * Data footer yang diturunkan dari branding + menu + settings (lihat
+   * DynamicLandingPage.vue). Menimpa content section bertipe "footer" karena
+   * section itu sendiri tidak diedit manual sebagai konten mentah.
+   */
+  footerContent?: Record<string, unknown>
+  /**
+   * Aktif saat renderer dipakai di dalam canvas builder: section components
+   * menetralkan side-effect (fetch/navigasi/POST/WebGL/scroll) dan semua
+   * elemen `.fade-up` langsung terlihat tanpa menunggu scroll-reveal.
+   */
+  editMode?: boolean
 }>()
+
+provideEditMode(computed(() => props.editMode ?? false))
 
 /**
  * Ambil sections dari prop override atau dari page.sections.
@@ -34,6 +49,20 @@ const visibleSections = computed(() => {
 
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
+
+// Di canvas builder, jangan biarkan section di bawah lipatan tetap opacity:0 —
+// paksa semua `.fade-up` terlihat setiap kali daftar section berubah.
+watch(
+  [() => props.editMode, visibleSections],
+  async () => {
+    if (!props.editMode) return
+    await nextTick()
+    rootRef.value
+      ?.querySelectorAll<HTMLElement>('.fade-up')
+      .forEach((element) => element.classList.add('visible'))
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -42,6 +71,7 @@ useScrollReveal(rootRef)
       v-for="section in visibleSections"
       :key="section.id || `${section.type}-${section.sort_order ?? section.sortOrder}`"
       :section="section"
+      :content-override="section.type === 'footer' ? footerContent : undefined"
     />
   </main>
 </template>

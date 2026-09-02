@@ -83,13 +83,33 @@ export function useGoogleSignIn(options: UseGoogleSignInOptions) {
     { immediate: true },
   )
 
+  let resizeObserver: ResizeObserver | null = null
+  let resizeRenderScheduled = false
+  let lastRenderedWidth = 0
+
+  function measuredWidth(el: HTMLElement): number {
+    // GIS hanya mendukung width dalam rentang ~200-400px; nilai di luar itu
+    // diabaikan/di-cap oleh Google, jadi kita clamp secara eksplisit supaya
+    // tombol selalu punya lebar yang valid dan konsisten dengan lebar kontainer.
+    const rectWidth = el.getBoundingClientRect().width || el.clientWidth
+    return Math.min(Math.max(Math.round(rectWidth), 200), 400)
+  }
+
   async function renderGoogleButton() {
     if (!googleEnabled) return
 
     try {
       await loadGoogleScript()
       await nextTick()
+      // Tunggu satu frame lagi agar layout (font, flex, grid) benar-benar
+      // settle sebelum lebar kontainer diukur — clientWidth yang dibaca
+      // langsung setelah nextTick sering masih 0 atau nilai transisi awal.
+      await new Promise((resolve) => requestAnimationFrame(resolve))
       if (disposed || !options.buttonRef.value || !window.google?.accounts?.id) return
+
+      const width = measuredWidth(options.buttonRef.value)
+      if (width === lastRenderedWidth && options.buttonRef.value.childElementCount > 0) return
+      lastRenderedWidth = width
 
       options.buttonRef.value.innerHTML = ''
       window.google.accounts.id.initialize({
@@ -106,7 +126,7 @@ export function useGoogleSignIn(options: UseGoogleSignInOptions) {
         text: options.text ?? 'signin_with',
         shape: 'rectangular',
         logo_alignment: 'left',
-        width: options.buttonRef.value.clientWidth || 384,
+        width,
       })
     } catch {
       googleError.value = 'Tombol Google belum bisa dimuat. Coba refresh halaman.'
@@ -115,10 +135,23 @@ export function useGoogleSignIn(options: UseGoogleSignInOptions) {
 
   onMounted(() => {
     void renderGoogleButton()
+
+    if (options.buttonRef.value && 'ResizeObserver' in window) {
+      resizeObserver = new ResizeObserver(() => {
+        if (resizeRenderScheduled) return
+        resizeRenderScheduled = true
+        requestAnimationFrame(() => {
+          resizeRenderScheduled = false
+          void renderGoogleButton()
+        })
+      })
+      resizeObserver.observe(options.buttonRef.value)
+    }
   })
 
   onUnmounted(() => {
     disposed = true
+    resizeObserver?.disconnect()
     window.google?.accounts?.id?.cancel()
   })
 

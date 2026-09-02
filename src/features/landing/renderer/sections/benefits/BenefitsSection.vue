@@ -16,10 +16,13 @@ defineProps<{
   <section id="benefits" class="py-section-gap bg-surface-container-lowest">
     <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
       <div class="text-center max-w-3xl mx-auto mb-16 fade-up">
-        <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-6">
+        <h2
+          class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-6"
+          data-field="title"
+        >
           {{ content.title }}
         </h2>
-        <p class="font-body-lg text-body-lg text-on-surface-variant">
+        <p class="font-body-lg text-body-lg text-on-surface-variant" data-field="description">
           {{ content.description }}
         </p>
       </div>

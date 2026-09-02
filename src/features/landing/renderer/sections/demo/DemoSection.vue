@@ -50,7 +50,7 @@ const messages = ref<Record<ChatKey, ChatMessage[]>>({
   john: [
     {
       sender: 'other',
-      text: 'Halo tim HEY, invoice untuk integrasi WhatsApp automation sudah masuk?',
+      text: 'Halo tim Zyad Cloud, invoice untuk integrasi WhatsApp automation sudah masuk?',
       time: '10:02',
     },
     { sender: 'user', text: 'Sudah dikirim ya Pak John, kodenya INV-2026-001.', time: '10:10' },
@@ -99,7 +99,9 @@ const handleSendMessage = () => {
 
     const replyMsg: ChatMessage = {
       sender: 'other',
-      text: replies[activeChat.value] || 'Pesan Anda diterima. Tim teknis HEY sedang memprosesnya.',
+      text:
+        replies[activeChat.value] ||
+        'Pesan Anda diterima. Tim teknis Zyad Cloud sedang memprosesnya.',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 

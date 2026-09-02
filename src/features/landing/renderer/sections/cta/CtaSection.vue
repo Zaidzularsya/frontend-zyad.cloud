@@ -24,10 +24,16 @@ defineProps<{
     <div
       class="max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop text-center relative z-10 fade-up"
     >
-      <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6">
+      <h2
+        class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6"
+        data-field="title"
+      >
         {{ content.title || 'Ready to get started?' }}
       </h2>
-      <p class="font-body-lg text-on-primary-container mb-10 max-w-2xl mx-auto">
+      <p
+        class="font-body-lg text-on-primary-container mb-10 max-w-2xl mx-auto"
+        data-field="description"
+      >
         {{ content.description }}
       </p>
 

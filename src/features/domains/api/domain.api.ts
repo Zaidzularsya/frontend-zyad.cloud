@@ -39,7 +39,7 @@ export interface OrganizationDomain {
 
 export interface OrganizationDomainChallenge {
   domain: OrganizationDomain
-  challenge_type: 'dns_txt'
+  challenge_type: 'dns_txt' | 'auto_verified'
   record_name: string
   record_value: string
 }
@@ -70,6 +70,9 @@ export const organizationDomainService = {
   },
   verify(id: string) {
     return apiClient.post<OrganizationDomain>(`/organization/domains/${id}/verify`)
+  },
+  regenerateChallenge(id: string) {
+    return apiClient.post<OrganizationDomainChallenge>(`/organization/domains/${id}/challenge`)
   },
   setPrimary(id: string) {
     return apiClient.patch<OrganizationDomain, { is_primary: true }>(

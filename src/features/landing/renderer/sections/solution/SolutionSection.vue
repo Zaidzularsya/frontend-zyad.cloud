@@ -20,10 +20,13 @@ defineProps<{
     <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-section-gap items-center">
         <div class="fade-up">
-          <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6">
+          <h2
+            class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6"
+            data-field="title"
+          >
             {{ content.title }}
           </h2>
-          <p class="font-body-lg text-on-primary-container mb-8">
+          <p class="font-body-lg text-on-primary-container mb-8" data-field="description">
             {{ content.description }}
           </p>
           <a

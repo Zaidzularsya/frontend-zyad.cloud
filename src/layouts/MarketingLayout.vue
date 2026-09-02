@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
 import type { LandingBranding } from '@/features/landing/shared/types/landing.types'
+
+const route = useRoute()
+const showLayoutFooter = computed(() => route.meta.layoutFooter === true)
 
 interface MarketingNavItem {
   id?: string
@@ -18,15 +22,22 @@ const isOpen = ref(false)
 const isDark = ref(false)
 const navigationItems = ref<MarketingNavItem[]>([])
 const branding = ref<LandingBranding | null>(null)
+const logoLoadFailed = ref(false)
 
 const brandName = computed(() => branding.value?.company_name || DEFAULT_BRAND_NAME)
-const brandLogoUrl = computed(() =>
-  isDark.value
+const brandLogoUrl = computed(() => {
+  const url = isDark.value
     ? branding.value?.logo_dark_url || branding.value?.logo_light_url
-    : branding.value?.logo_light_url,
-)
+    : branding.value?.logo_light_url
+  return logoLoadFailed.value ? '' : url
+})
+
+watch(branding, () => {
+  logoLoadFailed.value = false
+})
 const copyrightText = computed(
-  () => `© ${new Date().getFullYear()} ${brandName.value}. All rights reserved.`,
+  () =>
+    `© ${new Date().getFullYear()} ${brandName.value} — PT Zyad Technovation Indonesia. All rights reserved.`,
 )
 
 const setBranding = (value: LandingBranding) => {
@@ -108,7 +119,9 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
             :src="brandLogoUrl"
             :alt="brandName"
             class="h-8 w-auto object-contain"
+            @error="logoLoadFailed = true"
           />
+          <BrandLogo v-else class="h-8" />
           <span>{{ brandName }}</span>
         </a>
 
@@ -190,10 +203,27 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
     </main>
 
     <footer
+      v-if="showLayoutFooter"
       class="border-t border-outline-variant/30 bg-surface-container-low py-12 dark:bg-surface-dim"
     >
-      <div class="mx-auto max-w-7xl px-6 text-center text-sm text-on-surface-variant">
-        <div class="mb-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+      <div
+        class="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 text-center text-sm text-on-surface-variant"
+      >
+        <RouterLink :to="{ name: 'home' }" class="flex items-center gap-2">
+          <img
+            v-if="brandLogoUrl"
+            :src="brandLogoUrl"
+            :alt="brandName"
+            class="h-7 w-auto object-contain"
+            @error="logoLoadFailed = true"
+          />
+          <BrandLogo v-else class="h-7" />
+          <span class="font-headline-md text-base font-bold text-primary dark:text-primary-fixed">{{
+            brandName
+          }}</span>
+        </RouterLink>
+
+        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           <RouterLink
             :to="{ name: 'legal-terms' }"
             class="hover:text-primary dark:hover:text-primary-fixed"
@@ -211,6 +241,12 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
             class="hover:text-primary dark:hover:text-primary-fixed"
           >
             Kebijakan Refund
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-aup' }"
+            class="hover:text-primary dark:hover:text-primary-fixed"
+          >
+            Acceptable Use Policy
           </RouterLink>
         </div>
         <p>{{ copyrightText }}</p>

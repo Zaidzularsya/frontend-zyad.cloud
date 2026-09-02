@@ -1,3 +1,8 @@
+<script setup lang="ts">
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
+import BrandParticles from '@/features/branding/components/BrandParticles.vue'
+</script>
+
 <template>
   <main class="grid min-h-screen lg:grid-cols-2">
     <section class="flex items-center justify-center bg-white p-6 dark:bg-gray-950">
@@ -6,11 +11,10 @@
     <aside
       class="relative hidden overflow-hidden bg-navy-950 p-12 text-white lg:flex lg:flex-col lg:justify-between"
     >
+      <BrandParticles class="absolute inset-0" />
       <div class="absolute -right-32 -top-32 size-96 rounded-full bg-brand-500/30 blur-3xl" />
       <div class="relative flex items-center gap-3">
-        <span class="grid size-11 place-items-center rounded-xl bg-brand-500 text-xl font-bold"
-          >Z</span
-        >
+        <BrandLogo variant="dark" class="h-10" />
         <strong class="text-xl">Zyad Cloud</strong>
       </div>
       <div class="relative max-w-lg">

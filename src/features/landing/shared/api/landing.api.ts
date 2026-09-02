@@ -183,6 +183,7 @@ function normalizeMedia(raw: RawRecord): LandingMedia {
   return {
     id: pick(raw, 'id', 'ID', ''),
     storage_key: pick(raw, 'storage_key', 'StorageKey', undefined),
+    public_url: pick(raw, 'public_url', 'PublicURL', undefined),
     filename: pick(raw, 'filename', 'Filename', ''),
     mime_type: pick(raw, 'mime_type', 'MimeType', ''),
     size_bytes: pick(raw, 'size_bytes', 'SizeBytes', 0),
@@ -475,6 +476,19 @@ export const landingApi = {
     deleteData<null>(`/admin/landing-pages/${id}/sections/${sectionId}`),
   reorderSections: (id: string, data: unknown) =>
     putData<null>(`/admin/landing-pages/${id}/sections/reorder`, data),
+  /** Full-page section replace used by the visual builder's explicit Save. */
+  bulkReplaceSections: async (id: string, data: unknown) => {
+    const response = await putData<RawRecord[]>(`/admin/landing-pages/${id}/sections`, data)
+    return { ...response, data: response.data.map(normalizeSection) }
+  },
+  /** Full-page replace + draft revision snapshot; used by the debounced autosave. */
+  autosaveSections: async (id: string, data: unknown) => {
+    const response = await postData<RawRecord[]>(
+      `/admin/landing-pages/${id}/sections/autosave`,
+      data,
+    )
+    return { ...response, data: response.data.map(normalizeSection) }
+  },
 
   getForms: async (id: string) => {
     const response = await getBase<RawRecord[]>(`/admin/landing-pages/${id}/forms`)

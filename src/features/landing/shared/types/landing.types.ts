@@ -155,6 +155,31 @@ export interface LandingBranding {
   updated_at?: string
 }
 
+// ─── Footer ──────────────────────────────────────────────────────────────────
+
+/**
+ * Kontrak konten yang sama dipakai seluruh variant footer (FTR-FE-010).
+ * Semua field opsional (kecuali brandName/copyright) supaya komponen footer
+ * tetap aman dirender walau tenant belum mengisi Brand & Theme/Navigation/
+ * Settings secara lengkap — lihat "Footer Content Model" di
+ * docs/footer-management-development-tasks.md.
+ */
+export interface FooterContent {
+  brandName: string
+  logoUrl?: string
+  description?: string
+  columns: Array<{
+    title: string
+    links: Array<{ label: string; href: string }>
+  }>
+  copyright: string
+  trustBadges?: Array<{ image_url: string; label: string }>
+  secondaryCta?: { label: string; url: string }
+  newsletterFormId?: string
+  socialLinks?: Array<Record<string, unknown>>
+  contact?: Record<string, unknown>
+}
+
 // ─── Domain ──────────────────────────────────────────────────────────────────
 
 export interface LandingDomainBinding {
@@ -207,6 +232,7 @@ export interface CallToAction {
 export interface LandingMedia {
   id: string
   storage_key?: string
+  public_url?: string
   filename: string
   mime_type: string
   size_bytes: number

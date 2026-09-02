@@ -1,11 +1,11 @@
 import type { Component } from 'vue'
 import {
   BadgeInfo,
-  Bot,
   CheckSquare2,
   FileText,
   Folders,
   Globe2,
+  Layers3,
   Menu,
   Palette,
   SlidersHorizontal,
@@ -44,7 +44,7 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
     key: 'pages',
     routeNameSuffix: 'pages',
     label: 'Pages',
-    description: 'Atur jenis page, metadata, slug, status, layout, sections, dan Open Graph image.',
+    description: 'Atur jenis page, metadata, slug, status publikasi, SEO, dan Open Graph image.',
     icon: FileText,
     tone: 'sky',
     stats: [
@@ -70,13 +70,40 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
       },
       {
         title: 'Publishing and SEO',
+        items: ['Status: draft / published', 'Layout template', 'SEO', 'Open Graph image'],
+      },
+    ],
+  },
+  {
+    key: 'content',
+    routeNameSuffix: 'content',
+    label: 'Content',
+    description: 'Susun section (hero, pricing, FAQ, CTA, dll), urutan, dan isi konten tiap page.',
+    icon: Layers3,
+    tone: 'cyan',
+    stats: [
+      { label: 'Editor', value: 'Visual canvas' },
+      { label: 'Blok', value: '15' },
+      { label: 'Simpan', value: 'Autosave' },
+    ],
+    sections: [
+      {
+        title: 'Palette blok',
         items: [
-          'Status: draft / published',
-          'Layout template',
-          'Sections',
-          'SEO',
-          'Open Graph image',
+          'Hero',
+          'Problem',
+          'Benefits',
+          'Solution',
+          'Features',
+          'FAQ',
+          'Pricing',
+          'CTA',
+          'Footer',
         ],
+      },
+      {
+        title: 'Canvas',
+        items: ['Drag & drop', 'Live preview', 'Undo / redo', 'Autosave + publish'],
       },
     ],
   },
@@ -200,37 +227,10 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
     ],
   },
   {
-    key: 'footer',
-    routeNameSuffix: 'footer',
-    label: 'Footer',
-    description: 'Susun penutup halaman dengan link penting, kontak, legal, dan social channel.',
-    icon: Bot,
-    tone: 'cyan',
-    stats: [
-      { label: 'Footer zones', value: '4' },
-      { label: 'Link columns', value: 'Flexible' },
-      { label: 'Legal items', value: '2+' },
-    ],
-    sections: [
-      {
-        title: 'Footer zones',
-        items: ['Brand summary', 'Quick links', 'Support links', 'Legal links'],
-      },
-      {
-        title: 'Signals',
-        items: ['Social media', 'Contact info', 'Copyright'],
-      },
-      {
-        title: 'Optional blocks',
-        items: ['Newsletter form', 'Trust badges', 'Secondary CTA'],
-      },
-    ],
-  },
-  {
     key: 'settings',
     routeNameSuffix: 'settings',
     label: 'Settings',
-    description: 'Atur default behavior, akses, domain binding, dan preferensi publikasi halaman.',
+    description: 'Atur publish rules, footer content, domain binding, dan preferensi halaman.',
     icon: SlidersHorizontal,
     tone: 'slate',
     stats: [
@@ -290,16 +290,16 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
     component:
       page.key === 'pages'
         ? () => import('../pages/LandingPagesManagementPage.vue')
-        : page.key === 'navigation'
-          ? () => import('../pages/LandingNavigationManagementPage.vue')
-          : page.key === 'brand-theme'
-            ? () => import('../pages/LandingBrandThemeManagementPage.vue')
-            : page.key === 'templates'
-              ? () => import('../pages/LandingTemplatesManagementPage.vue')
-              : page.key === 'domains'
-                ? () => import('@/features/domains/pages/DomainManagementPage.vue')
-                : page.key === 'footer'
-                  ? () => import('../pages/LandingFooterManagementPage.vue')
+        : page.key === 'content'
+          ? () => import('../pages/LandingBuilderPage.vue')
+          : page.key === 'navigation'
+            ? () => import('../pages/LandingNavigationManagementPage.vue')
+            : page.key === 'brand-theme'
+              ? () => import('../pages/LandingBrandThemeManagementPage.vue')
+              : page.key === 'templates'
+                ? () => import('../pages/LandingTemplatesManagementPage.vue')
+                : page.key === 'domains'
+                  ? () => import('@/features/domains/pages/DomainManagementPage.vue')
                   : page.key === 'settings'
                     ? () => import('../pages/LandingSettingsManagementPage.vue')
                     : () => import('../pages/LandingMenuDetailPage.vue'),
@@ -311,45 +311,46 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
               ? 'Kelola page, create slug, status publish, dan unpublish untuk landing page platform.'
               : 'Kelola page, create slug, status publish, dan unpublish untuk landing page workspace.',
             mode: isPlatformRoute ? 'platform' : 'workspace',
+            parentRouteName: routePrefix,
           }
-        : page.key === 'templates'
+        : page.key === 'content'
           ? {
-              title: isPlatformRoute ? 'Platform Landing Templates' : 'Landing Templates',
+              title: isPlatformRoute ? 'Platform Landing Content' : 'Content',
               description:
-                'Lihat page template dan master section template yang dipakai flow create landing page.',
+                'Susun section (hero, pricing, FAQ, CTA, dll), urutan, dan isi konten tiap page.',
               mode: isPlatformRoute ? 'platform' : 'workspace',
               parentRouteName: routePrefix,
             }
-          : page.key === 'navigation'
+          : page.key === 'templates'
             ? {
-                title: isPlatformRoute ? 'Platform Landing Navigation' : 'Landing Navigation',
+                title: isPlatformRoute ? 'Platform Landing Templates' : 'Landing Templates',
                 description:
-                  'Kelola header, footer, anchor, route publik, dan CTA menu tanpa mengetik destination mentah.',
+                  'Lihat page template dan master section template yang dipakai flow create landing page.',
                 mode: isPlatformRoute ? 'platform' : 'workspace',
                 parentRouteName: routePrefix,
               }
-            : page.key === 'brand-theme'
+            : page.key === 'navigation'
               ? {
-                  title: isPlatformRoute ? 'Platform Brand & Theme' : 'Landing Brand & Theme',
+                  title: isPlatformRoute ? 'Platform Landing Navigation' : 'Landing Navigation',
                   description:
-                    'Kelola identitas brand, asset visual, theme token, kontak, dan social link landing page.',
+                    'Kelola header, footer, anchor, route publik, dan CTA menu tanpa mengetik destination mentah.',
                   mode: isPlatformRoute ? 'platform' : 'workspace',
                   parentRouteName: routePrefix,
                 }
-              : page.key === 'domains'
+              : page.key === 'brand-theme'
                 ? {
-                    title: isPlatformRoute ? 'Landing Domain Bindings' : 'Domains',
-                    description: isPlatformRoute
-                      ? 'Kelola domain yang tersedia dan binding domain ke landing page pada platform landing page management.'
-                      : 'Kelola domain, subdomain, verifikasi DNS, SSL, dan primary domain untuk landing page workspace.',
+                    title: isPlatformRoute ? 'Platform Brand & Theme' : 'Landing Brand & Theme',
+                    description:
+                      'Kelola identitas brand, asset visual, theme token, kontak, dan social link landing page.',
                     mode: isPlatformRoute ? 'platform' : 'workspace',
                     parentRouteName: routePrefix,
                   }
-                : page.key === 'footer'
+                : page.key === 'domains'
                   ? {
-                      title: isPlatformRoute ? 'Platform Landing Footer' : 'Landing Footer',
-                      description:
-                        'Susun footer dari link navigasi, social link brand, copyright, trust badge, dan secondary CTA per page.',
+                      title: isPlatformRoute ? 'Landing Domain Bindings' : 'Domains',
+                      description: isPlatformRoute
+                        ? 'Kelola domain yang tersedia dan binding domain ke landing page pada platform landing page management.'
+                        : 'Kelola domain, subdomain, verifikasi DNS, SSL, dan primary domain untuk landing page workspace.',
                       mode: isPlatformRoute ? 'platform' : 'workspace',
                       parentRouteName: routePrefix,
                     }
@@ -357,7 +358,7 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                     ? {
                         title: isPlatformRoute ? 'Platform Landing Settings' : 'Landing Settings',
                         description:
-                          'Atur publish rules, lead notification, dan preferensi page lain per landing page.',
+                          'Atur publish rules, footer content, domain binding, dan preferensi page lain per landing page.',
                         mode: isPlatformRoute ? 'platform' : 'workspace',
                         parentRouteName: routePrefix,
                       }

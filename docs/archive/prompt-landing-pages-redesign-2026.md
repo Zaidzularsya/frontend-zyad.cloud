@@ -1,3 +1,11 @@
+> **Arsip — bukan instruksi aktif.** Prompt task lama untuk redesign halaman
+> `/platform/platform-landing-pages/pages`, dipindahkan dari root repo ke sini agar tidak salah dibaca
+> sebagai instruksi berlaku oleh AI agent baru. Merujuk path lama `/home/yulianto/frontend.zyad.cloud`
+> yang sudah tidak sesuai struktur repo saat ini (`/home/yulianto/zyad.cloud/frontend`). Untuk instruksi
+> kerja yang berlaku, lihat `AGENTS.md` / `CLAUDE.md` di root repo.
+
+---
+
 You are an expert Senior Frontend Engineer and UI/UX Designer.
 
 I need you to enhance the frontend UI/UX and development quality for the Landing Page Management sub-menu, specifically only this target page:

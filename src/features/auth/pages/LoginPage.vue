@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { toTypedSchema } from '@vee-validate/zod'
-import { LockKeyhole } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { useRoute, useRouter } from 'vue-router'
 import { z } from 'zod'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TextField from '@/components/form/TextField.vue'
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
 import { useGoogleSignIn } from '@/features/auth/composables/useGoogleSignIn'
 import { resolvePostLoginRedirect } from '@/features/auth/utils/post-login-redirect'
 import { useAuthStore } from '@/stores/auth.store'
@@ -59,11 +59,7 @@ const { googleEnabled, googleError, isGoogleSubmitting } = useGoogleSignIn({
 <template>
   <div class="w-full max-w-md">
     <div class="mb-8">
-      <span
-        class="mb-5 grid size-12 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950"
-      >
-        <LockKeyhole class="size-6" />
-      </span>
+      <BrandLogo class="mb-5 h-10" />
       <h1 class="text-3xl font-bold">Masuk ke workspace</h1>
       <p class="mt-2 text-sm text-gray-500">Gunakan akun organisasi Zyad Cloud Anda.</p>
     </div>
@@ -119,7 +115,7 @@ const { googleEnabled, googleError, isGoogleSubmitting } = useGoogleSignIn({
     <div v-if="googleEnabled" class="space-y-3">
       <div
         ref="googleButton"
-        class="min-h-11 w-full overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
+        class="flex min-h-11 w-full justify-center overflow-hidden"
         :class="{ 'pointer-events-none opacity-60': isGoogleSubmitting }"
       />
       <p v-if="googleError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">

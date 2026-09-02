@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import * as THREE from 'three'
+import { useEditMode } from '../../composables/useEditMode'
 
 const mountRef = ref<HTMLElement | null>(null)
+const editMode = useEditMode()
 
 onMounted(() => {
+  // Di canvas builder jangan spin-up WebGL context + rAF loop per mount —
+  // template merender poster statis (v-if) sebagai gantinya.
+  if (editMode.value) return
+
   const container = mountRef.value
   if (!container) return
 
@@ -458,5 +464,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="mountRef" class="w-full h-full min-h-[400px]"></div>
+  <div
+    v-if="editMode"
+    class="flex w-full min-h-[400px] items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-sm font-semibold text-white/70"
+  >
+    Hero 3D — pratinjau statis di editor
+  </div>
+  <div v-else ref="mountRef" class="w-full h-full min-h-[400px]"></div>
 </template>

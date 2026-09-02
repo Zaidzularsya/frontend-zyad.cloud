@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
+
 import type { SectionFieldSchema } from '@/features/landing/shared/constants/section-schemas'
-import RichTextField from './RichTextField.vue'
+import ColorField from './fields/ColorField.vue'
+
+// TipTap is heavy; only pull it when a richtext field is actually rendered.
+const RichTextField = defineAsyncComponent(() => import('./RichTextField.vue'))
 
 const props = defineProps<{
   content: Record<string, unknown>
@@ -65,6 +70,13 @@ function inputType(type: SectionFieldSchema['type']) {
 
         <RichTextField
           v-if="field.type === 'richtext'"
+          :model-value="String(valueAt(field.key) ?? '')"
+          class="mt-1"
+          @update:model-value="emit('field-change', field.key, $event)"
+        />
+
+        <ColorField
+          v-else-if="field.type === 'color'"
           :model-value="String(valueAt(field.key) ?? '')"
           class="mt-1"
           @update:model-value="emit('field-change', field.key, $event)"

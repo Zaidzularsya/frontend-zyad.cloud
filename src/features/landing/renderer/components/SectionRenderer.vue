@@ -5,6 +5,8 @@ import type { LandingSection } from '../../shared/types/landing.types'
 
 const props = defineProps<{
   section: LandingSection
+  /** Menimpa section.content bila diberikan (dipakai untuk footer, lihat LandingPageRenderer.vue). */
+  contentOverride?: Record<string, unknown>
 }>()
 
 /**
@@ -24,14 +26,50 @@ const component = computed(() => {
 
   return resolveSection(type, variant)
 })
+
+/**
+ * Gaya generik yang diterapkan ke pembungkus section untuk SEMUA komponen
+ * (bukan hanya template enterprise): jarak vertikal, warna latar, perataan
+ * teks. Hanya menghasilkan properti bila key-nya benar-benar diisi, jadi
+ * section tanpa style tetap dirender identik.
+ */
+const wrapperStyle = computed(() => {
+  const style = (props.section.style ?? {}) as Record<string, unknown>
+  const out: Record<string, string> = {}
+
+  const spacing = style.spacing as { top?: number; bottom?: number } | undefined
+  if (spacing && typeof spacing.top === 'number') out.paddingTop = `${spacing.top}px`
+  if (spacing && typeof spacing.bottom === 'number') out.paddingBottom = `${spacing.bottom}px`
+
+  const background = style.background as { color?: string } | undefined
+  if (background && typeof background.color === 'string' && background.color) {
+    out.backgroundColor = background.color
+  }
+
+  if (typeof style.align === 'string' && ['left', 'center', 'right'].includes(style.align)) {
+    out.textAlign = style.align
+  }
+
+  return out
+})
+
+const hasWrapperStyle = computed(() => Object.keys(wrapperStyle.value).length > 0)
 </script>
 
 <template>
   <component
     :is="component"
-    v-if="component"
-    :content="section.content"
+    v-if="component && !hasWrapperStyle"
+    :content="contentOverride ?? section.content"
     :style-config="section.style"
     :section="section"
   />
+  <div v-else-if="component" :style="wrapperStyle">
+    <component
+      :is="component"
+      :content="contentOverride ?? section.content"
+      :style-config="section.style"
+      :section="section"
+    />
+  </div>
 </template>

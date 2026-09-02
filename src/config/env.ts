@@ -9,3 +9,13 @@ const envSchema = z.object({
 })
 
 export const env = envSchema.parse(import.meta.env)
+
+// Host tempat dashboard/marketing platform sendiri berjalan, diturunkan dari
+// API base URL (mis. "api.zyad.cloud" -> "zyad.cloud") supaya tidak hardcode
+// nama domain di kode — dipakai untuk membedakan request di host platform vs
+// host domain tenant (subdomain/custom domain yang di-bind ke landing page).
+export const platformHost = (() => {
+  const apiHost = new URL(env.VITE_API_BASE_URL).hostname
+  const labels = apiHost.split('.')
+  return labels.length > 2 && labels[0] === 'api' ? labels.slice(1).join('.') : apiHost
+})()

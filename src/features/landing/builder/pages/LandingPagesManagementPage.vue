@@ -24,12 +24,10 @@ import {
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
-import SectionContentForm from '@/features/landing/builder/components/SectionContentForm.vue'
+import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
-import { schemaForSectionType } from '@/features/landing/shared/constants/section-schemas'
 import type {
   LandingPage,
-  LandingSection,
   PageStatus,
   PageType,
   PageVisibility,
@@ -40,12 +38,13 @@ const props = withDefaults(
     title?: string
     description?: string
     mode?: 'workspace' | 'platform'
+    parentRouteName?: string
   }>(),
   {
     title: 'Landing Pages',
-    description:
-      'Kelola landing page, company profile, slug, SEO, status publikasi, dan section dari satu halaman.',
+    description: 'Kelola landing page, company profile, slug, SEO, dan status publikasi.',
     mode: 'workspace',
+    parentRouteName: '',
   },
 )
 
@@ -54,7 +53,7 @@ const router = useRouter()
 
 type SortOption = 'newest' | 'recently_updated' | 'title_asc' | 'status'
 type CreatePageMode = 'catalog' | 'customize' | 'custom'
-type ManageTab = 'details' | 'sections' | 'seo'
+type ManageTab = 'details' | 'seo'
 type PageFormState = {
   name: string
   title: string
@@ -75,18 +74,9 @@ type SeoFormState = {
   og_image_asset_id: string
 }
 
-type SectionPreset = {
-  key: string
-  type: string
-  name: string
-  description: string
-  content: Record<string, unknown>
-  style: Record<string, unknown>
-}
-
 // Read-only preview of what landingApi.createPageFromTemplate() will copy —
-// content/style editing happens after creation via the Sections tab's
-// schema-driven form (see SectionContentForm.vue), not before creation.
+// content/style editing happens after creation via the Content menu's
+// schema-driven form, not before creation.
 type SectionDraft = {
   key: string
   type: string
@@ -105,7 +95,6 @@ const templateThumbnailUrls = [
 
 const pages = ref<LandingPage[]>([])
 const templatePages = ref<LandingPage[]>([])
-const sectionsByPage = ref<Record<string, LandingSection[]>>({})
 const loading = ref(false)
 const templateCatalogLoading = ref(false)
 const saving = ref(false)
@@ -122,7 +111,6 @@ const perPage = 10
 
 const pagePanelOpen = ref(false)
 const seoPanelOpen = ref(false)
-const sectionPanelOpen = ref(false)
 const createPageMode = ref<CreatePageMode>('catalog')
 const selectedTemplatePage = ref<LandingPage | null>(null)
 const templateSearch = ref('')
@@ -130,14 +118,13 @@ const templateTypeFilter = ref<'all' | PageType>('all')
 const sectionDrafts = ref<SectionDraft[]>([])
 const pagePanelRef = ref<HTMLElement | null>(null)
 const seoPanelRef = ref<HTMLElement | null>(null)
-const sectionPanelRef = ref<HTMLElement | null>(null)
 const editingPageId = ref<string | null>(null)
 const selectedSeoPage = ref<LandingPage | null>(null)
-const selectedSectionPageId = ref<string | null>(null)
 const managedPageId = ref<string | null>(null)
 const manageTab = ref<ManageTab>('details')
-const activeSectionId = ref<string | null>(null)
 const slugTouched = ref(false)
+
+const { selectedPageId: contentSelectedPageId } = usePageSelection()
 
 const pageForm = reactive<PageFormState>({
   name: '',
@@ -167,11 +154,6 @@ const manageTabs: Array<{ value: ManageTab; label: string; description: string }
     value: 'details',
     label: 'Page details',
     description: 'Data dasar, slug, visibility, dan homepage.',
-  },
-  {
-    value: 'sections',
-    label: 'Sections',
-    description: 'Mapping, ordering, status, dan content tiap section.',
   },
   {
     value: 'seo',
@@ -208,228 +190,12 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
   { value: 'status', label: 'Status' },
 ]
 
-const sectionPresets: SectionPreset[] = [
-  {
-    key: 'hero-section',
-    type: 'hero',
-    name: 'Hero Section',
-    description: 'Headline, intro singkat, dan dua CTA utama.',
-    content: {
-      badge: 'Solusi digital terpadu',
-      titleHtml: 'Bangun landing page yang siap dipublish',
-      description:
-        'Perkenalkan bisnis, layanan, dan CTA utama dengan tampilan yang rapi dan mudah dikelola.',
-      primaryCta: 'Hubungi Kami',
-      secondaryCta: 'Lihat Layanan',
-      primaryCtaUrl: '#contact',
-      secondaryCtaUrl: '#solusi',
-    },
-    style: {},
-  },
-  {
-    key: 'problem-section',
-    type: 'content',
-    name: 'Problem Section',
-    description: 'Konteks masalah dan pain point pelanggan.',
-    content: {
-      title: 'Tantangan yang sering menghambat pertumbuhan',
-      description: 'Gunakan section ini untuk menjelaskan masalah utama audiens sebelum solusi.',
-      cards: [
-        {
-          icon: 'schedule',
-          bgClass: 'bg-primary-fixed/30',
-          iconClass: 'text-secondary',
-          title: 'Proses lambat',
-          desc: 'Alur manual membuat tim sulit bergerak cepat.',
-        },
-        {
-          icon: 'sync_problem',
-          bgClass: 'bg-secondary-fixed/30',
-          iconClass: 'text-secondary',
-          title: 'Data terpisah',
-          desc: 'Informasi tersebar dan sulit dipakai untuk keputusan.',
-        },
-        {
-          icon: 'visibility_off',
-          bgClass: 'bg-tertiary-fixed/30',
-          iconClass: 'text-secondary',
-          title: 'Kurang visibilitas',
-          desc: 'Performa bisnis tidak mudah dipantau dari satu tempat.',
-        },
-        {
-          icon: 'support_agent',
-          bgClass: 'bg-primary-fixed/30',
-          iconClass: 'text-secondary',
-          title: 'Sulit follow up',
-          desc: 'Lead dan pelanggan sering tidak tertangani konsisten.',
-        },
-      ],
-    },
-    style: {},
-  },
-  {
-    key: 'services-section',
-    type: 'features',
-    name: 'Services Section',
-    description: 'Daftar layanan atau fitur inti.',
-    content: {
-      title: 'Layanan yang bisa langsung ditawarkan',
-      description: 'Tampilkan layanan utama agar pengunjung cepat memahami nilai bisnis.',
-      services: [
-        {
-          icon: 'web',
-          title: 'Website & Company Profile',
-          desc: 'Halaman publik untuk memperkenalkan brand, layanan, dan portofolio.',
-        },
-        {
-          icon: 'dashboard',
-          title: 'Dashboard Operasional',
-          desc: 'Pantau data bisnis dan proses internal dari satu tampilan.',
-        },
-        {
-          icon: 'campaign',
-          title: 'Campaign Landing Page',
-          desc: 'Buat halaman promosi yang fokus pada konversi.',
-        },
-      ],
-    },
-    style: {},
-  },
-  {
-    key: 'solution-section',
-    type: 'services',
-    name: 'Solution Section',
-    description: 'Langkah kerja atau alur solusi.',
-    content: {
-      title: 'Cara kami membantu dari ide sampai publish',
-      description: 'Section ini menjelaskan proses kerja secara ringkas dan mudah diikuti.',
-      ctaText: 'Mulai Diskusi',
-      ctaUrl: '#contact',
-      steps: [
-        {
-          number: 1,
-          title: 'Discovery',
-          desc: 'Pahami kebutuhan dan target halaman.',
-          highlight: false,
-        },
-        {
-          number: 2,
-          title: 'Mapping',
-          desc: 'Susun section, konten, dan CTA utama.',
-          highlight: true,
-        },
-        {
-          number: 3,
-          title: 'Launch',
-          desc: 'Publish halaman dan pantau performanya.',
-          highlight: false,
-        },
-      ],
-    },
-    style: {},
-  },
-  {
-    key: 'benefits-section',
-    type: 'content',
-    name: 'Benefits Section',
-    description: 'Manfaat bisnis yang ingin ditonjolkan.',
-    content: {
-      title: 'Manfaat yang langsung terasa',
-      description: 'Ringkas alasan kenapa pengunjung perlu memilih layanan ini.',
-      benefits: [
-        {
-          icon: 'rocket_launch',
-          title: 'Lebih cepat publish',
-          desc: 'Struktur landing page siap dipakai tanpa mulai dari nol.',
-        },
-        {
-          icon: 'tune',
-          title: 'Mudah disesuaikan',
-          desc: 'Setiap section bisa diaktifkan, disusun, dan diperbarui.',
-        },
-        {
-          icon: 'insights',
-          title: 'Lebih fokus konversi',
-          desc: 'Konten diarahkan ke CTA dan kebutuhan calon pelanggan.',
-        },
-      ],
-    },
-    style: {},
-  },
-  {
-    key: 'faq-section',
-    type: 'faq',
-    name: 'FAQ Section',
-    description: 'Pertanyaan umum sebelum pengunjung menghubungi.',
-    content: {
-      title: 'Pertanyaan yang sering diajukan',
-      items: [
-        {
-          question: 'Apakah konten bisa disesuaikan?',
-          answer: 'Bisa, setiap section menyimpan content JSON yang dapat diperbarui.',
-        },
-        {
-          question: 'Apakah halaman bisa dipublish ulang?',
-          answer: 'Bisa, status publish/unpublish dikelola dari halaman admin landing page.',
-        },
-      ],
-    },
-    style: {},
-  },
-  {
-    key: 'cta-section',
-    type: 'cta',
-    name: 'CTA Section',
-    description: 'Ajakan akhir untuk menghubungi atau membeli.',
-    content: {
-      title: 'Siap membawa bisnis Anda online?',
-      description: 'Hubungi tim kami untuk mulai menyusun landing page yang sesuai kebutuhan.',
-      primaryButtonText: 'Hubungi Kami',
-      secondaryButtonText: 'Lihat Detail',
-      primaryUrl: '#contact',
-      secondaryUrl: '#solusi',
-    },
-    style: {},
-  },
-  {
-    key: 'footer-section',
-    type: 'footer',
-    name: 'Footer Section',
-    description: 'Penutup halaman dan area link pendukung.',
-    content: {},
-    style: {},
-  },
-]
-
 const modeLabel = computed(() => (props.mode === 'platform' ? 'platform' : 'workspace'))
 const formPanelOpen = computed(
-  () =>
-    Boolean(managedPageId.value) ||
-    pagePanelOpen.value ||
-    seoPanelOpen.value ||
-    sectionPanelOpen.value,
+  () => Boolean(managedPageId.value) || pagePanelOpen.value || seoPanelOpen.value,
 )
 const managedPage = computed(
   () => pages.value.find((page) => page.id === managedPageId.value) ?? null,
-)
-const selectedSectionPage = computed(
-  () => pages.value.find((page) => page.id === selectedSectionPageId.value) ?? null,
-)
-const mappedSections = computed(() => {
-  if (!selectedSectionPageId.value) return []
-  return [...(sectionsByPage.value[selectedSectionPageId.value] ?? [])].sort(
-    (a, b) => a.sort_order - b.sort_order,
-  )
-})
-const activeManagedSection = computed(
-  () =>
-    mappedSections.value.find((section) => section.id === activeSectionId.value) ??
-    mappedSections.value[0] ??
-    null,
-)
-const activeContentFields = computed(() => contentFields(activeManagedSection.value?.content ?? {}))
-const activeSectionSchema = computed(() =>
-  schemaForSectionType(activeManagedSection.value?.type ?? ''),
 )
 const templateCatalog = computed(() => {
   const keyword = templateSearch.value.trim().toLowerCase()
@@ -572,12 +338,6 @@ function formatDate(value?: string | null) {
   }).format(new Date(value))
 }
 
-function sectionCountLabel(pageId: string) {
-  const sections = sectionsByPage.value[pageId]
-  if (!sections) return 'Manage sections'
-  return `${sections.length} section${sections.length === 1 ? '' : 's'}`
-}
-
 function templateThumbnail(template: LandingPage, index: number) {
   const imageFromSettings = template.settings?.thumbnail_url
   if (typeof imageFromSettings === 'string' && imageFromSettings.trim()) return imageFromSettings
@@ -614,64 +374,6 @@ function templateAudience(template: LandingPage) {
     return templateSettings.audience
   }
   return 'Business team'
-}
-
-function parseJsonField(value: string) {
-  return value.trim() ? JSON.parse(value) : {}
-}
-
-function cloneJson<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value ?? null)) as T
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
-}
-
-function contentFields(content: Record<string, unknown>) {
-  return Object.entries(content).filter(([key]) => !['source', 'metadata'].includes(key))
-}
-
-function fieldInputType(value: unknown) {
-  if (typeof value === 'number') return 'number'
-  if (typeof value === 'boolean') return 'checkbox'
-  if (typeof value === 'string' && value.length > 90) return 'textarea'
-  if (Array.isArray(value) || isPlainRecord(value)) return 'json'
-  return 'text'
-}
-
-function fieldJsonValue(value: unknown) {
-  return JSON.stringify(value ?? {}, null, 2)
-}
-
-function updateSectionContentField(section: LandingSection, key: string, value: unknown) {
-  const nextContent = cloneJson(section.content ?? {})
-  nextContent[key] = value
-  updateSectionInState(section.id, { content: nextContent })
-}
-
-function updateSectionJsonField(section: LandingSection, key: string, value: string) {
-  try {
-    updateSectionContentField(section, key, parseJsonField(value))
-    errorMessage.value = ''
-  } catch {
-    errorMessage.value = `JSON untuk field "${key}" belum valid.`
-  }
-}
-
-function updateSectionInState(sectionId: string, patch: Partial<LandingSection>) {
-  if (!selectedSectionPageId.value) return
-  const pageId = selectedSectionPageId.value
-  sectionsByPage.value = {
-    ...sectionsByPage.value,
-    [pageId]: (sectionsByPage.value[pageId] ?? []).map((section) =>
-      section.id === sectionId ? { ...section, ...patch } : section,
-    ),
-  }
-}
-
-function isPresetMapped(preset: SectionPreset) {
-  return mappedSections.value.some((section) => section.key === preset.key)
 }
 
 function seoScore(page: LandingPage) {
@@ -776,28 +478,19 @@ function fillSeoForm(page: LandingPage) {
   clearSeoErrors()
 }
 
-async function revealPanel(target: 'page' | 'seo' | 'sections') {
+async function revealPanel(target: 'page' | 'seo') {
   await nextTick()
-  const panel =
-    target === 'page'
-      ? pagePanelRef.value
-      : target === 'seo'
-        ? seoPanelRef.value
-        : sectionPanelRef.value
+  const panel = target === 'page' ? pagePanelRef.value : seoPanelRef.value
   panel?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 async function openManagePage(page: LandingPage) {
   pagePanelOpen.value = false
   seoPanelOpen.value = false
-  sectionPanelOpen.value = false
   managedPageId.value = page.id
   manageTab.value = 'details'
-  selectedSectionPageId.value = page.id
   fillPageForm(page)
   fillSeoForm(page)
-  if (!sectionsByPage.value[page.id]) await loadSectionsForPage(page.id)
-  activeSectionId.value = sectionsByPage.value[page.id]?.[0]?.id ?? null
   await nextTick()
   document.getElementById('landing-page-manager')?.scrollIntoView({
     behavior: 'smooth',
@@ -807,9 +500,7 @@ async function openManagePage(page: LandingPage) {
 
 function closeManagePage() {
   managedPageId.value = null
-  activeSectionId.value = null
   editingPageId.value = null
-  selectedSectionPageId.value = null
   selectedSeoPage.value = null
 }
 
@@ -817,7 +508,6 @@ function openCreatePanel() {
   closeManagePage()
   resetPageForm()
   seoPanelOpen.value = false
-  sectionPanelOpen.value = false
   pagePanelOpen.value = true
   void loadTemplateCatalog()
   void revealPanel('page')
@@ -830,14 +520,16 @@ function showTemplateCatalog() {
 
 function openSeoPanel(page: LandingPage) {
   pagePanelOpen.value = false
-  sectionPanelOpen.value = false
   fillSeoForm(page)
   seoPanelOpen.value = true
   void revealPanel('seo')
 }
 
-function selectManagedSection(section: LandingSection) {
-  activeSectionId.value = section.id
+function goToContent(page: LandingPage) {
+  contentSelectedPageId.value = page.id
+  if (props.parentRouteName) {
+    router.push({ name: `${props.parentRouteName}-content` })
+  }
 }
 
 function validatePageForm() {
@@ -863,14 +555,6 @@ function validateSeoForm() {
     }
   }
   return Object.keys(seoErrors).length === 0
-}
-
-async function loadSectionsForPage(pageId: string) {
-  const response = await landingApi.getSections(pageId)
-  sectionsByPage.value = {
-    ...sectionsByPage.value,
-    [pageId]: response.data,
-  }
 }
 
 async function loadPages() {
@@ -1055,28 +739,6 @@ async function saveSeo() {
   }
 }
 
-async function saveManagedSectionContent(section: LandingSection) {
-  if (!selectedSectionPageId.value) return
-
-  actionBusy.value = `section:content:${section.id}`
-  errorMessage.value = ''
-  try {
-    await landingApi.updateSection(selectedSectionPageId.value, section.id, {
-      name: section.name,
-      is_enabled: section.is_enabled,
-      content: section.content,
-      style: section.style,
-    })
-    await loadSectionsForPage(selectedSectionPageId.value)
-    activeSectionId.value = section.id
-    showNotice('Content section berhasil disimpan.')
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal menyimpan content section.')
-  } finally {
-    actionBusy.value = ''
-  }
-}
-
 async function runPageAction(
   page: LandingPage,
   action: 'publish' | 'unpublish' | 'archive' | 'restore' | 'delete' | 'duplicate',
@@ -1112,111 +774,6 @@ async function runPageAction(
     await loadPages()
   } catch (error) {
     errorMessage.value = getApiMessage(error, 'Aksi landing page gagal dijalankan.')
-  } finally {
-    actionBusy.value = ''
-  }
-}
-
-async function handleSectionPageChange() {
-  if (!selectedSectionPageId.value) return
-  errorMessage.value = ''
-  try {
-    await loadSectionsForPage(selectedSectionPageId.value)
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal memuat section landing page.')
-  }
-}
-
-async function addMappedSection(preset: SectionPreset) {
-  if (!selectedSectionPageId.value || isPresetMapped(preset)) return
-
-  actionBusy.value = `section:add:${preset.key}`
-  errorMessage.value = ''
-  try {
-    const nextSortOrder =
-      mappedSections.value.reduce((max, section) => Math.max(max, section.sort_order), 0) + 10
-
-    await landingApi.createSection(selectedSectionPageId.value, {
-      key: preset.key,
-      type: preset.type,
-      name: preset.name,
-      sort_order: nextSortOrder,
-      is_enabled: true,
-      content: preset.content,
-      style: preset.style,
-    })
-    await loadSectionsForPage(selectedSectionPageId.value)
-    showNotice('Section berhasil dimapping ke landing page.')
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal menambahkan section.')
-  } finally {
-    actionBusy.value = ''
-  }
-}
-
-async function toggleMappedSection(section: LandingSection) {
-  if (!selectedSectionPageId.value) return
-
-  actionBusy.value = `section:toggle:${section.id}`
-  errorMessage.value = ''
-  try {
-    await landingApi.updateSection(selectedSectionPageId.value, section.id, {
-      name: section.name,
-      is_enabled: !section.is_enabled,
-      content: section.content,
-      style: section.style,
-    })
-    await loadSectionsForPage(selectedSectionPageId.value)
-    showNotice('Status section berhasil diperbarui.')
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal memperbarui status section.')
-  } finally {
-    actionBusy.value = ''
-  }
-}
-
-async function deleteMappedSection(section: LandingSection) {
-  if (!selectedSectionPageId.value) return
-  if (!window.confirm(`Hapus section "${section.name}" dari landing page ini?`)) return
-
-  actionBusy.value = `section:delete:${section.id}`
-  errorMessage.value = ''
-  try {
-    await landingApi.deleteSection(selectedSectionPageId.value, section.id)
-    await loadSectionsForPage(selectedSectionPageId.value)
-    showNotice('Section berhasil dihapus dari mapping.')
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal menghapus section.')
-  } finally {
-    actionBusy.value = ''
-  }
-}
-
-async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
-  if (!selectedSectionPageId.value) return
-
-  const currentIndex = mappedSections.value.findIndex((item) => item.id === section.id)
-  const targetIndex = currentIndex + direction
-  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= mappedSections.value.length) return
-
-  const reordered = [...mappedSections.value]
-  const [selected] = reordered.splice(currentIndex, 1)
-  if (!selected) return
-  reordered.splice(targetIndex, 0, selected)
-
-  actionBusy.value = `section:move:${section.id}`
-  errorMessage.value = ''
-  try {
-    await landingApi.reorderSections(selectedSectionPageId.value, {
-      sections: reordered.map((item, index) => ({
-        id: item.id,
-        sort_order: (index + 1) * 10,
-      })),
-    })
-    await loadSectionsForPage(selectedSectionPageId.value)
-    showNotice('Urutan section berhasil diperbarui.')
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal mengubah urutan section.')
   } finally {
     actionBusy.value = ''
   }
@@ -1300,7 +857,7 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
           </div>
         </div>
 
-        <div class="mt-6 grid gap-3 md:grid-cols-3">
+        <div class="mt-6 grid gap-3 md:grid-cols-2">
           <button
             v-for="tab in manageTabs"
             :key="tab.value"
@@ -1435,7 +992,13 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
                 </div>
                 <div class="flex items-center justify-between gap-3">
                   <span class="text-gray-500">Sections</span>
-                  <strong>{{ mappedSections.length }}</strong>
+                  <button
+                    type="button"
+                    class="font-semibold text-brand-600 hover:text-brand-700"
+                    @click="goToContent(managedPage)"
+                  >
+                    Edit content
+                  </button>
                 </div>
                 <div class="flex items-center justify-between gap-3">
                   <span class="text-gray-500">SEO score</span>
@@ -1453,267 +1016,6 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
             </aside>
           </div>
         </form>
-
-        <div
-          v-else-if="manageTab === 'sections'"
-          class="grid gap-5 xl:grid-cols-[330px_minmax(0,1fr)]"
-        >
-          <aside class="space-y-4">
-            <div class="rounded-2xl border p-4 dark:border-gray-800">
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <h3 class="font-black text-gray-900 dark:text-gray-100">Mapped sections</h3>
-                  <p class="text-sm text-gray-500">{{ mappedSections.length }} section</p>
-                </div>
-                <BaseButton type="button" variant="secondary" @click="handleSectionPageChange">
-                  <RefreshCw class="size-4" />
-                </BaseButton>
-              </div>
-              <div class="mt-4 space-y-2">
-                <button
-                  v-for="(section, index) in mappedSections"
-                  :key="section.id"
-                  type="button"
-                  class="w-full rounded-xl border px-3 py-3 text-left transition"
-                  :class="
-                    activeManagedSection?.id === section.id
-                      ? 'border-brand-300 bg-brand-50 text-brand-950 dark:border-brand-800 dark:bg-brand-950/40 dark:text-brand-100'
-                      : 'border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900'
-                  "
-                  @click="selectManagedSection(section)"
-                >
-                  <span class="flex items-center justify-between gap-3">
-                    <span class="font-semibold">{{ index + 1 }}. {{ section.name }}</span>
-                    <span
-                      class="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                      :class="
-                        section.is_enabled
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-gray-100 text-gray-500 dark:bg-gray-800'
-                      "
-                    >
-                      {{ section.is_enabled ? 'On' : 'Off' }}
-                    </span>
-                  </span>
-                  <span class="mt-1 block text-xs text-gray-500"
-                    >{{ section.key }} · {{ section.type }}</span
-                  >
-                </button>
-              </div>
-            </div>
-
-            <details class="rounded-2xl border p-4 dark:border-gray-800">
-              <summary class="cursor-pointer font-black text-gray-900 dark:text-gray-100">
-                Add section preset
-              </summary>
-              <div class="mt-4 space-y-3">
-                <div
-                  v-for="preset in sectionPresets"
-                  :key="preset.key"
-                  class="rounded-xl border p-3 dark:border-gray-800"
-                >
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <p class="font-semibold text-gray-900 dark:text-gray-100">
-                        {{ preset.name }}
-                      </p>
-                      <p class="mt-1 text-xs text-gray-500">{{ preset.type }}</p>
-                    </div>
-                    <span
-                      v-if="isPresetMapped(preset)"
-                      class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700"
-                    >
-                      Mapped
-                    </span>
-                  </div>
-                  <BaseButton
-                    class="mt-3 w-full"
-                    type="button"
-                    variant="secondary"
-                    :disabled="isPresetMapped(preset) || actionBusy === `section:add:${preset.key}`"
-                    @click="addMappedSection(preset)"
-                  >
-                    <Plus class="size-4" />
-                    Map
-                  </BaseButton>
-                </div>
-              </div>
-            </details>
-          </aside>
-
-          <section class="min-w-0 rounded-2xl border p-5 dark:border-gray-800">
-            <div v-if="activeManagedSection" class="space-y-5">
-              <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <p class="text-xs font-black uppercase tracking-wide text-brand-600">
-                    Dynamic content form
-                  </p>
-                  <h3 class="text-2xl font-black text-gray-900 dark:text-gray-100">
-                    {{ activeManagedSection.name }}
-                  </h3>
-                  <p class="mt-1 text-sm text-gray-500">
-                    {{ activeManagedSection.key }} · {{ activeManagedSection.type }} · sort
-                    {{ activeManagedSection.sort_order }}
-                  </p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <BaseButton
-                    type="button"
-                    variant="secondary"
-                    :disabled="
-                      actionBusy === `section:move:${activeManagedSection.id}` ||
-                      mappedSections[0]?.id === activeManagedSection.id
-                    "
-                    @click="moveMappedSection(activeManagedSection, -1)"
-                  >
-                    Up
-                  </BaseButton>
-                  <BaseButton
-                    type="button"
-                    variant="secondary"
-                    :disabled="
-                      actionBusy === `section:move:${activeManagedSection.id}` ||
-                      mappedSections[mappedSections.length - 1]?.id === activeManagedSection.id
-                    "
-                    @click="moveMappedSection(activeManagedSection, 1)"
-                  >
-                    Down
-                  </BaseButton>
-                  <BaseButton
-                    type="button"
-                    variant="secondary"
-                    :disabled="actionBusy === `section:toggle:${activeManagedSection.id}`"
-                    @click="toggleMappedSection(activeManagedSection)"
-                  >
-                    {{ activeManagedSection.is_enabled ? 'Disable' : 'Enable' }}
-                  </BaseButton>
-                </div>
-              </div>
-
-              <div class="grid gap-4">
-                <label class="block text-sm font-medium">
-                  Section name
-                  <input
-                    :value="activeManagedSection.name"
-                    class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                    @input="
-                      updateSectionInState(activeManagedSection.id, {
-                        name: ($event.target as HTMLInputElement).value,
-                      })
-                    "
-                  />
-                </label>
-
-                <SectionContentForm
-                  v-if="activeSectionSchema"
-                  :content="activeManagedSection.content ?? {}"
-                  :schema="activeSectionSchema"
-                  @field-change="
-                    (key, value) => updateSectionContentField(activeManagedSection!, key, value)
-                  "
-                />
-                <div v-else class="grid gap-4 md:grid-cols-2">
-                  <div v-for="[key, value] in activeContentFields" :key="key">
-                    <label class="block text-sm font-medium">
-                      {{ humanize(key) }}
-                      <textarea
-                        v-if="fieldInputType(value) === 'textarea'"
-                        :value="String(value ?? '')"
-                        rows="4"
-                        class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                        @input="
-                          updateSectionContentField(
-                            activeManagedSection,
-                            key,
-                            ($event.target as HTMLTextAreaElement).value,
-                          )
-                        "
-                      ></textarea>
-                      <label
-                        v-else-if="fieldInputType(value) === 'checkbox'"
-                        class="mt-2 flex items-center gap-2 rounded-xl border px-3 py-2.5 dark:border-gray-700"
-                      >
-                        <input
-                          type="checkbox"
-                          :checked="Boolean(value)"
-                          @change="
-                            updateSectionContentField(
-                              activeManagedSection,
-                              key,
-                              ($event.target as HTMLInputElement).checked,
-                            )
-                          "
-                        />
-                        <span class="text-sm text-gray-500">Enabled</span>
-                      </label>
-                      <textarea
-                        v-else-if="fieldInputType(value) === 'json'"
-                        :value="fieldJsonValue(value)"
-                        rows="8"
-                        class="mt-1 w-full rounded-xl border px-3 py-2.5 font-mono text-xs outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                        @change="
-                          updateSectionJsonField(
-                            activeManagedSection,
-                            key,
-                            ($event.target as HTMLTextAreaElement).value,
-                          )
-                        "
-                      ></textarea>
-                      <input
-                        v-else
-                        :type="fieldInputType(value)"
-                        :value="String(value ?? '')"
-                        class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-                        @input="
-                          updateSectionContentField(
-                            activeManagedSection,
-                            key,
-                            fieldInputType(value) === 'number'
-                              ? Number(($event.target as HTMLInputElement).value)
-                              : ($event.target as HTMLInputElement).value,
-                          )
-                        "
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                class="flex flex-col gap-2 border-t pt-5 dark:border-gray-800 sm:flex-row sm:justify-between"
-              >
-                <BaseButton
-                  type="button"
-                  variant="secondary"
-                  class="text-red-700"
-                  :disabled="actionBusy === `section:delete:${activeManagedSection.id}`"
-                  @click="deleteMappedSection(activeManagedSection)"
-                >
-                  <Trash2 class="size-4" />
-                  Delete section
-                </BaseButton>
-                <BaseButton
-                  type="button"
-                  :disabled="actionBusy === `section:content:${activeManagedSection.id}`"
-                  @click="saveManagedSectionContent(activeManagedSection)"
-                >
-                  <CheckCircle2 class="size-4" />
-                  Save section content
-                </BaseButton>
-              </div>
-            </div>
-
-            <div v-else class="grid min-h-[360px] place-items-center text-center">
-              <div>
-                <Layers3 class="mx-auto size-10 text-gray-400" />
-                <h3 class="mt-4 font-black text-gray-900 dark:text-gray-100">Belum ada section</h3>
-                <p class="mt-2 text-sm text-gray-500">
-                  Tambahkan preset section dari panel kiri untuk mulai menyusun halaman.
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
 
         <form v-else class="space-y-4" @submit.prevent="saveSeo">
           <section class="rounded-2xl border p-5 dark:border-gray-800">
@@ -2005,10 +1307,13 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
                 <p class="mt-1 text-xs text-gray-500">{{ humanize(page.visibility) }}</p>
               </td>
               <td class="px-5 py-4">
-                <p class="font-semibold text-gray-800 dark:text-gray-200">
-                  {{ sectionCountLabel(page.id) }}
-                </p>
-                <p class="mt-1 text-xs text-gray-500">Loaded only when opened.</p>
+                <button
+                  class="text-left font-semibold text-brand-600 hover:text-brand-700"
+                  @click="goToContent(page)"
+                >
+                  Edit content
+                </button>
+                <p class="mt-1 text-xs text-gray-500">Kelola section di menu Content.</p>
               </td>
               <td class="px-5 py-4">
                 <button
@@ -2120,186 +1425,6 @@ async function moveMappedSection(section: LandingSection, direction: -1 | 1) {
           >
             Next
           </BaseButton>
-        </div>
-      </div>
-    </BaseCard>
-
-    <BaseCard
-      v-if="sectionPanelOpen"
-      ref="sectionPanelRef"
-      class="border-brand-100 !p-5 dark:border-brand-900"
-    >
-      <div class="space-y-5">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">
-              Section Mapping
-            </p>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {{
-                selectedSectionPage
-                  ? `Mapping untuk ${displayTitle(selectedSectionPage)}`
-                  : 'Mapping section landing page'
-              }}
-            </h2>
-            <p class="mt-1 text-sm text-gray-500">
-              Pilih preset section yang cocok dengan renderer publik, lalu atur status dan urutan.
-            </p>
-          </div>
-          <BaseButton type="button" variant="secondary" @click="sectionPanelOpen = false">
-            Close
-          </BaseButton>
-        </div>
-
-        <label class="block text-sm font-medium">
-          Landing page
-          <select
-            v-model="selectedSectionPageId"
-            class="mt-1 w-full rounded-lg border bg-white px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-            @change="handleSectionPageChange"
-          >
-            <option v-for="page in pages" :key="page.id" :value="page.id">
-              {{ displayTitle(page) }} /{{ page.slug }}
-            </option>
-          </select>
-        </label>
-
-        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
-          <section class="space-y-3">
-            <div>
-              <h3 class="font-semibold text-gray-900 dark:text-gray-100">Available presets</h3>
-              <p class="text-sm text-gray-500">
-                Preset yang sudah mapped akan dikunci agar key section tidak duplikat.
-              </p>
-            </div>
-            <div class="grid gap-3 md:grid-cols-2">
-              <div
-                v-for="preset in sectionPresets"
-                :key="preset.key"
-                class="rounded-xl border p-4 dark:border-gray-800"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <h4 class="font-semibold text-gray-900 dark:text-gray-100">
-                      {{ preset.name }}
-                    </h4>
-                    <p class="mt-1 text-xs text-gray-500">{{ preset.key }} · {{ preset.type }}</p>
-                  </div>
-                  <span
-                    v-if="isPresetMapped(preset)"
-                    class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-                  >
-                    Mapped
-                  </span>
-                </div>
-                <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                  {{ preset.description }}
-                </p>
-                <BaseButton
-                  class="mt-4 w-full"
-                  variant="secondary"
-                  :disabled="isPresetMapped(preset) || actionBusy === `section:add:${preset.key}`"
-                  @click="addMappedSection(preset)"
-                >
-                  <Plus class="size-4" />
-                  {{ isPresetMapped(preset) ? 'Already mapped' : 'Map Section' }}
-                </BaseButton>
-              </div>
-            </div>
-          </section>
-
-          <section class="space-y-3">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100">Mapped sections</h3>
-                <p class="text-sm text-gray-500">
-                  {{ mappedSections.length }} section aktif di page.
-                </p>
-              </div>
-              <BaseButton
-                type="button"
-                variant="secondary"
-                :disabled="!selectedSectionPageId"
-                @click="handleSectionPageChange"
-              >
-                <RefreshCw class="size-4" />
-                Refresh
-              </BaseButton>
-            </div>
-
-            <div
-              v-if="mappedSections.length === 0"
-              class="rounded-xl border border-dashed p-6 text-center text-sm text-gray-500 dark:border-gray-800"
-            >
-              Belum ada section yang dimapping. Tambahkan preset dari daftar di kiri.
-            </div>
-
-            <div v-else class="space-y-3">
-              <div
-                v-for="(section, index) in mappedSections"
-                :key="section.id"
-                class="rounded-xl border p-4 dark:border-gray-800"
-              >
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="text-xs font-semibold text-gray-500"> #{{ index + 1 }} </span>
-                      <h4 class="font-semibold text-gray-900 dark:text-gray-100">
-                        {{ section.name }}
-                      </h4>
-                      <span
-                        class="rounded-full px-2 py-0.5 text-xs font-semibold ring-1"
-                        :class="
-                          section.is_enabled
-                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-950 dark:text-emerald-300'
-                            : 'bg-gray-100 text-gray-600 ring-gray-200 dark:bg-gray-800 dark:text-gray-300'
-                        "
-                      >
-                        {{ section.is_enabled ? 'Enabled' : 'Disabled' }}
-                      </span>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500">
-                      {{ section.key }} · {{ section.type }} · sort {{ section.sort_order }}
-                    </p>
-                  </div>
-
-                  <div class="flex flex-wrap gap-2 sm:justify-end">
-                    <button
-                      class="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-800"
-                      :disabled="index === 0 || actionBusy === `section:move:${section.id}`"
-                      @click="moveMappedSection(section, -1)"
-                    >
-                      Up
-                    </button>
-                    <button
-                      class="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-800"
-                      :disabled="
-                        index === mappedSections.length - 1 ||
-                        actionBusy === `section:move:${section.id}`
-                      "
-                      @click="moveMappedSection(section, 1)"
-                    >
-                      Down
-                    </button>
-                    <button
-                      class="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                      :disabled="actionBusy === `section:toggle:${section.id}`"
-                      @click="toggleMappedSection(section)"
-                    >
-                      {{ section.is_enabled ? 'Disable' : 'Enable' }}
-                    </button>
-                    <button
-                      class="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300"
-                      :disabled="actionBusy === `section:delete:${section.id}`"
-                      @click="deleteMappedSection(section)"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </BaseCard>

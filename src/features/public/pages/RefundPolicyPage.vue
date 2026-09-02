@@ -3,11 +3,11 @@ import LegalPageShell from '../components/LegalPageShell.vue'
 </script>
 
 <template>
-  <LegalPageShell title="Kebijakan Refund" updated-at="9 Juli 2026">
+  <LegalPageShell title="Kebijakan Refund" updated-at="11 Juli 2026" doc-version="1.0">
     <p>
       Kebijakan Refund ini berlaku untuk seluruh pembelian langganan berbayar pada platform Zyad
-      Cloud yang dioperasikan oleh
-      <strong>[ISI SESUAI DATA BISNIS ANDA — nama badan hukum]</strong> dan merupakan bagian dari
+      Cloud yang dioperasikan oleh <strong>PT Zyad Technovation Indonesia</strong> dan merupakan
+      ringkasan operasional dari Bab 8 (Kebijakan Refund dan Pembatalan)
       <RouterLink to="/legal/terms" class="text-primary underline"
         >Syarat &amp; Ketentuan</RouterLink
       >
@@ -17,55 +17,72 @@ import LegalPageShell from '../components/LegalPageShell.vue'
     <h2>1. Prinsip Umum</h2>
     <ul>
       <li>
-        Pembayaran langganan diproses melalui payment gateway DOKU dan tercatat pada invoice Anda.
+        Pembayaran langganan diproses melalui payment gateway resmi, termasuk DOKU, dan tercatat
+        pada invoice Anda.
+      </li>
+      <li>
+        Kecuali dinyatakan lain dalam penawaran resmi, biaya layanan yang telah dibayarkan bersifat
+        <strong>tidak dapat dikembalikan</strong> apabila layanan telah aktif atau telah digunakan.
       </li>
       <li>Paket gratis tidak melibatkan pembayaran sehingga tidak memiliki komponen refund.</li>
       <li>
-        Refund diberikan ke metode pembayaran asal, mengikuti mekanisme dan waktu proses DOKU serta
-        bank/penerbit terkait.
+        Refund yang disetujui dikembalikan ke metode pembayaran asal, mengikuti mekanisme dan waktu
+        proses payment gateway serta bank/penerbit terkait.
       </li>
     </ul>
 
-    <h2>2. Kondisi yang Memenuhi Syarat Refund</h2>
+    <h2>2. Kondisi yang Dapat Dipertimbangkan untuk Refund</h2>
+    <p>
+      Zyad Cloud dapat mempertimbangkan pengembalian dana secara kasus per kasus apabila terjadi:
+    </p>
     <ul>
+      <li><strong>Pembayaran ganda</strong> untuk invoice yang sama;</li>
+      <li><strong>Kesalahan nominal</strong> yang terverifikasi;</li>
       <li>
-        <strong>Pembayaran ganda</strong> untuk invoice yang sama — kelebihan bayar dikembalikan
-        penuh.
+        <strong>Kegagalan aktivasi</strong> layanan yang disebabkan oleh kesalahan sistem Zyad
+        Cloud;
       </li>
-      <li>
-        <strong>Layanan tidak teraktivasi</strong>: pembayaran sukses namun upgrade paket tidak
-        aktif dalam 2×24 jam dan tim kami tidak dapat memulihkannya.
-      </li>
-      <li>
-        <strong>Gangguan layanan berkepanjangan</strong>: ketidaktersediaan Layanan lebih dari
-        <strong>[ISI SESUAI DATA BISNIS ANDA — ambang SLA, mis. 72 jam]</strong> berturut-turut yang
-        disebabkan oleh Kami, dihitung prorata.
-      </li>
-      <li>
-        <strong>Pembatalan dini dalam masa garansi</strong>: pengajuan dalam
-        <strong>[ISI SESUAI DATA BISNIS ANDA — masa garansi, mis. 7 hari]</strong> sejak pembayaran
-        pertama paket berbayar, dikembalikan penuh dikurangi biaya pemrosesan payment gateway (jika
-        ada).
-      </li>
+      <li>kondisi lain yang secara wajar dianggap layak untuk diproses.</li>
     </ul>
 
     <h2>3. Kondisi yang Tidak Memenuhi Syarat</h2>
     <ul>
-      <li>Perubahan pikiran setelah masa garansi berakhir.</li>
+      <li>Layanan telah aktif dan digunakan secara normal.</li>
+      <li>Permintaan tidak memenuhi ketentuan atau data tidak valid.</li>
+      <li>Terdapat indikasi penyalahgunaan layanan atau mekanisme refund.</li>
       <li>
         Sisa periode langganan setelah pembatalan (langganan tetap aktif hingga akhir periode).
       </li>
-      <li>Akun yang ditangguhkan karena pelanggaran Syarat &amp; Ketentuan.</li>
-      <li>Biaya yang dikenakan pihak ketiga di luar kendali Kami.</li>
+      <li>
+        Akun yang ditangguhkan karena pelanggaran
+        <RouterLink to="/legal/terms" class="text-primary underline"
+          >Syarat &amp; Ketentuan</RouterLink
+        >
+        atau
+        <RouterLink to="/legal/aup" class="text-primary underline">Acceptable Use Policy</RouterLink
+        >.
+      </li>
     </ul>
 
-    <h2>4. Cara Mengajukan Refund</h2>
+    <h2>4. Potongan Biaya</h2>
+    <p>
+      Biaya administrasi, biaya payment gateway, biaya bank, atau biaya pihak ketiga lain dapat
+      dipotong dari nilai refund apabila berlaku dan diperbolehkan oleh ketentuan yang relevan.
+    </p>
+
+    <h2>5. Cara Mengajukan Refund</h2>
     <ol>
       <li>
-        Kirim permohonan ke <strong>[ISI SESUAI DATA BISNIS ANDA — email kontak]</strong> dengan
-        subjek "Permohonan Refund".
+        Kirim permohonan ke
+        <a href="mailto:yulianto.personal@outlook.com" class="text-primary underline"
+          >yulianto.personal@outlook.com</a
+        >
+        dengan subjek "Permohonan Refund".
       </li>
-      <li>Sertakan nomor invoice, tanggal pembayaran, nominal, dan alasan pengajuan.</li>
+      <li>
+        Sertakan bukti pembayaran, identitas akun, nomor invoice, tanggal transaksi, nominal, dan
+        alasan permintaan.
+      </li>
       <li>Tim kami memverifikasi dan memberi keputusan maksimal 7 hari kerja.</li>
       <li>
         Refund yang disetujui diproses maksimal 14 hari kerja; waktu tiba dana mengikuti
@@ -73,12 +90,12 @@ import LegalPageShell from '../components/LegalPageShell.vue'
       </li>
     </ol>
 
-    <h2>5. Kontak</h2>
+    <h2>6. Kontak</h2>
     <p>
       Pertanyaan mengenai kebijakan ini dapat disampaikan ke
-      <strong>[ISI SESUAI DATA BISNIS ANDA — email kontak]</strong> atau
-      <strong>[ISI SESUAI DATA BISNIS ANDA — nomor telepon]</strong> pada jam kerja
-      <strong>[ISI SESUAI DATA BISNIS ANDA — jam operasional]</strong>.
+      <a href="mailto:yulianto.personal@outlook.com" class="text-primary underline"
+        >yulianto.personal@outlook.com</a
+      >. Alamat merchant: Desa Lumpang, Kec. Karanganyar, Kab. Purbalingga, Jawa Tengah.
     </p>
   </LegalPageShell>
 </template>

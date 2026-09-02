@@ -42,6 +42,7 @@ const props = withDefaults(
 const menus = ref<LandingMenu[]>([])
 const menuItems = ref<Record<string, LandingMenuItem[]>>({})
 const pages = ref<LandingPage[]>([])
+const locationFilter = ref<'all' | MenuLocation>('all')
 const selectedMenuId = ref('')
 const editingItemId = ref('')
 const loading = ref(false)
@@ -67,6 +68,11 @@ const itemForm = reactive({
   parent_id: '',
 })
 
+const filteredMenus = computed(() =>
+  locationFilter.value === 'all'
+    ? menus.value
+    : menus.value.filter((menu) => menu.location === locationFilter.value),
+)
 const selectedMenu = computed(
   () => menus.value.find((menu) => menu.id === selectedMenuId.value) ?? null,
 )
@@ -426,9 +432,25 @@ async function moveItem(item: LandingMenuItem, direction: -1 | 1) {
               <Plus class="size-4" />
             </BaseButton>
           </div>
+          <div class="mt-4 flex flex-wrap gap-1.5">
+            <button
+              v-for="option in ['all', 'header', 'footer', 'sidebar'] as const"
+              :key="option"
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-semibold capitalize transition"
+              :class="
+                locationFilter === option
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
+              "
+              @click="locationFilter = option"
+            >
+              {{ option }}
+            </button>
+          </div>
           <div class="mt-4 space-y-2">
             <button
-              v-for="menu in menus"
+              v-for="menu in filteredMenus"
               :key="menu.id"
               type="button"
               class="w-full rounded-2xl border px-4 py-3 text-left transition"
@@ -451,6 +473,12 @@ async function moveItem(item: LandingMenuItem, direction: -1 | 1) {
                 {{ menu.is_active ? 'Active' : 'Inactive' }}
               </span>
             </button>
+            <p
+              v-if="filteredMenus.length === 0"
+              class="rounded-2xl border border-dashed p-4 text-center text-xs text-gray-500"
+            >
+              Belum ada menu dengan location "{{ locationFilter }}".
+            </p>
           </div>
         </section>
 

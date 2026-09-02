@@ -240,8 +240,12 @@ async function uploadMedia(event: Event) {
   try {
     const payload = new FormData()
     payload.append('file', file)
-    await landingApi.uploadMedia(payload)
-    showNotice('Media berhasil diupload.')
+    const response = await landingApi.uploadMedia(payload)
+    showNotice(
+      response.data.public_url
+        ? 'Media berhasil diupload. Gunakan tombol pada daftar untuk memakainya sebagai logo.'
+        : 'Media berhasil diupload.',
+    )
     await loadMedia()
   } catch (error) {
     mediaError.value = getApiMessage(error, 'Gagal mengupload media.')
@@ -260,6 +264,25 @@ async function deleteMedia(media: LandingMedia) {
   } catch (error) {
     mediaError.value = getApiMessage(error, 'Gagal menghapus media.')
   }
+}
+
+function isImageMedia(media: LandingMedia) {
+  return Boolean(media.public_url) && media.mime_type.startsWith('image/')
+}
+
+function useMediaAsLogo(
+  media: LandingMedia,
+  field: 'logo_light_url' | 'logo_dark_url' | 'favicon_url',
+) {
+  if (!media.public_url) return
+  form[field] = media.public_url
+  showNotice(`URL media diterapkan ke ${field.replace(/_/g, ' ')}. Jangan lupa simpan branding.`)
+}
+
+async function copyMediaUrl(media: LandingMedia) {
+  if (!media.public_url) return
+  await navigator.clipboard.writeText(media.public_url)
+  showNotice('URL media disalin ke clipboard.')
 }
 
 function formatBytes(value: number) {
@@ -915,8 +938,8 @@ function showNotice(message: string) {
             </label>
           </div>
           <p class="mt-2 text-sm text-gray-500">
-            Metadata file (nama, tipe, ukuran). Preview gambar & pemilihan langsung ke field content
-            belum tersedia karena upload binary ke storage backend belum diimplementasikan.
+            Upload gambar lalu terapkan sebagai logo light/dark atau favicon, atau salin URL-nya
+            untuk dipakai di field content.
           </p>
 
           <div
@@ -932,13 +955,54 @@ function showNotice(message: string) {
               :key="media.id"
               class="flex items-start justify-between gap-3 rounded-xl border p-3 dark:border-gray-800"
             >
-              <div class="min-w-0">
-                <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {{ media.filename }}
-                </p>
-                <p class="mt-1 text-xs text-gray-500">
-                  {{ media.mime_type }} · {{ formatBytes(media.size_bytes) }}
-                </p>
+              <div class="flex min-w-0 items-start gap-3">
+                <img
+                  v-if="isImageMedia(media)"
+                  :src="media.public_url"
+                  :alt="media.alt_text || media.filename"
+                  class="size-12 shrink-0 rounded-lg border object-contain dark:border-gray-800"
+                />
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {{ media.filename }}
+                  </p>
+                  <p class="mt-1 text-xs text-gray-500">
+                    {{ media.mime_type }} · {{ formatBytes(media.size_bytes) }}
+                  </p>
+                  <div v-if="media.public_url" class="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      v-if="isImageMedia(media)"
+                      type="button"
+                      class="rounded border px-2 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+                      @click="useMediaAsLogo(media, 'logo_light_url')"
+                    >
+                      Logo light
+                    </button>
+                    <button
+                      v-if="isImageMedia(media)"
+                      type="button"
+                      class="rounded border px-2 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+                      @click="useMediaAsLogo(media, 'logo_dark_url')"
+                    >
+                      Logo dark
+                    </button>
+                    <button
+                      v-if="isImageMedia(media)"
+                      type="button"
+                      class="rounded border px-2 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+                      @click="useMediaAsLogo(media, 'favicon_url')"
+                    >
+                      Favicon
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded border px-2 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+                      @click="copyMediaUrl(media)"
+                    >
+                      Copy URL
+                    </button>
+                  </div>
+                </div>
               </div>
               <button
                 type="button"

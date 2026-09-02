@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ArrowLeft, CheckCircle2, Globe2, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Globe2,
+  Loader2,
+  Menu,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import LandingPagePicker from '@/features/landing/builder/components/LandingPagePicker.vue'
+import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
+  CallToAction,
   LandingDomainBinding,
+  LandingForm,
   LandingPage,
 } from '@/features/landing/shared/types/landing.types'
 
@@ -21,16 +34,17 @@ const props = withDefaults(
   {
     title: 'Landing Settings',
     description:
-      'Atur publish rules, lead notification, dan preferensi page lain per landing page.',
+      'Atur publish rules, lead notification, footer, dan preferensi page lain per landing page.',
     mode: 'workspace',
     parentRouteName: 'landing-pages',
   },
 )
 
-const pages = ref<LandingPage[]>([])
-const selectedPageId = ref('')
+const { pages, selectedPageId, loadPages } = usePageSelection()
 const selectedPage = ref<LandingPage | null>(null)
 const pageBindings = ref<LandingDomainBinding[]>([])
+const ctas = ref<CallToAction[]>([])
+const forms = ref<LandingForm[]>([])
 
 const loading = ref(false)
 const saving = ref(false)
@@ -40,51 +54,62 @@ const notice = ref('')
 const settingsForm = reactive({
   publish_require_approval: false,
   lead_notification_emails: [] as string[],
+  footer_copyright_text: '',
+  trust_badges: [] as Array<{ image_url: string; label: string }>,
+  secondary_cta_tracking_key: '',
+  newsletter_form_id: '',
 })
 const newEmail = ref('')
 
 const boundDomainCount = computed(() => pageBindings.value.length)
 const primaryBinding = computed(() => pageBindings.value.find((binding) => binding.is_primary))
 
-onMounted(loadPages)
+// `immediate: true` supaya watcher ini satu-satunya pemicu load — menghindari
+// race dua request bersamaan kalau onMounted juga memanggil load secara
+// terpisah (selectedPageId berasal dari composable singleton yang bisa sudah
+// terisi sebelum komponen ini mount, mis. datang dari menu Page/Content).
+watch(
+  selectedPageId,
+  async (pageId) => {
+    if (!pageId) return
+    await loadPageData(pageId)
+  },
+  { immediate: true },
+)
 
-watch(selectedPageId, async (pageId) => {
-  if (!pageId) return
-  await loadPageData(pageId)
+onMounted(async () => {
+  if (pages.value.length === 0) await loadPages()
 })
-
-async function loadPages() {
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    const response = await landingApi.getPages({ per_page: 100, is_template: false })
-    pages.value = response.data
-    if (!selectedPageId.value && pages.value.length > 0) {
-      selectedPageId.value = pages.value[0]!.id
-    }
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal memuat daftar landing page.')
-  } finally {
-    loading.value = false
-  }
-}
 
 async function loadPageData(pageId: string) {
   loading.value = true
   errorMessage.value = ''
   try {
-    const [pageResponse, bindingsResponse] = await Promise.all([
+    const [pageResponse, bindingsResponse, ctaResponse, formResponse] = await Promise.all([
       landingApi.getPage(pageId),
       landingApi.getDomainBindings(pageId),
+      landingApi.getCTAs({ per_page: 100 }),
+      landingApi.getForms(pageId),
     ])
     selectedPage.value = pageResponse.data
     pageBindings.value = bindingsResponse.data
+    ctas.value = ctaResponse.data
+    forms.value = formResponse.data
 
     const settings = (pageResponse.data.settings ?? {}) as Record<string, unknown>
     settingsForm.publish_require_approval = Boolean(settings.publish_require_approval)
     settingsForm.lead_notification_emails = Array.isArray(settings.lead_notification_emails)
       ? (settings.lead_notification_emails as unknown[]).map(String)
       : []
+    settingsForm.footer_copyright_text = String(settings.footer_copyright_text ?? '')
+    settingsForm.trust_badges = Array.isArray(settings.trust_badges)
+      ? (settings.trust_badges as Array<{ image_url?: string; label?: string }>).map((badge) => ({
+          image_url: badge.image_url ?? '',
+          label: badge.label ?? '',
+        }))
+      : []
+    settingsForm.secondary_cta_tracking_key = String(settings.secondary_cta_tracking_key ?? '')
+    settingsForm.newsletter_form_id = String(settings.newsletter_form_id ?? '')
   } catch (error) {
     errorMessage.value = getApiMessage(error, 'Gagal memuat settings landing page.')
   } finally {
@@ -122,17 +147,31 @@ function removeEmail(email: string) {
   )
 }
 
+function addTrustBadge() {
+  settingsForm.trust_badges = [...settingsForm.trust_badges, { image_url: '', label: '' }]
+}
+
+function removeTrustBadge(index: number) {
+  settingsForm.trust_badges = settingsForm.trust_badges.filter((_, i) => i !== index)
+}
+
 async function saveSettings() {
   if (!selectedPageId.value || !selectedPage.value) return
   saving.value = true
   errorMessage.value = ''
   try {
+    // Selalu spread existingSettings dulu — field lain di page.settings (di luar
+    // form ini) tidak boleh ikut ke-reset saat form ini disimpan.
     const existingSettings = (selectedPage.value.settings ?? {}) as Record<string, unknown>
     await landingApi.updatePage(selectedPageId.value, {
       settings: {
         ...existingSettings,
         publish_require_approval: settingsForm.publish_require_approval,
         lead_notification_emails: settingsForm.lead_notification_emails,
+        footer_copyright_text: settingsForm.footer_copyright_text.trim(),
+        trust_badges: settingsForm.trust_badges.filter((badge) => badge.image_url || badge.label),
+        secondary_cta_tracking_key: settingsForm.secondary_cta_tracking_key,
+        newsletter_form_id: settingsForm.newsletter_form_id,
       },
     })
     showNotice('Settings berhasil disimpan.')
@@ -181,17 +220,7 @@ async function saveSettings() {
     </div>
 
     <div class="rounded-2xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-      <label class="block text-sm font-medium">
-        Landing page
-        <select
-          v-model="selectedPageId"
-          class="mt-1 w-full max-w-md rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-        >
-          <option v-for="page in pages" :key="page.id" :value="page.id">
-            {{ page.title || page.name }} — /{{ page.slug }}
-          </option>
-        </select>
-      </label>
+      <LandingPagePicker v-model="selectedPageId" :pages="pages" />
       <p class="mt-2 text-xs text-gray-500">
         Settings di halaman ini berlaku per landing page, bukan per workspace.
       </p>
@@ -255,6 +284,116 @@ async function saveSettings() {
               </button>
             </span>
           </div>
+        </section>
+
+        <section
+          class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+        >
+          <h2 class="font-black text-gray-900 dark:text-white">Footer content</h2>
+          <p class="mt-1 text-sm text-gray-500">
+            Copyright, trust badge, secondary CTA, dan newsletter yang tampil di footer page ini.
+            Link navigasi footer dikelola di menu
+            <RouterLink
+              :to="{ name: `${props.parentRouteName}-navigation` }"
+              class="text-brand-600 underline"
+            >
+              Navigation
+            </RouterLink>
+            .
+          </p>
+          <div class="mt-4 space-y-4">
+            <label class="block text-sm font-medium">
+              Copyright text
+              <input
+                v-model="settingsForm.footer_copyright_text"
+                placeholder="© 2026 Acme. All rights reserved."
+                class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              />
+            </label>
+
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium">Trust badges</span>
+                <button
+                  type="button"
+                  class="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                  @click="addTrustBadge"
+                >
+                  <Plus class="inline size-3.5" /> Add badge
+                </button>
+              </div>
+              <div class="mt-2 space-y-2">
+                <div
+                  v-for="(badge, index) in settingsForm.trust_badges"
+                  :key="index"
+                  class="flex items-center gap-2"
+                >
+                  <input
+                    v-model="badge.image_url"
+                    placeholder="Image URL"
+                    class="min-w-0 flex-1 rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                  />
+                  <input
+                    v-model="badge.label"
+                    placeholder="Label"
+                    class="min-w-0 flex-1 rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                  />
+                  <button
+                    type="button"
+                    class="shrink-0 rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                    @click="removeTrustBadge(index)"
+                  >
+                    <Trash2 class="size-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <label class="block text-sm font-medium">
+              Secondary CTA
+              <select
+                v-model="settingsForm.secondary_cta_tracking_key"
+                class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              >
+                <option value="">None</option>
+                <option v-for="cta in ctas" :key="cta.id" :value="cta.tracking_key">
+                  {{ cta.label }} ({{ cta.tracking_key }})
+                </option>
+              </select>
+            </label>
+
+            <label class="block text-sm font-medium">
+              Newsletter form
+              <select
+                v-model="settingsForm.newsletter_form_id"
+                class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              >
+                <option value="">None</option>
+                <option v-for="form in forms" :key="form.id" :value="form.id">
+                  {{ form.name }}
+                </option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section
+          class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+        >
+          <div class="flex items-center gap-2">
+            <Menu class="size-4 text-gray-400" />
+            <h3 class="font-black text-gray-900 dark:text-white">Footer navigation</h3>
+          </div>
+          <p class="mt-2 text-sm text-gray-500">
+            Link footer (quick links, support, legal) dikelola sebagai menu dengan
+            location&nbsp;=&nbsp;footer, sama seperti menu header.
+          </p>
+          <RouterLink
+            :to="{ name: `${props.parentRouteName}-navigation` }"
+            class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
+          >
+            Kelola di Navigation →
+          </RouterLink>
         </section>
       </div>
 

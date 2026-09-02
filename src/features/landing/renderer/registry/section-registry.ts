@@ -7,6 +7,9 @@ import DemoSection from '../sections/demo/DemoSection.vue'
 import EnterpriseTemplateSection from '../sections/enterprise/EnterpriseTemplateSection.vue'
 import FaqSection from '../sections/faq/FaqSection.vue'
 import LandingFooter from '../sections/footer/LandingFooter.vue'
+import FooterSimple from '../sections/footer/FooterSimple.vue'
+import FooterNewsletter from '../sections/footer/FooterNewsletter.vue'
+import FooterMega from '../sections/footer/FooterMega.vue'
 import ProblemSection from '../sections/problem/ProblemSection.vue'
 import PricingSection from '../sections/pricing/PricingSection.vue'
 import ServicesSection from '../sections/services/ServicesSection.vue'
@@ -107,6 +110,9 @@ export const sectionRegistry: Record<string, Record<string, Component>> = {
   footer: {
     default: LandingFooter,
     LandingFooter,
+    simple: FooterSimple,
+    newsletter: FooterNewsletter,
+    mega: FooterMega,
   },
   problem: {
     default: ProblemSection,

@@ -63,9 +63,15 @@ const confirmAction = ref<{
 
 const addDomainForm = reactive({
   canonical_host: '',
+  subdomainLabel: '',
   type: 'custom' as OrganizationDomainType,
   error: '',
 })
+
+// Dashboard dilayani dari path (/app) pada domain platform yang sama
+// (mis. zyad.cloud/app), sehingga hostname saat ini adalah domain primer
+// tempat subdomain tenant baru didaftarkan.
+const platformApexDomain = computed(() => window.location.hostname)
 
 // Landing page binding: which landing page (if any) a verified domain
 // serves. Only meaningful in workspace mode — a domain must first be
@@ -118,6 +124,15 @@ function validateHost(value: string) {
   if (/^https?:\/\//i.test(host)) return 'Masukkan hostname saja tanpa http atau https.'
   if (host.includes('/') || host.includes(' ')) return 'Domain tidak boleh berisi path atau spasi.'
   if (!/^[a-z0-9.-]+$/.test(host) || !host.includes('.')) return 'Format domain tidak valid.'
+  return ''
+}
+
+function validateSubdomainLabel(value: string) {
+  const label = normalizeHost(value)
+  if (!label) return 'Nama subdomain wajib diisi.'
+  if (label.includes('.')) return `Cukup isi satu nama, tanpa ".${platformApexDomain.value}".`
+  if (!/^[a-z0-9-]+$/.test(label) || label.startsWith('-') || label.endsWith('-'))
+    return 'Hanya huruf, angka, dan tanda hubung (-), tidak boleh diawali/diakhiri strip.'
   return ''
 }
 
@@ -312,30 +327,43 @@ async function unbindDomain(binding: LandingDomainBinding) {
 
 function openAddDrawer() {
   addDomainForm.canonical_host = ''
+  addDomainForm.subdomainLabel = ''
   addDomainForm.type = 'custom'
   addDomainForm.error = ''
   addDrawerOpen.value = true
 }
 
 async function submitDomain() {
-  addDomainForm.error = validateHost(addDomainForm.canonical_host)
+  const isSubdomain = addDomainForm.type === 'subdomain'
+  addDomainForm.error = isSubdomain
+    ? validateSubdomainLabel(addDomainForm.subdomainLabel)
+    : validateHost(addDomainForm.canonical_host)
   if (addDomainForm.error) return
+
+  const canonicalHost = isSubdomain
+    ? `${normalizeHost(addDomainForm.subdomainLabel)}.${platformApexDomain.value}`
+    : normalizeHost(addDomainForm.canonical_host)
 
   isSaving.value = true
   errorMessage.value = ''
   successMessage.value = ''
   try {
     const challenge = await organizationDomainService.create({
-      canonical_host: normalizeHost(addDomainForm.canonical_host),
+      canonical_host: canonicalHost,
       type: addDomainForm.type,
       is_primary: false,
     })
-    latestChallenge.value = challenge
-    selectedDomain.value = challenge.domain
-    dnsDrawerOpen.value = true
     addDrawerOpen.value = false
-    await refreshData()
-    successMessage.value = 'Domain berhasil dibuat. Lanjutkan verifikasi DNS.'
+    if (challenge.challenge_type === 'auto_verified') {
+      await refreshData()
+      successMessage.value = 'Subdomain berhasil dibuat dan langsung aktif.'
+    } else {
+      latestChallenge.value = challenge
+      selectedDomain.value = challenge.domain
+      dnsDrawerOpen.value = true
+      await refreshData()
+      successMessage.value = 'Domain berhasil dibuat. Lanjutkan verifikasi DNS.'
+    }
   } catch (error) {
     errorMessage.value = extractError(error)
   } finally {
@@ -346,6 +374,23 @@ async function submitDomain() {
 function openDnsDrawer(domain: OrganizationDomain) {
   selectedDomain.value = domain
   dnsDrawerOpen.value = true
+}
+
+async function regenerateChallenge(domain: OrganizationDomain) {
+  isSaving.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    const challenge = await organizationDomainService.regenerateChallenge(domain.id)
+    latestChallenge.value = challenge
+    selectedDomain.value = challenge.domain
+    await refreshData()
+    successMessage.value = 'Token verifikasi baru berhasil dibuat. Perbarui TXT record Anda.'
+  } catch (error) {
+    errorMessage.value = extractError(error)
+  } finally {
+    isSaving.value = false
+  }
 }
 
 async function verifyDomain(domain: OrganizationDomain) {
@@ -760,7 +805,9 @@ onMounted(refreshData)
         <div class="mb-6 flex items-start justify-between">
           <div>
             <h2 class="text-lg font-semibold">Add Domain</h2>
-            <p class="mt-1 text-sm text-gray-500">Masukkan hostname tanpa protocol dan path.</p>
+            <p class="mt-1 text-sm text-gray-500">
+              Pilih tipe domain, lalu isi sesuai format yang diminta.
+            </p>
           </div>
           <button class="rounded-lg border p-2 dark:border-gray-700" @click="addDrawerOpen = false">
             <X class="h-4 w-4" />
@@ -769,23 +816,67 @@ onMounted(refreshData)
 
         <form class="space-y-4" @submit.prevent="submitDomain">
           <label class="block text-sm font-medium">
-            Domain
-            <input
-              v-model="addDomainForm.canonical_host"
-              class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-900"
-              placeholder="www.example.com"
-            />
-          </label>
-          <label class="block text-sm font-medium">
             Type
             <select
               v-model="addDomainForm.type"
               class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              @change="addDomainForm.error = ''"
             >
-              <option value="custom">Custom</option>
-              <option value="subdomain">Subdomain</option>
+              <option value="custom">Custom domain (punya sendiri)</option>
+              <option value="subdomain">
+                Subdomain {{ platformApexDomain }} (gratis, langsung aktif)
+              </option>
             </select>
           </label>
+
+          <template v-if="addDomainForm.type === 'subdomain'">
+            <label class="block text-sm font-medium">
+              Nama subdomain
+              <div
+                class="mt-2 flex items-stretch overflow-hidden rounded-lg border border-gray-200 focus-within:border-brand-500 dark:border-gray-700"
+              >
+                <input
+                  v-model="addDomainForm.subdomainLabel"
+                  class="min-w-0 flex-1 bg-transparent px-3 py-2 outline-none dark:bg-gray-900"
+                  placeholder="toko-anda"
+                />
+                <span
+                  class="flex items-center whitespace-nowrap bg-gray-50 px-3 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                >
+                  .{{ platformApexDomain }}
+                </span>
+              </div>
+            </label>
+            <p class="text-xs text-gray-500">
+              Isi hanya nama subdomain-nya saja (huruf, angka, tanda hubung), misalnya
+              <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800">toko-anda</code>
+              akan menjadi
+              <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800"
+                >toko-anda.{{ platformApexDomain }}</code
+              >. Subdomain langsung aktif tanpa perlu setting DNS.
+            </p>
+          </template>
+
+          <template v-else>
+            <label class="block text-sm font-medium">
+              Domain
+              <input
+                v-model="addDomainForm.canonical_host"
+                class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-900"
+                placeholder="tokoanda.com"
+              />
+            </label>
+            <p class="text-xs text-gray-500">
+              Masukkan domain milik Anda sendiri tanpa
+              <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800">http://</code> dan
+              tanpa path, misalnya
+              <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800">tokoanda.com</code>
+              atau
+              <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800">www.tokoanda.com</code
+              >. Anda perlu mengarahkan DNS domain ini setelah dibuat.
+            </p>
+          </template>
+
           <p v-if="addDomainForm.error" class="text-sm text-red-600">{{ addDomainForm.error }}</p>
           <BaseButton type="submit" class="w-full" :disabled="isSaving">
             <Loader2 v-if="isSaving" class="h-4 w-4 animate-spin" />
@@ -827,11 +918,17 @@ onMounted(refreshData)
                   <code>{{
                     latestChallenge?.domain.id === selectedDomain.id
                       ? latestChallenge.record_name
-                      : '_zyad-verify'
+                      : `_zyad-verification.${selectedDomain.canonical_host}`
                   }}</code>
                   <button
                     class="rounded border p-1"
-                    @click="copyText(latestChallenge?.record_name || '_zyad-verify')"
+                    @click="
+                      copyText(
+                        latestChallenge?.domain.id === selectedDomain.id
+                          ? latestChallenge.record_name
+                          : `_zyad-verification.${selectedDomain.canonical_host}`,
+                      )
+                    "
                   >
                     <Clipboard class="h-3.5 w-3.5" />
                   </button>
@@ -844,7 +941,7 @@ onMounted(refreshData)
                     {{
                       latestChallenge?.domain.id === selectedDomain.id
                         ? latestChallenge.record_value
-                        : 'Ditampilkan setelah domain dibuat.'
+                        : 'Token hilang? Generate ulang di bawah.'
                     }}
                   </code>
                   <button
@@ -886,6 +983,19 @@ onMounted(refreshData)
           <BaseButton class="w-full" :disabled="isSaving" @click="verifyDomain(selectedDomain)">
             <RefreshCw class="h-4 w-4" />
             Verify DNS
+          </BaseButton>
+          <BaseButton
+            v-if="
+              selectedDomain.type === 'custom' &&
+              selectedDomain.status !== 'active' &&
+              latestChallenge?.domain.id !== selectedDomain.id
+            "
+            class="w-full"
+            variant="outline"
+            :disabled="isSaving"
+            @click="regenerateChallenge(selectedDomain)"
+          >
+            Generate Ulang Token Verifikasi
           </BaseButton>
         </div>
       </aside>

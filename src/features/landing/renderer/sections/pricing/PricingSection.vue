@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 
 import { publicCatalogApi, type PublicCatalogPlan } from '@/features/public/api/public-catalog.api'
 import { useAuthStore } from '@/stores/auth.store'
+import { useEditMode } from '../../composables/useEditMode'
+
+const editMode = useEditMode()
 
 type PricingPlan = {
   name: string
@@ -27,6 +30,34 @@ const props = defineProps<{
 const router = useRouter()
 const auth = useAuthStore()
 
+const FEATURE_PREVIEW_LIMIT = 6
+const expandedPlans = ref<Set<string>>(new Set())
+
+function isExpanded(planName: string) {
+  return expandedPlans.value.has(planName)
+}
+
+function toggleExpanded(planName: string) {
+  const next = new Set(expandedPlans.value)
+  if (next.has(planName)) {
+    next.delete(planName)
+  } else {
+    next.add(planName)
+  }
+  expandedPlans.value = next
+}
+
+function visibleFeatures(plan: PricingPlan) {
+  const features = plan.features || []
+  if (isExpanded(plan.name) || features.length <= FEATURE_PREVIEW_LIMIT) return features
+  return features.slice(0, FEATURE_PREVIEW_LIMIT)
+}
+
+function hiddenFeatureCount(plan: PricingPlan) {
+  const features = plan.features || []
+  return Math.max(features.length - FEATURE_PREVIEW_LIMIT, 0)
+}
+
 const catalogPlans = ref<PublicCatalogPlan[]>([])
 const catalogLoading = ref(false)
 const catalogError = ref(false)
@@ -34,6 +65,8 @@ const catalogError = ref(false)
 const isCatalogSource = computed(() => props.content.source === 'platform_catalog')
 
 onMounted(async () => {
+  // Di canvas builder jangan panggil API katalog publik.
+  if (editMode.value) return
   if (!isCatalogSource.value) return
   catalogLoading.value = true
   catalogError.value = false
@@ -98,6 +131,7 @@ function checkoutPath(plan: PricingPlan) {
 }
 
 function selectPlan(plan: PricingPlan) {
+  if (editMode.value) return
   if (!plan.code) return
 
   if (plan.isFree) {
@@ -140,11 +174,23 @@ function selectPlan(plan: PricingPlan) {
           <h3 class="text-xl font-bold text-primary">{{ plan.name }}</h3>
           <p class="mt-3 text-3xl font-black text-secondary">{{ plan.priceLabel }}</p>
           <ul class="mt-6 flex-1 space-y-3 text-sm text-on-surface-variant">
-            <li v-for="feature in plan.features || []" :key="feature" class="flex gap-2">
+            <li v-for="feature in visibleFeatures(plan)" :key="feature" class="flex gap-2">
               <span class="text-secondary">✓</span>
               <span>{{ feature }}</span>
             </li>
           </ul>
+          <button
+            v-if="hiddenFeatureCount(plan) > 0"
+            type="button"
+            class="mt-3 text-left text-sm font-semibold text-secondary hover:underline"
+            @click="toggleExpanded(plan.name)"
+          >
+            {{
+              isExpanded(plan.name)
+                ? 'Sembunyikan fitur'
+                : `Lihat ${hiddenFeatureCount(plan)} fitur lainnya`
+            }}
+          </button>
           <button
             v-if="plan.code"
             type="button"

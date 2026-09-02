@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Cloud } from 'lucide-vue-next'
 import { RouterLink, useRoute } from 'vue-router'
 
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
 import { useGoogleSignIn } from '@/features/auth/composables/useGoogleSignIn'
 
 const route = useRoute()
@@ -18,11 +18,7 @@ const { googleEnabled, googleError, isGoogleSubmitting } = useGoogleSignIn({
 <template>
   <div class="w-full max-w-md">
     <div class="mb-8">
-      <span
-        class="mb-5 grid size-12 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950"
-      >
-        <Cloud class="size-6" />
-      </span>
+      <BrandLogo class="mb-5 h-10" />
       <h1 class="text-3xl font-bold">Mulai Gratis</h1>
       <p class="mt-2 text-sm text-gray-500">
         Daftar dengan akun Google Anda. Workspace dan paket gratis dibuat otomatis — langsung siap
@@ -33,7 +29,7 @@ const { googleEnabled, googleError, isGoogleSubmitting } = useGoogleSignIn({
     <div v-if="googleEnabled" class="space-y-3">
       <div
         ref="googleButton"
-        class="min-h-11 w-full overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
+        class="flex min-h-11 w-full justify-center overflow-hidden"
         :class="{ 'pointer-events-none opacity-60': isGoogleSubmitting }"
       />
       <p v-if="isGoogleSubmitting" class="text-center text-sm text-gray-500">Memproses...</p>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronDown, ChevronRight, UserCircle2, X } from 'lucide-vue-next'
 
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
 import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
 import {
@@ -104,11 +105,12 @@ function closeMobileSidebar() {
         :to="{ name: isPlatformMode ? 'platform-dashboard' : 'profile' }"
         class="flex items-center gap-3"
       >
+        <BrandLogo v-if="isPlatformMode" class="h-10 shrink-0" />
         <span
-          class="grid size-10 shrink-0 place-items-center rounded-xl text-lg font-bold text-white"
-          :class="isPlatformMode ? 'bg-indigo-600' : 'bg-brand-500'"
+          v-else
+          class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white"
         >
-          {{ isPlatformMode ? 'Z' : (tenant.activeTenant?.name || 'Zyad').charAt(0).toUpperCase() }}
+          {{ (tenant.activeTenant?.name || 'Zyad').charAt(0).toUpperCase() }}
         </span>
         <div class="min-w-0">
           <strong class="block truncate text-lg leading-5">{{

@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
+import type { FooterContent } from '../../../shared/types/landing.types'
 
 const props = defineProps<{
-  content: {
-    brandName: string
-    logoUrl?: string
-    description: string
-    columns: Array<{
-      title: string
-      links: Array<{
-        label: string
-        href: string
-      }>
-    }>
-    copyright: string
-  }
+  content: FooterContent
 }>()
 
-const brandInitial = computed(() => (props.content.brandName?.trim()?.[0] ?? '').toUpperCase())
+const columnGridClass = computed(() => {
+  const count = props.content.columns?.length ?? 0
+  if (count >= 3) return 'grid-cols-2 sm:grid-cols-3'
+  if (count === 2) return 'grid-cols-2'
+  return 'grid-cols-1'
+})
+
+const logoLoadFailed = ref(false)
+watch(
+  () => props.content.logoUrl,
+  () => {
+    logoLoadFailed.value = false
+  },
+)
 </script>
 
 <template>
@@ -25,20 +28,16 @@ const brandInitial = computed(() => (props.content.brandName?.trim()?.[0] ?? '')
     <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
       <div class="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
         <!-- Brand Info -->
-        <div class="md:col-span-5">
+        <div class="md:col-span-4">
           <div class="flex items-center gap-2 mb-6">
             <img
-              v-if="content.logoUrl"
+              v-if="content.logoUrl && !logoLoadFailed"
               :src="content.logoUrl"
               :alt="content.brandName"
-              class="w-10 h-10 rounded-lg object-contain"
+              class="h-10 w-auto object-contain"
+              @error="logoLoadFailed = true"
             />
-            <div
-              v-else
-              class="w-10 h-10 rounded-lg bg-primary text-on-primary font-bold flex items-center justify-center text-xl"
-            >
-              {{ brandInitial }}
-            </div>
+            <BrandLogo v-else class="h-10" />
             <span class="font-display-xl text-2xl font-bold tracking-tight text-primary">{{
               content.brandName
             }}</span>
@@ -49,7 +48,7 @@ const brandInitial = computed(() => (props.content.brandName?.trim()?.[0] ?? '')
         </div>
 
         <!-- Links Columns -->
-        <div class="md:col-span-7 grid grid-cols-2 gap-8">
+        <div class="md:col-span-8 grid gap-8" :class="columnGridClass">
           <div v-for="(col, idx) in content.columns" :key="idx">
             <h4 class="font-headline-md text-lg text-primary mb-6">{{ col.title }}</h4>
             <ul class="space-y-4">
