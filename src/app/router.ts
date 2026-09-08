@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { env } from '@/config/env'
+import { buildCrmRoutes } from '@/features/crm/config/crm-routes'
 import { buildLandingManagementRoutes } from '@/features/landing/builder/config/landing-menu'
 import { authGuard } from '@/middleware/auth.guard'
 import { guestGuard } from '@/middleware/guest.guard'
@@ -109,13 +110,10 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'crm',
         name: 'crm',
-        component: placeholder,
-        props: {
-          title: 'CRM Overview',
-          description: 'Pipeline, kontak, perusahaan, aktivitas, dan deal.',
-        },
-        meta: { title: 'CRM Overview' },
+        redirect: { name: 'crm-contacts' },
+        meta: { title: 'CRM' },
       },
+      ...buildCrmRoutes('crm'),
       {
         path: 'landing-pages',
         name: 'landing-pages',

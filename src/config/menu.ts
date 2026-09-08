@@ -2,8 +2,10 @@ import type { Component } from 'vue'
 import {
   Bell,
   Brush,
+  Building2,
   CreditCard,
   FileClock,
+  FileText,
   Globe,
   LayoutDashboard,
   LifeBuoy,
@@ -11,6 +13,7 @@ import {
   Package,
   ShieldCheck,
   Users,
+  Waypoints,
 } from 'lucide-vue-next'
 
 import { buildLandingManagementMenuItems } from '@/features/landing/builder/config/landing-menu'
@@ -84,6 +87,35 @@ export const platformMenuGroups: MenuGroup[] = [
 ]
 
 export const customerMenuGroups: MenuGroup[] = [
+  {
+    label: 'CRM',
+    items: [
+      { label: 'Leads', route: 'crm-leads', icon: Magnet, permission: 'lead.read' },
+      { label: 'Contacts', route: 'crm-contacts', icon: Users, permission: 'contact.read' },
+      { label: 'Companies', route: 'crm-companies', icon: Building2, permission: 'company.read' },
+      { label: 'Deals', route: 'crm-deals', icon: Waypoints, permission: 'deal.read' },
+      { label: 'Pipelines', route: 'crm-pipelines', icon: Waypoints, permission: 'pipeline.read' },
+      {
+        label: 'Activities',
+        route: 'crm-activities',
+        icon: FileClock,
+        permission: 'activity.read',
+      },
+      {
+        label: 'Quotations',
+        route: 'crm-quotations',
+        icon: FileText,
+        permission: 'quotation.read',
+      },
+      { label: 'Invoices', route: 'crm-invoices', icon: CreditCard, permission: 'invoice.read' },
+      {
+        label: 'Integrations',
+        route: 'crm-integrations',
+        icon: Package,
+        permission: 'integration.read',
+      },
+    ],
+  },
   {
     label: 'Workspace',
     items: [
