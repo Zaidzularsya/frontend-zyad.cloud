@@ -6,8 +6,6 @@ import {
   Folders,
   Globe2,
   Layers3,
-  Menu,
-  Palette,
   SlidersHorizontal,
   Sparkles,
   SquareMenu,
@@ -137,69 +135,6 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
     ],
   },
   {
-    key: 'navigation',
-    routeNameSuffix: 'navigation',
-    label: 'Navigation',
-    description:
-      'Rancang header menu, anchor link, CTA, dan urutan navigasi yang paling mudah dipindai.',
-    icon: Menu,
-    tone: 'amber',
-    stats: [
-      { label: 'Nav surfaces', value: '3' },
-      { label: 'Primary actions', value: '1-2' },
-      { label: 'Link groups', value: 'Flexible' },
-    ],
-    sections: [
-      {
-        title: 'Navigation surfaces',
-        items: ['Header navigation', 'Mobile drawer', 'Footer navigation'],
-      },
-      {
-        title: 'Interaction rules',
-        items: ['Active state', 'Sticky behavior', 'CTA emphasis'],
-      },
-      {
-        title: 'Content structure',
-        items: ['Anchor links', 'Product links', 'Support links', 'Contact shortcut'],
-      },
-    ],
-  },
-  {
-    key: 'brand-theme',
-    routeNameSuffix: 'brand-theme',
-    label: 'Brand & Theme',
-    description:
-      'Atur identitas visual, warna, tipografi, tombol, dan kontak brand dalam satu panel.',
-    icon: Palette,
-    tone: 'rose',
-    stats: [
-      { label: 'Brand fields', value: '12' },
-      { label: 'Palette slots', value: '3' },
-      { label: 'Theme controls', value: '7' },
-    ],
-    sections: [
-      {
-        title: 'Brand identity',
-        items: ['Brand name', 'Logo', 'Favicon', 'Tagline'],
-      },
-      {
-        title: 'Theme system',
-        items: [
-          'Primary color',
-          'Secondary color',
-          'Accent color',
-          'Font',
-          'Button style',
-          'Border radius',
-        ],
-      },
-      {
-        title: 'Contact and social',
-        items: ['Social media', 'Contact info'],
-      },
-    ],
-  },
-  {
     key: 'domains',
     routeNameSuffix: 'domains',
     label: 'Domains',
@@ -292,17 +227,13 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
         ? () => import('../pages/LandingPagesManagementPage.vue')
         : page.key === 'content'
           ? () => import('../pages/LandingBuilderPage.vue')
-          : page.key === 'navigation'
-            ? () => import('../pages/LandingNavigationManagementPage.vue')
-            : page.key === 'brand-theme'
-              ? () => import('../pages/LandingBrandThemeManagementPage.vue')
-              : page.key === 'templates'
-                ? () => import('../pages/LandingTemplatesManagementPage.vue')
-                : page.key === 'domains'
-                  ? () => import('@/features/domains/pages/DomainManagementPage.vue')
-                  : page.key === 'settings'
-                    ? () => import('../pages/LandingSettingsManagementPage.vue')
-                    : () => import('../pages/LandingMenuDetailPage.vue'),
+          : page.key === 'templates'
+            ? () => import('../pages/LandingTemplatesManagementPage.vue')
+            : page.key === 'domains'
+              ? () => import('@/features/domains/pages/DomainManagementPage.vue')
+              : page.key === 'settings'
+                ? () => import('../pages/LandingSettingsManagementPage.vue')
+                : () => import('../pages/LandingMenuDetailPage.vue'),
     props:
       page.key === 'pages'
         ? {
@@ -329,44 +260,28 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                 mode: isPlatformRoute ? 'platform' : 'workspace',
                 parentRouteName: routePrefix,
               }
-            : page.key === 'navigation'
+            : page.key === 'domains'
               ? {
-                  title: isPlatformRoute ? 'Platform Landing Navigation' : 'Landing Navigation',
-                  description:
-                    'Kelola header, footer, anchor, route publik, dan CTA menu tanpa mengetik destination mentah.',
+                  title: isPlatformRoute ? 'Landing Domain Bindings' : 'Domains',
+                  description: isPlatformRoute
+                    ? 'Kelola domain yang tersedia dan binding domain ke landing page pada platform landing page management.'
+                    : 'Kelola domain, subdomain, verifikasi DNS, SSL, dan primary domain untuk landing page workspace.',
                   mode: isPlatformRoute ? 'platform' : 'workspace',
                   parentRouteName: routePrefix,
                 }
-              : page.key === 'brand-theme'
+              : page.key === 'settings'
                 ? {
-                    title: isPlatformRoute ? 'Platform Brand & Theme' : 'Landing Brand & Theme',
+                    title: isPlatformRoute ? 'Platform Landing Settings' : 'Landing Settings',
                     description:
-                      'Kelola identitas brand, asset visual, theme token, kontak, dan social link landing page.',
+                      'Atur publish rules, footer content, domain binding, dan preferensi page lain per landing page.',
                     mode: isPlatformRoute ? 'platform' : 'workspace',
                     parentRouteName: routePrefix,
                   }
-                : page.key === 'domains'
-                  ? {
-                      title: isPlatformRoute ? 'Landing Domain Bindings' : 'Domains',
-                      description: isPlatformRoute
-                        ? 'Kelola domain yang tersedia dan binding domain ke landing page pada platform landing page management.'
-                        : 'Kelola domain, subdomain, verifikasi DNS, SSL, dan primary domain untuk landing page workspace.',
-                      mode: isPlatformRoute ? 'platform' : 'workspace',
-                      parentRouteName: routePrefix,
-                    }
-                  : page.key === 'settings'
-                    ? {
-                        title: isPlatformRoute ? 'Platform Landing Settings' : 'Landing Settings',
-                        description:
-                          'Atur publish rules, footer content, domain binding, dan preferensi page lain per landing page.',
-                        mode: isPlatformRoute ? 'platform' : 'workspace',
-                        parentRouteName: routePrefix,
-                      }
-                    : {
-                        definition: page,
-                        parentRouteName: routePrefix,
-                        parentLabel: 'Landing Page',
-                      },
+                : {
+                    definition: page,
+                    parentRouteName: routePrefix,
+                    parentLabel: 'Landing Page',
+                  },
     meta: { title: page.label },
   }))
 }

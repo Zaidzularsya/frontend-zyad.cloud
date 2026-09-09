@@ -7,6 +7,7 @@ import DOMPurify from 'dompurify'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { resolveBlockForSection } from '@/features/landing/shared/blocks/catalog'
 import {
+  HEADER_REGION_ID,
   onCanvasMessage,
   postToParent,
   type CanvasInboundMessage,
@@ -15,6 +16,7 @@ import type { LandingPage, LandingSection } from '../../shared/types/landing.typ
 import { provideEditMode } from '../composables/useEditMode'
 import SectionRenderer from '../components/SectionRenderer.vue'
 import CanvasSectionShell from '../components/CanvasSectionShell.vue'
+import CanvasHeaderBar from '../components/CanvasHeaderBar.vue'
 
 const route = useRoute()
 const pageId = computed(() => String(route.params.pageId || ''))
@@ -27,6 +29,11 @@ const selectedId = ref<string | null>(null)
 const deviceWidth = ref<number | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
+
+const chrome = ref<{
+  header: { items: Array<{ id: string; label: string; href: string; target: string }> }
+  branding: { companyName: string; logoUrl: string; primary: string }
+}>({ header: { items: [] }, branding: { companyName: '', logoUrl: '', primary: '#2563EB' } })
 
 const listRef = ref<HTMLElement | null>(null)
 let sortable: Sortable | null = null
@@ -82,6 +89,9 @@ function handleInbound(message: CanvasInboundMessage) {
       break
     case 'canvas:set-device':
       deviceWidth.value = message.width
+      break
+    case 'canvas:set-chrome':
+      chrome.value = { header: message.header, branding: message.branding }
       break
   }
 }
@@ -227,6 +237,13 @@ onBeforeUnmount(() => {
     <div v-else-if="errorMessage" class="canvas-state">{{ errorMessage }}</div>
 
     <div v-else class="canvas-frame" :style="canvasStyle">
+      <CanvasHeaderBar
+        :nav="chrome.header.items"
+        :branding="chrome.branding"
+        :selected="selectedId === HEADER_REGION_ID"
+        @select="select(HEADER_REGION_ID)"
+      />
+
       <div v-if="orderedSections.length === 0" class="canvas-empty">
         Belum ada blok. Tarik blok dari panel kiri ke area ini untuk memulai.
       </div>

@@ -3,11 +3,20 @@ import { ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
 import { blocksByGroup } from '@/features/landing/shared/blocks/catalog'
+import { HEADER_REGION_ID } from '@/features/landing/shared/canvas/bridge'
 
 const emit = defineEmits<{
   insert: [blockId: string]
   blockpointerdown: [blockId: string, event: PointerEvent]
+  selectchrome: [regionId: string]
 }>()
+
+// Tenant-wide chrome regions surfaced in the "navigation" group as non-draggable
+// tiles — clicking selects the pinned canvas region instead of inserting a block.
+const CHROME_TILES = [
+  { id: HEADER_REGION_ID, icon: 'menu', label: 'Header' },
+  { id: HEADER_REGION_ID, icon: 'palette', label: 'Brand' },
+]
 
 const groups = blocksByGroup()
 
@@ -64,6 +73,20 @@ function onPointerDown(blockId: string, event: PointerEvent) {
         <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
       </summary>
       <div class="grid grid-cols-2 gap-1.5 border-t border-gray-100 p-2 dark:border-gray-800">
+        <template v-if="group.group === 'navigation'">
+          <button
+            v-for="tile in CHROME_TILES"
+            :key="tile.label"
+            type="button"
+            class="col-span-2 flex items-center gap-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/50 p-2 text-left text-xs hover:border-brand-400 hover:bg-brand-50 dark:border-brand-800 dark:bg-brand-950/20"
+            :data-chrome-tile="tile.label"
+            @click="emit('selectchrome', tile.id)"
+          >
+            <span class="material-symbols-outlined text-base text-brand-600">{{ tile.icon }}</span>
+            <span class="font-semibold leading-tight">{{ tile.label }}</span>
+            <span class="ml-auto text-[10px] text-gray-400">semua halaman</span>
+          </button>
+        </template>
         <button
           v-for="block in group.blocks"
           :key="block.id"

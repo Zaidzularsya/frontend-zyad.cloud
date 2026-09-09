@@ -126,6 +126,16 @@ const routes: RouteRecordRaw[] = [
         path: 'landing-pages/footer',
         redirect: { name: 'landing-pages-settings' },
       },
+      {
+        // "Navigation" & "Brand & Theme" dilipat ke builder Content (panel
+        // Header & Brand); CTA/Media library pindah ke Settings.
+        path: 'landing-pages/navigation',
+        redirect: { name: 'landing-pages-content' },
+      },
+      {
+        path: 'landing-pages/brand-theme',
+        redirect: { name: 'landing-pages-settings' },
+      },
       ...buildLandingManagementRoutes('landing-pages'),
       {
         path: 'users',
@@ -237,6 +247,14 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'landing-pages/footer',
+        redirect: { name: 'platform-landing-pages-settings' },
+      },
+      {
+        path: 'landing-pages/navigation',
+        redirect: { name: 'platform-landing-pages-content' },
+      },
+      {
+        path: 'landing-pages/brand-theme',
         redirect: { name: 'platform-landing-pages-settings' },
       },
       ...buildLandingManagementRoutes('platform-landing-pages'),

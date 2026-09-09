@@ -15,6 +15,8 @@ import { RouterLink } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import LandingPagePicker from '@/features/landing/builder/components/LandingPagePicker.vue'
+import ReusableCtaManager from '@/features/landing/builder/components/ReusableCtaManager.vue'
+import MediaLibraryManager from '@/features/landing/builder/components/MediaLibraryManager.vue'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
@@ -219,10 +221,23 @@ async function saveSettings() {
       {{ errorMessage }}
     </div>
 
+    <section
+      class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+    >
+      <ReusableCtaManager />
+    </section>
+
+    <section
+      class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+    >
+      <MediaLibraryManager />
+    </section>
+
     <div class="rounded-2xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
       <LandingPagePicker v-model="selectedPageId" :pages="pages" />
       <p class="mt-2 text-xs text-gray-500">
-        Settings di halaman ini berlaku per landing page, bukan per workspace.
+        Settings di bawah berlaku per landing page. Reusable CTA &amp; Media library di atas berlaku
+        untuk seluruh tenant.
       </p>
     </div>
 
@@ -292,14 +307,14 @@ async function saveSettings() {
           <h2 class="font-black text-gray-900 dark:text-white">Footer content</h2>
           <p class="mt-1 text-sm text-gray-500">
             Copyright, trust badge, secondary CTA, dan newsletter yang tampil di footer page ini.
-            Link navigasi footer dikelola di menu
+            Navigasi header dikelola dari panel <strong>Header &amp; Brand</strong> di menu
             <RouterLink
-              :to="{ name: `${props.parentRouteName}-navigation` }"
+              :to="{ name: `${props.parentRouteName}-content` }"
               class="text-brand-600 underline"
             >
-              Navigation
+              Content
             </RouterLink>
-            .
+            (klik "Header" di palette).
           </p>
           <div class="mt-4 space-y-4">
             <label class="block text-sm font-medium">
@@ -378,22 +393,17 @@ async function saveSettings() {
         </section>
 
         <section
-          class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+          class="rounded-3xl border border-dashed bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900"
         >
           <div class="flex items-center gap-2">
             <Menu class="size-4 text-gray-400" />
-            <h3 class="font-black text-gray-900 dark:text-white">Footer navigation</h3>
+            <h3 class="font-black text-gray-500 dark:text-gray-400">Footer navigation</h3>
           </div>
-          <p class="mt-2 text-sm text-gray-500">
-            Link footer (quick links, support, legal) dikelola sebagai menu dengan
-            location&nbsp;=&nbsp;footer, sama seperti menu header.
+          <p class="mt-2 text-sm text-gray-400">
+            Link footer (quick links, support, legal) memakai menu dengan
+            location&nbsp;=&nbsp;footer. Editor footer akan digabung ke panel Header &amp; Brand di
+            builder pada iterasi berikutnya.
           </p>
-          <RouterLink
-            :to="{ name: `${props.parentRouteName}-navigation` }"
-            class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
-          >
-            Kelola di Navigation →
-          </RouterLink>
         </section>
       </div>
 

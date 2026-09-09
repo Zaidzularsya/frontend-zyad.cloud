@@ -9,6 +9,7 @@ import {
 } from '@/features/landing/shared/canvas/bridge'
 import { blockById } from '@/features/landing/shared/blocks/catalog'
 import { useLandingBuilderStore } from '@/stores/landingBuilder'
+import { useLandingChromeStore } from '@/stores/landingChrome'
 
 const props = defineProps<{
   /** Target device width in px, or null for full width. */
@@ -17,6 +18,21 @@ const props = defineProps<{
 
 const store = useLandingBuilderStore()
 const { pageId, sections, selectedId } = storeToRefs(store)
+
+const chromeStore = useLandingChromeStore()
+const { canvasNav, canvasBranding } = storeToRefs(chromeStore)
+
+function chromeMessage() {
+  return {
+    type: 'canvas:set-chrome' as const,
+    header: { items: canvasNav.value },
+    branding: canvasBranding.value,
+  }
+}
+
+function pushChrome() {
+  if (ready.value) postToFrame(frameWindow(), chromeMessage())
+}
 
 const frameRef = ref<HTMLIFrameElement | null>(null)
 const frameHeight = ref(640)
@@ -41,6 +57,7 @@ function handle(message: CanvasOutboundMessage) {
       postToFrame(frameWindow(), { type: 'canvas:set-sections', sections: sections.value })
       postToFrame(frameWindow(), { type: 'canvas:set-selected', id: selectedId.value })
       postToFrame(frameWindow(), { type: 'canvas:set-device', width: props.deviceWidth })
+      postToFrame(frameWindow(), chromeMessage())
       break
     case 'canvas:select':
       store.select(message.id)
@@ -190,6 +207,7 @@ watch(
     if (ready.value) postToFrame(frameWindow(), { type: 'canvas:set-device', width })
   },
 )
+watch([canvasNav, canvasBranding], () => pushChrome(), { deep: true })
 </script>
 
 <template>

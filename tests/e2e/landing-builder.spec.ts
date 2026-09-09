@@ -82,6 +82,25 @@ test.beforeEach(async ({ page }) => {
     json(route, []),
   )
   await page.route(`**/api/v1/admin/landing-pages/${PAGE_ID}/publish`, (route) => json(route, {}))
+
+  // Tenant-wide chrome: header menu + brand.
+  await page.route('**/api/v1/admin/landing/branding', (route) =>
+    json(route, { company_name: 'Org', colors: { primary: '#2563eb' }, social_links: [] }),
+  )
+  await page.route('**/api/v1/admin/landing/menus/*/items', (route) => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() as Record<string, unknown>
+      return json(route, { ...body, id: 'item-1', children: [] })
+    }
+    return json(route, [])
+  })
+  await page.route('**/api/v1/admin/landing/menus', (route) => {
+    if (route.request().method() === 'POST') {
+      return json(route, { id: 'menu-1', name: 'Header Menu', location: 'header', is_active: true })
+    }
+    return json(route, [])
+  })
+
   await page.route(`**/api/v1/admin/landing-pages/${PAGE_ID}`, (route) => json(route, landingPage))
   await page.route(/\/api\/v1\/admin\/landing-pages(\?|$)/, (route) =>
     route.fulfill({
@@ -155,4 +174,33 @@ test('drags a palette block onto the canvas preview', async ({ page }) => {
 
   const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
   await expect(canvas.locator('[data-section-id]')).toHaveCount(1)
+})
+
+test('edits the tenant-wide header from the builder', async ({ page }) => {
+  await page.goto('/app/landing-pages/content')
+  await expect(page.locator('iframe[title="Canvas landing page"]')).toBeVisible()
+
+  // The "navigation" palette group carries a non-draggable Header tile.
+  await page.getByText('Navigasi', { exact: true }).click()
+  await page.locator('button[data-chrome-tile="Header"]').click()
+
+  // Right panel switches to the Header & Brand editor.
+  await expect(page.getByText('Header & Brand', { exact: true })).toBeVisible()
+  await expect(page.getByText('berlaku untuk')).toBeVisible()
+
+  // Add a nav item → POST creates the header menu then the item.
+  const createMenu = page.waitForRequest(
+    (r) => r.method() === 'POST' && /\/admin\/landing\/menus$/.test(r.url()),
+  )
+  const createItem = page.waitForRequest(
+    (r) => r.method() === 'POST' && /\/admin\/landing\/menus\/[^/]+\/items$/.test(r.url()),
+  )
+  await page.getByPlaceholder('Pricing').fill('Pricing')
+  await page.getByRole('button', { name: 'Tambah', exact: true }).click()
+  await createMenu
+  await createItem
+
+  // The canvas header bar reflects the new item.
+  const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
+  await expect(canvas.locator('.canvas-header')).toBeVisible()
 })
