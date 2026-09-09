@@ -16,6 +16,11 @@ import ServicesSection from '../sections/services/ServicesSection.vue'
 import SolutionSection from '../sections/solution/SolutionSection.vue'
 import StatisticsSection from '../sections/statistics/StatisticsSection.vue'
 import TrustStripSection from '../sections/trust/TrustStripSection.vue'
+import ElementHeadline from '../sections/element/ElementHeadline.vue'
+import ElementParagraph from '../sections/element/ElementParagraph.vue'
+import ElementButton from '../sections/element/ElementButton.vue'
+import ElementImage from '../sections/element/ElementImage.vue'
+import ElementDivider from '../sections/element/ElementDivider.vue'
 
 const enterpriseTemplateVariants = new Set([
   'software_command',
@@ -130,6 +135,12 @@ export const sectionRegistry: Record<string, Record<string, Component>> = {
     benefits: BenefitsSection,
     problem: ProblemSection,
     solution: SolutionSection,
+    // Atomic element blocks (visual builder "Komponen" palette group).
+    'element.headline': ElementHeadline,
+    'element.paragraph': ElementParagraph,
+    'element.button': ElementButton,
+    'element.image': ElementImage,
+    'element.divider': ElementDivider,
   },
   services: {
     default: ServicesSection,

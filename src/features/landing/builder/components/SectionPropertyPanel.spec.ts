@@ -20,9 +20,23 @@ const section = {
   updated_at: '',
 }
 
-function mountPanel() {
+const elementSection = {
+  id: 'e1',
+  key: 'el-headline-1',
+  type: 'content',
+  variant: 'element.headline',
+  name: 'Headline',
+  sort_order: 10,
+  is_enabled: true,
+  content: { text: 'Judul', level: 'h2' },
+  style: { variant: 'element.headline' },
+  created_at: '',
+  updated_at: '',
+}
+
+function mountPanel(sectionProp: Record<string, unknown> = section) {
   return mount(SectionPropertyPanel, {
-    props: { section },
+    props: { section: sectionProp as never },
     global: {
       stubs: {
         SectionContentForm: {
@@ -44,30 +58,43 @@ describe('SectionPropertyPanel', () => {
     expect(wrapper.find('.stub-form').exists()).toBe(true)
   })
 
-  it('style tab patches nested style through the store', async () => {
+  it('renders the CONTENT / APPEARANCE / SPACING / ADVANCED accordions', () => {
+    const wrapper = mountPanel()
+    const headings = wrapper.findAll('summary').map((s) => s.text())
+    expect(headings.some((t) => t.includes('Content'))).toBe(true)
+    expect(headings.some((t) => t.includes('Appearance'))).toBe(true)
+    expect(headings.some((t) => t.includes('Spacing'))).toBe(true)
+    expect(headings.some((t) => t.includes('Advanced'))).toBe(true)
+  })
+
+  it('appearance form patches style.align through the store', async () => {
     const store = useLandingBuilderStore()
     store.sections = [structuredClone(section)]
     const patch = vi.spyOn(store, 'patchSection')
 
     const wrapper = mountPanel()
-    await wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Gaya')!
-      .trigger('click')
-
     const alignSelect = wrapper.find('select')
     await alignSelect.setValue('center')
 
     expect(patch).toHaveBeenCalledWith('s1', { style: { align: 'center' } })
   })
 
-  it('advanced tab rejects invalid JSON', async () => {
-    const wrapper = mountPanel()
-    await wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Advanced')!
-      .trigger('click')
+  it('appearance form patches style.typography for an element block', async () => {
+    const store = useLandingBuilderStore()
+    store.sections = [structuredClone(elementSection)]
+    const patch = vi.spyOn(store, 'patchSection')
 
+    const wrapper = mountPanel(elementSection)
+    const fontSizeInput = wrapper.find('input[type="number"]')
+    await fontSizeInput.setValue('40')
+
+    expect(patch).toHaveBeenCalledWith('e1', {
+      style: { variant: 'element.headline', typography: { size: 40 } },
+    })
+  })
+
+  it('advanced accordion rejects invalid JSON', async () => {
+    const wrapper = mountPanel()
     const textarea = wrapper.find('textarea')
     await textarea.setValue('{ not json')
     await wrapper

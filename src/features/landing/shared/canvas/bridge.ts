@@ -25,11 +25,18 @@ export interface CanvasSetDeviceMessage {
   width: number | null
 }
 
+export interface CanvasDragMessage {
+  type: 'canvas:drag'
+  /** Catalog id of the block being dragged from the palette, or null when the drag ends. */
+  blockId: string | null
+}
+
 /** parent -> iframe */
 export type CanvasInboundMessage =
   | CanvasSetSectionsMessage
   | CanvasSetSelectedMessage
   | CanvasSetDeviceMessage
+  | CanvasDragMessage
 
 export interface CanvasReadyMessage {
   type: 'canvas:ready'

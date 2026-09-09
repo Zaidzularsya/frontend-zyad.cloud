@@ -12,6 +12,8 @@ import { useLandingBuilderStore } from '@/stores/landingBuilder'
 const props = defineProps<{
   /** Target device width in px, or null for full width. */
   deviceWidth: number | null
+  /** Catalog id of the block currently dragged from the palette, or null. */
+  draggingBlockId?: string | null
 }>()
 
 const store = useLandingBuilderStore()
@@ -90,6 +92,12 @@ watch(
   () => props.deviceWidth,
   (width) => {
     if (ready.value) postToFrame(frameWindow(), { type: 'canvas:set-device', width })
+  },
+)
+watch(
+  () => props.draggingBlockId,
+  (blockId) => {
+    if (ready.value) postToFrame(frameWindow(), { type: 'canvas:drag', blockId: blockId ?? null })
   },
 )
 </script>

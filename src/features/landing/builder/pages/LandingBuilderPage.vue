@@ -39,6 +39,7 @@ const {
 } = storeToRefs(store)
 
 const deviceWidth = ref<number | null>(null)
+const draggingBlockId = ref<string | null>(null)
 
 const savedLabel = computed(() => {
   if (saving.value) return 'Menyimpan…'
@@ -206,7 +207,12 @@ onBeforeRouteLeave(() => {
       <aside
         class="overflow-auto rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
       >
-        <BlockPalette class="mb-5" @insert="store.insertBlock($event, sections.length)" />
+        <BlockPalette
+          class="mb-5"
+          @insert="store.insertBlock($event, sections.length)"
+          @dragstart="draggingBlockId = $event"
+          @dragend="draggingBlockId = null"
+        />
         <PageOutlineList
           :sections="sections"
           :selected-id="selectedId"
@@ -227,14 +233,14 @@ onBeforeRouteLeave(() => {
           <RefreshCw class="size-4 animate-spin" /> Memuat canvas…
         </div>
         <template v-else>
-          <CanvasFrame :device-width="deviceWidth" />
+          <CanvasFrame :device-width="deviceWidth" :dragging-block-id="draggingBlockId" />
           <div
             v-if="sections.length === 0"
             class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-gray-500"
           >
             <p class="font-semibold">Halaman ini belum punya blok</p>
             <p class="text-xs">
-              Klik blok di panel kiri untuk menambahkannya, atau tarik ke daftar "Struktur halaman".
+              Klik blok di panel kiri, atau tarik dan lepas langsung ke area kanvas ini.
             </p>
           </div>
         </template>

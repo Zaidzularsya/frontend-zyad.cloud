@@ -7,6 +7,113 @@ import type { BlockDefinition, BlockGroup } from './types'
  */
 export const BLOCK_CATALOG: BlockDefinition[] = [
   {
+    id: 'element.headline',
+    sectionType: 'content',
+    variant: 'element.headline',
+    label: 'Headline',
+    description: 'Judul singkat satu baris.',
+    icon: 'title',
+    group: 'elements',
+    keyPrefix: 'el-headline',
+    defaultContent: {
+      text: 'Judul baru',
+      level: 'h2',
+    },
+    defaultStyle: {
+      variant: 'element.headline',
+      align: 'center',
+      typography: { size: 32, weight: '700' },
+    },
+    schema: [
+      { key: 'text', label: 'Teks', type: 'text', required: true },
+      { key: 'level', label: 'Tingkat', type: 'select', options: ['h1', 'h2', 'h3', 'h4'] },
+    ],
+  },
+  {
+    id: 'element.paragraph',
+    sectionType: 'content',
+    variant: 'element.paragraph',
+    label: 'Paragraph',
+    description: 'Blok teks dengan format inline.',
+    icon: 'notes',
+    group: 'elements',
+    keyPrefix: 'el-paragraph',
+    defaultContent: {
+      bodyHtml: 'Tulis paragraf di sini. Klik dua kali di kanvas untuk mengedit.',
+    },
+    defaultStyle: {
+      variant: 'element.paragraph',
+      align: 'center',
+      typography: { size: 16 },
+    },
+    schema: [{ key: 'bodyHtml', label: 'Isi', type: 'richtext' }],
+  },
+  {
+    id: 'element.button',
+    sectionType: 'content',
+    variant: 'element.button',
+    label: 'Button',
+    description: 'Tombol tautan tunggal.',
+    icon: 'smart_button',
+    group: 'elements',
+    keyPrefix: 'el-button',
+    defaultContent: {
+      label: 'Klik di sini',
+      url: '#',
+      target: '_self',
+    },
+    defaultStyle: {
+      variant: 'element.button',
+      align: 'center',
+      colors: { primary: '#2563EB', text: '#ffffff' },
+      box: { radius: 8 },
+    },
+    schema: [
+      { key: 'label', label: 'Label', type: 'text', required: true },
+      { key: 'url', label: 'Tautan', type: 'url' },
+      { key: 'target', label: 'Buka di', type: 'select', options: ['_self', '_blank'] },
+    ],
+  },
+  {
+    id: 'element.image',
+    sectionType: 'content',
+    variant: 'element.image',
+    label: 'Image',
+    description: 'Satu gambar dari URL.',
+    icon: 'image',
+    group: 'elements',
+    keyPrefix: 'el-image',
+    defaultContent: {
+      src: '',
+      alt: '',
+    },
+    defaultStyle: {
+      variant: 'element.image',
+      align: 'center',
+      box: { radius: 12, width: 480 },
+    },
+    schema: [
+      { key: 'src', label: 'URL gambar', type: 'image', required: true },
+      { key: 'alt', label: 'Teks alternatif', type: 'text' },
+    ],
+  },
+  {
+    id: 'element.divider',
+    sectionType: 'content',
+    variant: 'element.divider',
+    label: 'Divider',
+    description: 'Garis pemisah horizontal.',
+    icon: 'horizontal_rule',
+    group: 'elements',
+    keyPrefix: 'el-divider',
+    defaultContent: {},
+    defaultStyle: {
+      variant: 'element.divider',
+      box: { borderColor: '#e2e8f0', borderWidth: 1, width: 640 },
+    },
+    schema: [],
+  },
+  {
     id: 'hero.default',
     sectionType: 'hero',
     label: 'Hero',
@@ -458,6 +565,7 @@ export function blockById(id: string): BlockDefinition | undefined {
 }
 
 export const BLOCK_GROUP_LABELS: Record<BlockGroup, string> = {
+  elements: 'Komponen',
   hero: 'Hero',
   content: 'Konten',
   'social-proof': 'Social proof',
@@ -466,6 +574,7 @@ export const BLOCK_GROUP_LABELS: Record<BlockGroup, string> = {
 }
 
 export const BLOCK_GROUP_ORDER: BlockGroup[] = [
+  'elements',
   'hero',
   'content',
   'social-proof',

@@ -6,6 +6,8 @@ import { blocksByGroup } from '@/features/landing/shared/blocks/catalog'
 
 const emit = defineEmits<{
   insert: [blockId: string]
+  dragstart: [blockId: string]
+  dragend: []
 }>()
 
 const groups = blocksByGroup()
@@ -46,7 +48,10 @@ onBeforeUnmount(() => {
           class="flex flex-col items-start gap-1 rounded-lg border border-gray-200 bg-white p-2 text-left text-xs hover:border-brand-400 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-900"
           :data-block-id="block.id"
           :title="block.description"
+          draggable="true"
           @click="emit('insert', block.id)"
+          @dragstart="emit('dragstart', block.id)"
+          @dragend="emit('dragend')"
         >
           <span class="material-symbols-outlined text-base text-gray-500">{{ block.icon }}</span>
           <span class="font-semibold leading-tight">{{ block.label }}</span>

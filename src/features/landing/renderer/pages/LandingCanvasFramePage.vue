@@ -29,6 +29,8 @@ const loading = ref(true)
 const errorMessage = ref('')
 
 const listRef = ref<HTMLElement | null>(null)
+const dragBlockId = ref<string | null>(null)
+const dropIndex = ref<number | null>(null)
 let sortable: Sortable | null = null
 let resizeObserver: ResizeObserver | null = null
 let stopBridge: (() => void) | null = null
@@ -83,7 +85,44 @@ function handleInbound(message: CanvasInboundMessage) {
     case 'canvas:set-device':
       deviceWidth.value = message.width
       break
+    case 'canvas:drag':
+      dragBlockId.value = message.blockId
+      if (!message.blockId) dropIndex.value = null
+      break
   }
+}
+
+// ── Drag a palette block onto the canvas ────────────────────────────────────
+function computeDropIndex(clientY: number): number {
+  const children = Array.from(listRef.value?.children ?? []).filter(
+    (el): el is HTMLElement => el instanceof HTMLElement && el.dataset.sectionId !== undefined,
+  )
+  for (let i = 0; i < children.length; i += 1) {
+    const rect = children[i]!.getBoundingClientRect()
+    if (clientY < rect.top + rect.height / 2) return i
+  }
+  return children.length
+}
+
+function onCanvasDragOver(event: DragEvent) {
+  if (!dragBlockId.value) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  dropIndex.value = computeDropIndex(event.clientY)
+}
+
+function onCanvasDrop(event: DragEvent) {
+  if (!dragBlockId.value) return
+  event.preventDefault()
+  const index = dropIndex.value ?? computeDropIndex(event.clientY)
+  postToParent({ type: 'canvas:request-insert', blockId: dragBlockId.value, index })
+  dragBlockId.value = null
+  dropIndex.value = null
+}
+
+function onCanvasDragLeave(event: DragEvent) {
+  const related = event.relatedTarget as Node | null
+  if (!related || !listRef.value?.contains(related)) dropIndex.value = null
 }
 
 function setupSortable() {
@@ -226,24 +265,38 @@ onBeforeUnmount(() => {
     <div v-if="loading" class="canvas-state">Memuat canvas…</div>
     <div v-else-if="errorMessage" class="canvas-state">{{ errorMessage }}</div>
 
-    <div v-else class="canvas-frame" :style="canvasStyle">
+    <div
+      v-else
+      class="canvas-frame"
+      :class="{ 'is-drop-target': Boolean(dragBlockId) }"
+      :style="canvasStyle"
+      @dragover="onCanvasDragOver"
+      @drop="onCanvasDrop"
+      @dragleave="onCanvasDragLeave"
+    >
       <div v-if="orderedSections.length === 0" class="canvas-empty">
-        Belum ada blok. Tarik blok dari panel kiri untuk memulai.
+        <span v-if="dragBlockId">Lepas di sini untuk menambahkan blok</span>
+        <span v-else>Belum ada blok. Tarik blok dari panel kiri untuk memulai.</span>
       </div>
 
       <div ref="listRef">
-        <CanvasSectionShell
-          v-for="section in orderedSections"
-          :key="section.id"
-          :section="section"
-          :selected="section.id === selectedId"
-          :label="labelFor(section)"
-          @click.stop
-          @select="select(section.id)"
-          @remove="removeSection(section.id)"
-        >
-          <SectionRenderer :section="section" />
-        </CanvasSectionShell>
+        <template v-for="(section, i) in orderedSections" :key="section.id">
+          <div v-if="dropIndex === i" class="canvas-drop-line"></div>
+          <CanvasSectionShell
+            :section="section"
+            :selected="section.id === selectedId"
+            :label="labelFor(section)"
+            @click.stop
+            @select="select(section.id)"
+            @remove="removeSection(section.id)"
+          >
+            <SectionRenderer :section="section" />
+          </CanvasSectionShell>
+        </template>
+        <div
+          v-if="dropIndex === orderedSections.length && orderedSections.length > 0"
+          class="canvas-drop-line"
+        ></div>
       </div>
     </div>
   </div>
@@ -258,6 +311,18 @@ onBeforeUnmount(() => {
 .canvas-frame {
   margin: 0 auto;
   transition: max-width 0.2s ease;
+}
+
+.canvas-frame.is-drop-target {
+  outline: 2px dashed #3b82f6;
+  outline-offset: -2px;
+}
+
+.canvas-drop-line {
+  height: 3px;
+  margin: 2px 0;
+  border-radius: 2px;
+  background: #3b82f6;
 }
 
 .canvas-state,

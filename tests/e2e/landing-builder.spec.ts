@@ -114,3 +114,21 @@ test('inserts a block and publishes through the builder', async ({ page }) => {
   await putSections
   await publish
 })
+
+test('adds an atomic element block and exposes the appearance panel', async ({ page }) => {
+  await page.goto('/app/landing-pages/content')
+
+  await expect(page.locator('iframe[title="Canvas landing page"]')).toBeVisible()
+
+  // "Komponen" palette group is present with the Headline element block.
+  await expect(page.getByText('Komponen', { exact: true })).toBeVisible()
+  await page.locator('button[data-block-id="element.headline"]').click()
+
+  // It lands in the page outline and selects itself, opening the property panel.
+  await expect(page.locator('li[data-section-id]').filter({ hasText: 'Headline' })).toBeVisible()
+  await expect(page.getByText('Appearance', { exact: true })).toBeVisible()
+
+  // The APPEARANCE accordion carries a typography control for element blocks.
+  await page.getByText('Appearance', { exact: true }).click()
+  await expect(page.getByText('Ukuran font (px)')).toBeVisible()
+})

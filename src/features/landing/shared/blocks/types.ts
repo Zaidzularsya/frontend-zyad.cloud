@@ -4,7 +4,7 @@ import type { KnownSectionType } from '@/features/landing/shared/constants/secti
 /**
  * Palette grouping for the visual builder's block list.
  */
-export type BlockGroup = 'hero' | 'content' | 'social-proof' | 'conversion' | 'footer'
+export type BlockGroup = 'elements' | 'hero' | 'content' | 'social-proof' | 'conversion' | 'footer'
 
 /**
  * A single insertable block in the visual builder.

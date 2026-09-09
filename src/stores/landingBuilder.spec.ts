@@ -77,6 +77,31 @@ describe('useLandingBuilderStore', () => {
     expect(store.dirty).toBe(true)
   })
 
+  it('insertBlock() of an atomic element seeds content type + element.* variant/style', async () => {
+    const store = useLandingBuilderStore()
+    await store.load('p1')
+    store.insertBlock('element.headline', 0)
+    const inserted = store.sections[0]!
+    expect(inserted.type).toBe('content')
+    expect(inserted.variant).toBe('element.headline')
+    expect((inserted.style as Record<string, unknown>).variant).toBe('element.headline')
+    expect((inserted.content as Record<string, unknown>).text).toBeDefined()
+  })
+
+  it('patchSection() merges style.typography and the payload serializes it', async () => {
+    const store = useLandingBuilderStore()
+    await store.load('p1')
+    store.insertBlock('element.headline', 0)
+    const id = store.sections[0]!.id
+    const style = store.sections[0]!.style as Record<string, unknown>
+    store.patchSection(id, { style: { ...style, typography: { size: 44, weight: '700' } } })
+    await store.save()
+    const payload = bulkReplaceSections.mock.calls[0]![1] as {
+      sections: { style: Record<string, unknown> }[]
+    }
+    expect(payload.sections[0]!.style.typography).toEqual({ size: 44, weight: '700' })
+  })
+
   it('reorder() and removeBlock() keep sort_order contiguous', async () => {
     const store = useLandingBuilderStore()
     await store.load('p1')
