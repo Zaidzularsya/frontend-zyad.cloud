@@ -56,3 +56,27 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+<!-- antislop:start -->
+
+## antislop
+
+For UI, copy, accessibility, mobile-layout, or code-comment work on
+**landing / marketing / public** surfaces:
+
+1. Read `DESIGN.md` (repo root) for brand direction — palette, typography, motif, dials.
+2. Apply the antislop skills as the filter. They are installed per-developer (global,
+   not vendored here); if missing, install with
+   `npx -y skills@latest add miqdadbadjuber/anti-slop -g --skill antislop --skill antislop-ui --skill antislop-copywriting --skill antislop-human --skill antislop-layoutmobile`
+   (needs Node ≥ 22):
+   - core filter: `antislop`
+   - UI / visual: `antislop-ui`
+   - copy & text: `antislop-copywriting`
+   - accessibility / people: `antislop-human`
+   - mobile / responsive: `antislop-layoutmobile`
+
+`antislop-code` (comment hygiene) is intentionally **not** installed — Go/TS linting
+already covers that. Before starting, ask whether antislop applies during the work or
+as an after-the-fact audit.
+
+<!-- antislop:end -->
