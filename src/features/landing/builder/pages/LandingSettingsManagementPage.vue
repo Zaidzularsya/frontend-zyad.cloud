@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Globe2,
-  Loader2,
-  Menu,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from 'lucide-vue-next'
+import { ArrowLeft, CheckCircle2, Globe2, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -390,20 +381,6 @@ async function saveSettings() {
               </select>
             </label>
           </div>
-        </section>
-
-        <section
-          class="rounded-3xl border border-dashed bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900"
-        >
-          <div class="flex items-center gap-2">
-            <Menu class="size-4 text-gray-400" />
-            <h3 class="font-black text-gray-500 dark:text-gray-400">Footer navigation</h3>
-          </div>
-          <p class="mt-2 text-sm text-gray-400">
-            Link footer (quick links, support, legal) memakai menu dengan
-            location&nbsp;=&nbsp;footer. Editor footer akan digabung ke panel Header &amp; Brand di
-            builder pada iterasi berikutnya.
-          </p>
         </section>
       </div>
 

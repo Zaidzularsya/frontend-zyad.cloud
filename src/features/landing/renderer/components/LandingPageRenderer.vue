@@ -20,6 +20,12 @@ const props = defineProps<{
    */
   footerContent?: Record<string, unknown>
   /**
+   * Data header (item menu tenant + brand) yang di-synthesize di
+   * DynamicLandingPage / builder canvas. Menimpa content section bertipe
+   * "header" — pola sama seperti footerContent.
+   */
+  headerChrome?: { items: unknown[]; brandName: string; brandLogoUrl: string }
+  /**
    * Aktif saat renderer dipakai di dalam canvas builder: section components
    * menetralkan side-effect (fetch/navigasi/POST/WebGL/scroll) dan semua
    * elemen `.fade-up` langsung terlihat tanpa menunggu scroll-reveal.
@@ -50,6 +56,21 @@ const visibleSections = computed(() => {
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
 
+function contentOverrideFor(section: LandingSection): Record<string, unknown> | undefined {
+  if (section.type === 'footer') return props.footerContent
+  if (section.type === 'header') {
+    const chrome = props.headerChrome ?? { items: [], brandName: '', brandLogoUrl: '' }
+    const own = (section.content ?? {}) as Record<string, unknown>
+    return {
+      ...own,
+      items: chrome.items,
+      brandName: chrome.brandName,
+      logoUrl: own.logoUrl || chrome.brandLogoUrl,
+    }
+  }
+  return undefined
+}
+
 // Di canvas builder, jangan biarkan section di bawah lipatan tetap opacity:0 —
 // paksa semua `.fade-up` terlihat setiap kali daftar section berubah.
 watch(
@@ -71,7 +92,7 @@ watch(
       v-for="section in visibleSections"
       :key="section.id || `${section.type}-${section.sort_order ?? section.sortOrder}`"
       :section="section"
-      :content-override="section.type === 'footer' ? footerContent : undefined"
+      :content-override="contentOverrideFor(section)"
     />
   </main>
 </template>

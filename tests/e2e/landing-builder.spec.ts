@@ -176,31 +176,30 @@ test('drags a palette block onto the canvas preview', async ({ page }) => {
   await expect(canvas.locator('[data-section-id]')).toHaveCount(1)
 })
 
-test('edits the tenant-wide header from the builder', async ({ page }) => {
+test('adds a Header section and edits the tenant-wide menu', async ({ page }) => {
   await page.goto('/app/landing-pages/content')
   await expect(page.locator('iframe[title="Canvas landing page"]')).toBeVisible()
 
-  // The "navigation" palette group carries a non-draggable Header tile.
+  // Header is a real block in the "Navigasi" palette group.
   await page.getByText('Navigasi', { exact: true }).click()
-  await page.locator('button[data-chrome-tile="Header"]').click()
+  await page.locator('button[data-block-id="header.default"]').click()
 
-  // Right panel switches to the Header & Brand editor.
-  await expect(page.getByText('Header & Brand', { exact: true })).toBeVisible()
-  await expect(page.getByText('berlaku untuk')).toBeVisible()
+  // It lands on the canvas as a real section, auto-selected → Header panel opens.
+  const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
+  await expect(canvas.locator('.header-section')).toBeVisible()
+  const propertyPanel = page.locator('aside').filter({ hasText: 'Header & Brand' })
+  await expect(propertyPanel.getByText('Tampilan header (halaman ini)')).toBeVisible()
 
-  // Add a nav item → POST creates the header menu then the item.
+  // Expand "Navigasi (semua halaman)" and add an item → POST creates menu + item.
+  await propertyPanel.getByText('Navigasi (semua halaman)').click()
   const createMenu = page.waitForRequest(
     (r) => r.method() === 'POST' && /\/admin\/landing\/menus$/.test(r.url()),
   )
   const createItem = page.waitForRequest(
     (r) => r.method() === 'POST' && /\/admin\/landing\/menus\/[^/]+\/items$/.test(r.url()),
   )
-  await page.getByPlaceholder('Pricing').fill('Pricing')
-  await page.getByRole('button', { name: 'Tambah', exact: true }).click()
+  await propertyPanel.getByPlaceholder('Pricing').fill('Pricing')
+  await propertyPanel.getByRole('button', { name: 'Tambah', exact: true }).click()
   await createMenu
   await createItem
-
-  // The canvas header bar reflects the new item.
-  const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
-  await expect(canvas.locator('.canvas-header')).toBeVisible()
 })

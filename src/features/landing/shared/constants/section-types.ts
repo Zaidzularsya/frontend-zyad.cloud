@@ -29,6 +29,7 @@ export const KNOWN_SECTION_TYPES = [
   'newsletter',
   'partner_logos',
   'statistics',
+  'header',
 ] as const
 
 export type KnownSectionType = (typeof KNOWN_SECTION_TYPES)[number]
@@ -47,6 +48,7 @@ export const RENDERER_SUPPORTED_TYPES: KnownSectionType[] = [
   'faq',
   'cta',
   'footer',
+  'header',
 ]
 
 /**
@@ -75,6 +77,7 @@ export const SECTION_TYPE_LABELS: Record<KnownSectionType, string> = {
   newsletter: 'Newsletter Section',
   partner_logos: 'Partner Logos Section',
   statistics: 'Statistics Section',
+  header: 'Header',
 }
 
 /**

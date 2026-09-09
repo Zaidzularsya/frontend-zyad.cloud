@@ -24,6 +24,7 @@ type MarketingNavItem = {
 const emit = defineEmits<{
   (event: 'landing-navigation', items: MarketingNavItem[]): void
   (event: 'landing-branding', branding: LandingBranding): void
+  (event: 'landing-header-mode', mode: 'section' | 'layout'): void
 }>()
 
 function forwardNavigation(items: MarketingNavItem[]) {
@@ -33,6 +34,10 @@ function forwardNavigation(items: MarketingNavItem[]) {
 function forwardBranding(branding: LandingBranding) {
   emit('landing-branding', branding)
 }
+
+function forwardHeaderMode(mode: 'section' | 'layout') {
+  emit('landing-header-mode', mode)
+}
 </script>
 
 <template>
@@ -40,5 +45,6 @@ function forwardBranding(branding: LandingBranding) {
     :slug="marketingSlug"
     @landing-navigation="forwardNavigation"
     @landing-branding="forwardBranding"
+    @landing-header-mode="forwardHeaderMode"
   />
 </template>

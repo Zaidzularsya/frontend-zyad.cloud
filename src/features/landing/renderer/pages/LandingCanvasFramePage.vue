@@ -7,7 +7,6 @@ import DOMPurify from 'dompurify'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { resolveBlockForSection } from '@/features/landing/shared/blocks/catalog'
 import {
-  HEADER_REGION_ID,
   onCanvasMessage,
   postToParent,
   type CanvasInboundMessage,
@@ -16,7 +15,6 @@ import type { LandingPage, LandingSection } from '../../shared/types/landing.typ
 import { provideEditMode } from '../composables/useEditMode'
 import SectionRenderer from '../components/SectionRenderer.vue'
 import CanvasSectionShell from '../components/CanvasSectionShell.vue'
-import CanvasHeaderBar from '../components/CanvasHeaderBar.vue'
 
 const route = useRoute()
 const pageId = computed(() => String(route.params.pageId || ''))
@@ -34,6 +32,18 @@ const chrome = ref<{
   header: { items: Array<{ id: string; label: string; href: string; target: string }> }
   branding: { companyName: string; logoUrl: string; primary: string }
 }>({ header: { items: [] }, branding: { companyName: '', logoUrl: '', primary: '#2563EB' } })
+
+/** Synthesized content for the `header` section (tenant menu items + brand). */
+function headerOverride(section: LandingSection): Record<string, unknown> | undefined {
+  if (section.type !== 'header') return undefined
+  const own = (section.content ?? {}) as Record<string, unknown>
+  return {
+    ...own,
+    items: chrome.value.header.items,
+    brandName: chrome.value.branding.companyName,
+    logoUrl: own.logoUrl || chrome.value.branding.logoUrl,
+  }
+}
 
 const listRef = ref<HTMLElement | null>(null)
 let sortable: Sortable | null = null
@@ -237,13 +247,6 @@ onBeforeUnmount(() => {
     <div v-else-if="errorMessage" class="canvas-state">{{ errorMessage }}</div>
 
     <div v-else class="canvas-frame" :style="canvasStyle">
-      <CanvasHeaderBar
-        :nav="chrome.header.items"
-        :branding="chrome.branding"
-        :selected="selectedId === HEADER_REGION_ID"
-        @select="select(HEADER_REGION_ID)"
-      />
-
       <div v-if="orderedSections.length === 0" class="canvas-empty">
         Belum ada blok. Tarik blok dari panel kiri ke area ini untuk memulai.
       </div>
@@ -259,7 +262,7 @@ onBeforeUnmount(() => {
           @select="select(section.id)"
           @remove="removeSection(section.id)"
         >
-          <SectionRenderer :section="section" />
+          <SectionRenderer :section="section" :content-override="headerOverride(section)" />
         </CanvasSectionShell>
       </div>
     </div>

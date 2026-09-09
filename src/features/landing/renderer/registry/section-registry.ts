@@ -21,6 +21,7 @@ import ElementParagraph from '../sections/element/ElementParagraph.vue'
 import ElementButton from '../sections/element/ElementButton.vue'
 import ElementImage from '../sections/element/ElementImage.vue'
 import ElementDivider from '../sections/element/ElementDivider.vue'
+import HeaderSection from '../sections/header/HeaderSection.vue'
 
 const enterpriseTemplateVariants = new Set([
   'software_command',
@@ -111,6 +112,10 @@ export const sectionRegistry: Record<string, Record<string, Component>> = {
     default: StatisticsSection,
     enterprise: EnterpriseTemplateSection,
     StatisticsSection,
+  },
+  header: {
+    default: HeaderSection,
+    HeaderSection,
   },
   footer: {
     default: LandingFooter,

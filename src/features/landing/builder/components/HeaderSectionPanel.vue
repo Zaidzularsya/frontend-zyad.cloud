@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ChevronDown, Trash2 } from 'lucide-vue-next'
 
 import { landingApi } from '@/features/landing/shared/api/landing.api'
+import { resolveBlockForSection } from '@/features/landing/shared/blocks/catalog'
 import {
   buildDestination,
   destinationForApi,
@@ -10,11 +11,28 @@ import {
   normalizeLinkType,
   type NavLinkType,
 } from '@/features/landing/shared/nav/destination'
-import type { LandingMenuItem, LandingPage } from '@/features/landing/shared/types/landing.types'
+import type {
+  LandingMenuItem,
+  LandingPage,
+  LandingSection,
+} from '@/features/landing/shared/types/landing.types'
+import { useLandingBuilderStore } from '@/stores/landingBuilder'
 import { useLandingChromeStore } from '@/stores/landingChrome'
 import ColorField from './fields/ColorField.vue'
+import SectionContentForm from './SectionContentForm.vue'
+
+const props = defineProps<{ section: LandingSection }>()
 
 const store = useLandingChromeStore()
+const builderStore = useLandingBuilderStore()
+
+const headerSchema = computed(() => resolveBlockForSection(props.section)?.schema ?? [])
+
+function patchHeaderField(key: string, value: unknown) {
+  builderStore.patchSection(props.section.id, {
+    content: { ...(props.section.content ?? {}), [key]: value },
+  })
+}
 
 const topLevelItems = computed(() =>
   [...store.navItems].filter((i) => !i.parent_id).sort((a, b) => a.sort_order - b.sort_order),
@@ -190,10 +208,6 @@ const inputCls =
 
 <template>
   <div class="space-y-3">
-    <div class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/40">
-      Header &amp; brand berlaku untuk <strong>semua halaman</strong> tenant ini. Perubahan langsung
-      disimpan (tidak lewat tombol Publish page).
-    </div>
     <p v-if="store.saveError" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
       {{ store.saveError }}
     </p>
@@ -208,7 +222,23 @@ const inputCls =
       <summary
         class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
       >
-        Navigasi
+        Tampilan header (halaman ini)
+        <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+        <SectionContentForm
+          :schema="headerSchema"
+          :content="section.content ?? {}"
+          @field-change="patchHeaderField"
+        />
+      </div>
+    </details>
+
+    <details class="group rounded-lg border border-gray-200 dark:border-gray-700">
+      <summary
+        class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
+      >
+        Navigasi (semua halaman)
         <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
       </summary>
       <div class="space-y-3 border-t border-gray-100 px-3 py-3 dark:border-gray-800">
@@ -339,7 +369,7 @@ const inputCls =
       <summary
         class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
       >
-        Brand
+        Brand (semua halaman)
         <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
       </summary>
       <div class="space-y-3 border-t border-gray-100 px-3 py-3 text-sm dark:border-gray-800">

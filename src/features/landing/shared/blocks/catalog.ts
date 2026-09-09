@@ -506,6 +506,33 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     ],
   },
   {
+    id: 'header.default',
+    sectionType: 'header',
+    label: 'Header',
+    description:
+      'Bar navigasi sticky di paling atas halaman. Item link diambil dari menu tenant (semua halaman).',
+    icon: 'menu',
+    group: 'navigation',
+    keyPrefix: 'header',
+    defaultContent: {
+      sticky: true,
+      transparentOnTop: false,
+      showLoginCta: true,
+      ctaLabel: 'Login',
+      ctaUrl: '/',
+      logoUrl: '',
+    },
+    defaultStyle: {},
+    schema: [
+      { key: 'sticky', label: 'Sticky (menempel saat scroll)', type: 'checkbox' },
+      { key: 'transparentOnTop', label: 'Transparan di posisi atas', type: 'checkbox' },
+      { key: 'showLoginCta', label: 'Tampilkan tombol CTA', type: 'checkbox' },
+      { key: 'ctaLabel', label: 'Label tombol CTA', type: 'text' },
+      { key: 'ctaUrl', label: 'Link tombol CTA', type: 'url' },
+      { key: 'logoUrl', label: 'Override URL logo (opsional)', type: 'image' },
+    ],
+  },
+  {
     id: 'footer.default',
     sectionType: 'footer',
     label: 'Footer standar',

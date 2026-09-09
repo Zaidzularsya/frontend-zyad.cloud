@@ -10,11 +10,10 @@ import LandingPagePicker from '@/features/landing/builder/components/LandingPage
 import BlockPalette from '@/features/landing/builder/components/BlockPalette.vue'
 import CanvasFrame from '@/features/landing/builder/components/CanvasFrame.vue'
 import SectionPropertyPanel from '@/features/landing/builder/components/SectionPropertyPanel.vue'
-import HeaderBrandPanel from '@/features/landing/builder/components/HeaderBrandPanel.vue'
+import HeaderSectionPanel from '@/features/landing/builder/components/HeaderSectionPanel.vue'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { useLandingBuilderStore } from '@/stores/landingBuilder'
 import { useLandingChromeStore } from '@/stores/landingChrome'
-import { HEADER_REGION_ID } from '@/features/landing/shared/canvas/bridge'
 
 defineProps<{
   title?: string
@@ -28,7 +27,6 @@ const { pages, selectedPageId, loadPages } = usePageSelection()
 const store = useLandingBuilderStore()
 const {
   sections,
-  selectedId,
   selectedSection,
   dirty,
   saving,
@@ -41,7 +39,8 @@ const {
 } = storeToRefs(store)
 
 const chromeStore = useLandingChromeStore()
-const headerSelected = computed(() => selectedId.value === HEADER_REGION_ID)
+const headerSelected = computed(() => selectedSection.value?.type === 'header')
+const hasHeaderSection = computed(() => sections.value.some((s) => s.type === 'header'))
 
 const deviceWidth = ref<number | null>(null)
 const canvasFrameRef = ref<InstanceType<typeof CanvasFrame> | null>(null)
@@ -217,9 +216,9 @@ onBeforeRouteLeave(() => {
         class="overflow-auto rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
       >
         <BlockPalette
+          :has-header="hasHeaderSection"
           @insert="store.insertBlock($event, sections.length)"
           @blockpointerdown="(blockId, event) => canvasFrameRef?.startBlockDrag(blockId, event)"
-          @selectchrome="store.select($event)"
         />
       </aside>
 
@@ -252,12 +251,16 @@ onBeforeRouteLeave(() => {
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
           {{ headerSelected ? 'Header & Brand' : 'Properti section' }}
         </p>
-        <HeaderBrandPanel v-if="headerSelected" />
+        <HeaderSectionPanel
+          v-if="headerSelected && selectedSection"
+          :key="selectedSection.id"
+          :section="selectedSection"
+        />
         <div
           v-else-if="!selectedSection"
           class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-gray-400"
         >
-          Pilih blok atau Header di kanvas untuk mengeditnya.
+          Pilih blok di kanvas untuk mengeditnya.
         </div>
         <SectionPropertyPanel v-else :key="selectedSection.id" :section="selectedSection" />
       </aside>

@@ -34,6 +34,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'landing-navigation', items: NavItem[]): void
   (event: 'landing-branding', branding: LandingBranding): void
+  /** 'section' when the page carries its own header section — the layout hides its nav. */
+  (event: 'landing-header-mode', mode: 'section' | 'layout'): void
 }>()
 
 type NavItem = {
@@ -66,6 +68,14 @@ const footerContent = ref<FooterContent>({
   copyright: '',
 })
 
+// Synthesized header data (tenant menu items + branding) injected into the
+// `header` section at render time — same pattern as footerContent.
+const headerChrome = ref<{ items: NavItem[]; brandName: string; brandLogoUrl: string }>({
+  items: [],
+  brandName: '',
+  brandLogoUrl: '',
+})
+
 const resolvedSlug = computed(() => props.slug ?? (route.params.slug as string) ?? '')
 
 onMounted(async () => {
@@ -92,11 +102,22 @@ async function fetchPage(slug: string) {
 
     const rawMenus = pickArray(result, 'Menus', 'menus')
     const menus = normalizeMenus(rawMenus)
-    emit('landing-navigation', getHeaderNavigation(menus))
+    const headerNav = getHeaderNavigation(menus)
+    emit('landing-navigation', headerNav)
 
     const rawBranding = pickObject(result, 'Branding', 'branding')
     const branding = normalizeBranding(rawBranding)
     emit('landing-branding', branding)
+
+    // A page with its own `header` section renders the nav itself (sticky), so
+    // the shared MarketingLayout must not stack its own <nav> on top.
+    const hasHeaderSection = sections.value.some((s) => s.type === 'header')
+    emit('landing-header-mode', hasHeaderSection ? 'section' : 'layout')
+    headerChrome.value = {
+      items: headerNav,
+      brandName: branding.company_name ?? '',
+      brandLogoUrl: branding.logo_light_url ?? '',
+    }
 
     footerContent.value = useFooterContent(result, pageData.value.title ?? '')
   } catch (err) {
@@ -279,6 +300,7 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
       :page="pageData as LandingPage"
       :sections="sections"
       :footer-content="footerContent"
+      :header-chrome="headerChrome"
     />
   </div>
 </template>

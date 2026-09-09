@@ -25,7 +25,10 @@ export interface CanvasSetDeviceMessage {
   width: number | null
 }
 
-/** Tenant-wide chrome (header nav + brand) rendered pinned above the sections. */
+/**
+ * Tenant-wide chrome (header menu items + brand) — fed into the `header`
+ * section's content-override so it renders/live-updates in the canvas iframe.
+ */
 export interface CanvasSetChromeMessage {
   type: 'canvas:set-chrome'
   header: { items: Array<{ id: string; label: string; href: string; target: string }> }
@@ -89,13 +92,6 @@ export type CanvasOutboundMessage =
 export type CanvasMessage = CanvasInboundMessage | CanvasOutboundMessage
 
 const CANVAS_PREFIX = 'canvas:'
-
-/**
- * Sentinel `selectedId` for the pinned tenant-wide header region. Not a section
- * id — the builder shell shows the Header/Brand panel instead of the section
- * property panel when this is selected.
- */
-export const HEADER_REGION_ID = '__chrome:header__'
 
 function sameOriginTarget(): string {
   return typeof window !== 'undefined' ? window.location.origin : '*'

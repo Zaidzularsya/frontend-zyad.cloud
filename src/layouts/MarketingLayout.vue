@@ -8,6 +8,19 @@ import type { LandingBranding } from '@/features/landing/shared/types/landing.ty
 const route = useRoute()
 const showLayoutFooter = computed(() => route.meta.layoutFooter === true)
 
+// A landing page that carries its own `header` section renders the nav itself
+// (sticky); suppress the shared layout <nav> so they don't stack.
+const hasPageHeader = ref(false)
+watch(
+  () => route.fullPath,
+  () => {
+    hasPageHeader.value = false
+  },
+)
+function onHeaderMode(mode: 'section' | 'layout') {
+  hasPageHeader.value = mode === 'section'
+}
+
 interface MarketingNavItem {
   id?: string
   label: string
@@ -107,6 +120,7 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
     class="min-h-screen bg-surface text-on-surface selection:bg-secondary-fixed selection:text-on-secondary-fixed"
   >
     <nav
+      v-if="!hasPageHeader"
       class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-xl border-b border-outline-variant/30 dark:border-outline/20 shadow-sm fixed top-0 w-full z-50 transition-all duration-300"
     >
       <div class="flex justify-between items-center max-w-7xl mx-auto px-4 md:px-8 py-4">
@@ -199,7 +213,11 @@ const links = () => (navigationItems.value.length > 0 ? navigationItems.value : 
     </nav>
 
     <main>
-      <RouterView @landing-navigation="setNavigation" @landing-branding="setBranding" />
+      <RouterView
+        @landing-navigation="setNavigation"
+        @landing-branding="setBranding"
+        @landing-header-mode="onHeaderMode"
+      />
     </main>
 
     <footer
