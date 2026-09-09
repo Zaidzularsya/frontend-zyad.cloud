@@ -1,62 +1,83 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import Sortable from 'sortablejs'
+import { ref } from 'vue'
+import { ChevronDown } from 'lucide-vue-next'
 
 import { blocksByGroup } from '@/features/landing/shared/blocks/catalog'
 
 const emit = defineEmits<{
   insert: [blockId: string]
-  dragstart: [blockId: string]
-  dragend: []
+  blockpointerdown: [blockId: string, event: PointerEvent]
 }>()
 
 const groups = blocksByGroup()
-const listRefs = ref<HTMLElement[]>([])
-const sortables: Sortable[] = []
 
-onMounted(() => {
-  for (const element of listRefs.value) {
-    sortables.push(
-      Sortable.create(element, {
-        group: { name: 'landing-blocks', pull: 'clone', put: false },
-        sort: false,
-        animation: 150,
-        // The clone Sortable drops into the outline is removed there; this list
-        // is a pure source.
-      }),
-    )
+// Element groups open by default; larger section groups collapsed to keep the
+// palette scannable. Persisted per browser.
+const OPEN_BY_DEFAULT = new Set(['layout', 'text', 'media', 'interactive'])
+const STORAGE_KEY = 'landing-builder:palette-open'
+
+function loadOpen(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as Record<string, boolean>
+  } catch {
+    /* ignore */
   }
-})
+  return {}
+}
 
-onBeforeUnmount(() => {
-  sortables.forEach((sortable) => sortable.destroy())
-  sortables.length = 0
-})
+const openState = ref<Record<string, boolean>>(loadOpen())
+
+function isOpen(group: string): boolean {
+  return openState.value[group] ?? OPEN_BY_DEFAULT.has(group)
+}
+
+function toggle(group: string, event: Event) {
+  openState.value = { ...openState.value, [group]: (event.target as HTMLDetailsElement).open }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(openState.value))
+  } catch {
+    /* ignore */
+  }
+}
+
+function onPointerDown(blockId: string, event: PointerEvent) {
+  // Left button only; keep click-to-append working for a plain tap.
+  if (event.button !== 0) return
+  emit('blockpointerdown', blockId, event)
+}
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div v-for="group in groups" :key="group.group">
-      <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+  <div class="space-y-2">
+    <details
+      v-for="group in groups"
+      :key="group.group"
+      class="group rounded-lg border border-gray-200 dark:border-gray-700"
+      :open="isOpen(group.group)"
+      @toggle="toggle(group.group, $event)"
+    >
+      <summary
+        class="flex cursor-pointer select-none items-center justify-between px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
+      >
         {{ group.label }}
-      </p>
-      <div ref="listRefs" class="grid grid-cols-2 gap-1.5">
+        <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="grid grid-cols-2 gap-1.5 border-t border-gray-100 p-2 dark:border-gray-800">
         <button
           v-for="block in group.blocks"
           :key="block.id"
           type="button"
-          class="flex flex-col items-start gap-1 rounded-lg border border-gray-200 bg-white p-2 text-left text-xs hover:border-brand-400 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-900"
+          class="flex touch-none flex-col items-start gap-1 rounded-lg border border-gray-200 bg-white p-2 text-left text-xs hover:border-brand-400 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-900"
           :data-block-id="block.id"
           :title="block.description"
-          draggable="true"
           @click="emit('insert', block.id)"
-          @dragstart="emit('dragstart', block.id)"
-          @dragend="emit('dragend')"
+          @pointerdown="onPointerDown(block.id, $event)"
         >
           <span class="material-symbols-outlined text-base text-gray-500">{{ block.icon }}</span>
           <span class="font-semibold leading-tight">{{ block.label }}</span>
         </button>
       </div>
-    </div>
+    </details>
   </div>
 </template>

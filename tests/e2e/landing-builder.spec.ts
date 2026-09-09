@@ -38,6 +38,9 @@ function json(route: Route, data: unknown, status = 200) {
   })
 }
 
+// The visual builder is a desktop-only surface (3-pane grid, iframe canvas).
+test.skip(({ isMobile }) => Boolean(isMobile), 'Builder is desktop-only')
+
 test.beforeEach(async ({ page }) => {
   // Catch-all first; specific routes registered after win (reverse match order).
   await page.route('**/api/v1/**', (route) => json(route, []))
@@ -92,16 +95,16 @@ test.beforeEach(async ({ page }) => {
 test('inserts a block and publishes through the builder', async ({ page }) => {
   await page.goto('/app/landing-pages/content')
 
-  // 3-pane shell
-  await expect(page.getByText('Struktur halaman', { exact: true })).toBeVisible()
+  // 3-pane shell + collapsible palette groups
+  await expect(page.getByText('Section', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Publish', exact: true })).toBeVisible()
-
-  // Canvas iframe mounted
   await expect(page.locator('iframe[title="Canvas landing page"]')).toBeVisible()
 
-  // Palette → click the Hero block → it appears in the page outline
+  // Open the collapsed "Section" group, click the Hero block → it renders on the canvas
+  await page.getByText('Section', { exact: true }).click()
   await page.locator('button[data-block-id="hero.default"]').click()
-  await expect(page.locator('li[data-section-id]').filter({ hasText: 'Hero' })).toBeVisible()
+  const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
+  await expect(canvas.locator('[data-section-id]')).toHaveCount(1)
 
   // Publish flushes a PUT /sections then POSTs /publish
   const putSections = page.waitForRequest(
@@ -120,15 +123,36 @@ test('adds an atomic element block and exposes the appearance panel', async ({ p
 
   await expect(page.locator('iframe[title="Canvas landing page"]')).toBeVisible()
 
-  // "Komponen" palette group is present with the Headline element block.
-  await expect(page.getByText('Komponen', { exact: true })).toBeVisible()
+  // "Teks" palette group is open by default and carries the Headline block.
+  await expect(page.getByText('Teks', { exact: true })).toBeVisible()
   await page.locator('button[data-block-id="element.headline"]').click()
 
-  // It lands in the page outline and selects itself, opening the property panel.
-  await expect(page.locator('li[data-section-id]').filter({ hasText: 'Headline' })).toBeVisible()
-  await expect(page.getByText('Appearance', { exact: true })).toBeVisible()
+  // It renders on the canvas and selects itself, opening the property panel.
+  const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
+  await expect(canvas.locator('[data-section-id]')).toHaveCount(1)
+  const propertyPanel = page.locator('aside').filter({ hasText: 'Properti section' })
+  await expect(propertyPanel.locator('input').first()).toHaveValue('Headline')
 
   // The APPEARANCE accordion carries a typography control for element blocks.
-  await page.getByText('Appearance', { exact: true }).click()
+  await propertyPanel.locator('summary').filter({ hasText: 'Appearance' }).click()
   await expect(page.getByText('Ukuran font (px)')).toBeVisible()
+})
+
+test('drags a palette block onto the canvas preview', async ({ page }) => {
+  await page.goto('/app/landing-pages/content')
+  await expect(page.locator('iframe[title="Canvas landing page"]')).toBeVisible()
+  await page.waitForTimeout(500)
+
+  const tile = page.locator('button[data-block-id="element.paragraph"]')
+  const tb = (await tile.boundingBox())!
+  const ifr = (await page.locator('iframe[title="Canvas landing page"]').boundingBox())!
+
+  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(tb.x + tb.width / 2 + 12, tb.y + 12, { steps: 3 })
+  await page.mouse.move(ifr.x + ifr.width / 2, ifr.y + 60, { steps: 10 })
+  await page.mouse.up()
+
+  const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
+  await expect(canvas.locator('[data-section-id]')).toHaveCount(1)
 })

@@ -13,7 +13,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Headline',
     description: 'Judul singkat satu baris.',
     icon: 'title',
-    group: 'elements',
+    group: 'text',
     keyPrefix: 'el-headline',
     defaultContent: {
       text: 'Judul baru',
@@ -36,7 +36,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Paragraph',
     description: 'Blok teks dengan format inline.',
     icon: 'notes',
-    group: 'elements',
+    group: 'text',
     keyPrefix: 'el-paragraph',
     defaultContent: {
       bodyHtml: 'Tulis paragraf di sini. Klik dua kali di kanvas untuk mengedit.',
@@ -55,7 +55,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Button',
     description: 'Tombol tautan tunggal.',
     icon: 'smart_button',
-    group: 'elements',
+    group: 'interactive',
     keyPrefix: 'el-button',
     defaultContent: {
       label: 'Klik di sini',
@@ -81,7 +81,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Image',
     description: 'Satu gambar dari URL.',
     icon: 'image',
-    group: 'elements',
+    group: 'media',
     keyPrefix: 'el-image',
     defaultContent: {
       src: '',
@@ -104,7 +104,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Divider',
     description: 'Garis pemisah horizontal.',
     icon: 'horizontal_rule',
-    group: 'elements',
+    group: 'layout',
     keyPrefix: 'el-divider',
     defaultContent: {},
     defaultStyle: {
@@ -119,7 +119,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Hero',
     description: 'Headline, intro singkat, dan dua CTA utama.',
     icon: 'rocket_launch',
-    group: 'hero',
+    group: 'section',
     keyPrefix: 'hero',
     defaultContent: {
       badge: 'Solusi digital terpadu',
@@ -149,7 +149,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Hero 3D',
     description: 'Hero dengan animasi WebGL. Tidak ada teks yang bisa diedit.',
     icon: 'deployed_code',
-    group: 'hero',
+    group: 'section',
     keyPrefix: 'hero',
     defaultContent: {},
     defaultStyle: { variant: 'three_js' },
@@ -161,7 +161,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Problem',
     description: 'Konteks masalah dan pain point pelanggan.',
     icon: 'help',
-    group: 'content',
+    group: 'section',
     keyPrefix: 'problem',
     defaultContent: {
       title: 'Tantangan yang sering menghambat pertumbuhan',
@@ -207,7 +207,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Benefits',
     description: 'Manfaat bisnis yang ingin ditonjolkan.',
     icon: 'insights',
-    group: 'content',
+    group: 'section',
     keyPrefix: 'benefits',
     defaultContent: {
       title: 'Manfaat yang langsung terasa',
@@ -253,7 +253,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Solution / Steps',
     description: 'Langkah kerja atau alur solusi.',
     icon: 'timeline',
-    group: 'content',
+    group: 'section',
     keyPrefix: 'solution',
     defaultContent: {
       title: 'Cara kami membantu dari ide sampai publish',
@@ -306,7 +306,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Layanan / Fitur',
     description: 'Daftar layanan atau fitur inti.',
     icon: 'grid_view',
-    group: 'content',
+    group: 'section',
     keyPrefix: 'features',
     defaultContent: {
       title: 'Layanan yang bisa langsung ditawarkan',
@@ -351,7 +351,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'FAQ',
     description: 'Pertanyaan umum sebelum pengunjung menghubungi.',
     icon: 'quiz',
-    group: 'content',
+    group: 'section',
     keyPrefix: 'faq',
     defaultContent: {
       title: 'Pertanyaan yang sering diajukan',
@@ -511,7 +511,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Footer standar',
     description: 'Brand + navigasi (maks. 3 kolom) + copyright.',
     icon: 'call_to_action',
-    group: 'footer',
+    group: 'navigation',
     keyPrefix: 'footer',
     defaultContent: {},
     defaultStyle: { variant: 'default' },
@@ -524,7 +524,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Footer simple',
     description: 'Brand + copyright saja. Cocok untuk halaman campaign.',
     icon: 'call_to_action',
-    group: 'footer',
+    group: 'navigation',
     keyPrefix: 'footer',
     defaultContent: {},
     defaultStyle: { variant: 'simple' },
@@ -537,7 +537,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Footer newsletter',
     description: 'Footer standar + form berlangganan email.',
     icon: 'mark_email_read',
-    group: 'footer',
+    group: 'navigation',
     keyPrefix: 'footer',
     defaultContent: {},
     defaultStyle: { variant: 'newsletter' },
@@ -550,7 +550,7 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     label: 'Footer mega',
     description: 'Footer standar + trust badge + CTA sekunder.',
     icon: 'call_to_action',
-    group: 'footer',
+    group: 'navigation',
     keyPrefix: 'footer',
     defaultContent: {},
     defaultStyle: { variant: 'mega' },
@@ -565,21 +565,25 @@ export function blockById(id: string): BlockDefinition | undefined {
 }
 
 export const BLOCK_GROUP_LABELS: Record<BlockGroup, string> = {
-  elements: 'Komponen',
-  hero: 'Hero',
-  content: 'Konten',
+  layout: 'Layout',
+  text: 'Teks',
+  media: 'Media',
+  interactive: 'Interaktif',
+  section: 'Section',
   'social-proof': 'Social proof',
   conversion: 'Konversi',
-  footer: 'Footer',
+  navigation: 'Navigasi',
 }
 
 export const BLOCK_GROUP_ORDER: BlockGroup[] = [
-  'elements',
-  'hero',
-  'content',
+  'layout',
+  'text',
+  'media',
+  'interactive',
+  'section',
   'social-proof',
   'conversion',
-  'footer',
+  'navigation',
 ]
 
 export function blocksByGroup(): Array<{

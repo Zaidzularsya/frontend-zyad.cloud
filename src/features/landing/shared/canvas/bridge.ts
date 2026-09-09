@@ -25,18 +25,11 @@ export interface CanvasSetDeviceMessage {
   width: number | null
 }
 
-export interface CanvasDragMessage {
-  type: 'canvas:drag'
-  /** Catalog id of the block being dragged from the palette, or null when the drag ends. */
-  blockId: string | null
-}
-
 /** parent -> iframe */
 export type CanvasInboundMessage =
   | CanvasSetSectionsMessage
   | CanvasSetSelectedMessage
   | CanvasSetDeviceMessage
-  | CanvasDragMessage
 
 export interface CanvasReadyMessage {
   type: 'canvas:ready'
@@ -93,6 +86,16 @@ function sameOriginTarget(): string {
   return typeof window !== 'undefined' ? window.location.origin : '*'
 }
 
+/**
+ * `postMessage` uses structured clone, which throws on Vue reactive proxies
+ * (`sections` comes straight from a Pinia store ref). Every canvas message is
+ * plain JSON data by contract, so round-trip through JSON to hand structured
+ * clone a raw object graph.
+ */
+function toPlain<T>(message: T): T {
+  return JSON.parse(JSON.stringify(message)) as T
+}
+
 /** Type guard: a MessageEvent that carries one of our canvas messages. */
 export function isCanvasMessage(event: MessageEvent): event is MessageEvent<CanvasMessage> {
   if (typeof window !== 'undefined' && event.origin !== window.location.origin) return false
@@ -103,13 +106,13 @@ export function isCanvasMessage(event: MessageEvent): event is MessageEvent<Canv
 /** Send a message from the iframe up to the builder shell. */
 export function postToParent(message: CanvasOutboundMessage): void {
   if (typeof window === 'undefined' || window.parent === window) return
-  window.parent.postMessage(message, sameOriginTarget())
+  window.parent.postMessage(toPlain(message), sameOriginTarget())
 }
 
 /** Send a message from the builder shell down into the canvas iframe. */
 export function postToFrame(frame: Window | null | undefined, message: CanvasInboundMessage): void {
   if (!frame) return
-  frame.postMessage(message, sameOriginTarget())
+  frame.postMessage(toPlain(message), sameOriginTarget())
 }
 
 /**

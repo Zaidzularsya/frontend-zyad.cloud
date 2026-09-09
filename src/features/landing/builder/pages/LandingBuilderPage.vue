@@ -8,7 +8,6 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import LandingPagePicker from '@/features/landing/builder/components/LandingPagePicker.vue'
 import BlockPalette from '@/features/landing/builder/components/BlockPalette.vue'
-import PageOutlineList from '@/features/landing/builder/components/PageOutlineList.vue'
 import CanvasFrame from '@/features/landing/builder/components/CanvasFrame.vue'
 import SectionPropertyPanel from '@/features/landing/builder/components/SectionPropertyPanel.vue'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
@@ -26,7 +25,6 @@ const { pages, selectedPageId, loadPages } = usePageSelection()
 const store = useLandingBuilderStore()
 const {
   sections,
-  selectedId,
   selectedSection,
   dirty,
   saving,
@@ -39,7 +37,7 @@ const {
 } = storeToRefs(store)
 
 const deviceWidth = ref<number | null>(null)
-const draggingBlockId = ref<string | null>(null)
+const canvasFrameRef = ref<InstanceType<typeof CanvasFrame> | null>(null)
 
 const savedLabel = computed(() => {
   if (saving.value) return 'Menyimpan…'
@@ -208,18 +206,8 @@ onBeforeRouteLeave(() => {
         class="overflow-auto rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
       >
         <BlockPalette
-          class="mb-5"
           @insert="store.insertBlock($event, sections.length)"
-          @dragstart="draggingBlockId = $event"
-          @dragend="draggingBlockId = null"
-        />
-        <PageOutlineList
-          :sections="sections"
-          :selected-id="selectedId"
-          @select="store.select($event)"
-          @remove="store.removeBlock($event)"
-          @reorder="store.reorder($event)"
-          @insert="(blockId, index) => store.insertBlock(blockId, index)"
+          @blockpointerdown="(blockId, event) => canvasFrameRef?.startBlockDrag(blockId, event)"
         />
       </aside>
 
@@ -233,7 +221,7 @@ onBeforeRouteLeave(() => {
           <RefreshCw class="size-4 animate-spin" /> Memuat canvas…
         </div>
         <template v-else>
-          <CanvasFrame :device-width="deviceWidth" :dragging-block-id="draggingBlockId" />
+          <CanvasFrame ref="canvasFrameRef" :device-width="deviceWidth" />
           <div
             v-if="sections.length === 0"
             class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-gray-500"
@@ -256,7 +244,7 @@ onBeforeRouteLeave(() => {
           v-if="!selectedSection"
           class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-gray-400"
         >
-          Pilih section di canvas atau struktur halaman.
+          Pilih blok di kanvas untuk mengedit propertinya.
         </div>
         <SectionPropertyPanel v-else :key="selectedSection.id" :section="selectedSection" />
       </aside>
