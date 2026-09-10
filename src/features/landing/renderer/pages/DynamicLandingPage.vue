@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { http } from '@/lib/http'
 import { normalizeBranding } from '../../shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
+import GrapesPageFrame from '../components/GrapesPageFrame.vue'
 import { useFooterContent } from '../composables/useFooterContent'
 import type {
   FooterContent,
@@ -52,6 +53,12 @@ const route = useRoute()
 const loading = ref(true)
 const error = ref<string | null>(null)
 
+// GrapesJS-authored pages (page.builder === 'grapesjs') carry HTML/CSS instead
+// of sections; rendered via <iframe srcdoc> by GrapesPageFrame.
+const builder = ref<'sections' | 'grapesjs'>('sections')
+const grapesHtml = ref('')
+const grapesCss = ref('')
+
 const sections = ref<LandingSection[]>([])
 const pageData = ref<Partial<LandingPage>>({
   id: '',
@@ -98,13 +105,35 @@ async function fetchPage(slug: string) {
     const result: RawRecord = (res.data as { data?: RawRecord }).data ?? (res.data as RawRecord)
     const rawPage = pickObject(result, 'Page', 'page')
 
-    sections.value = normalizeSections(resolveSectionsPayload(result))
     pageData.value = {
       id: pickString(rawPage, 'id', 'ID'),
       title: pickString(rawPage, 'title', 'Title', 'name', 'Name'),
       name: pickString(rawPage, 'name', 'Name', 'title', 'Title'),
       slug: pickString(rawPage, 'slug', 'Slug') || slug,
     }
+
+    builder.value =
+      pickString(result, 'Builder', 'builder') === 'grapesjs' ||
+      pickString(rawPage, 'builder', 'Builder') === 'grapesjs'
+        ? 'grapesjs'
+        : 'sections'
+
+    if (builder.value === 'grapesjs') {
+      grapesHtml.value = pickString(result, 'HTML', 'html', 'Html')
+      grapesCss.value = pickString(result, 'CSS', 'css', 'Css')
+      applyGrapesSeo(pickObject(rawPage, 'seo', 'SEO'), pageData.value.title ?? '')
+      // The GrapesJS page owns its full chrome; never stack the layout <nav>.
+      emit('landing-header-mode', 'section')
+      // Still forward tenant branding/nav so a future live-chrome layer can use it.
+      emit('landing-branding', normalizeBranding(pickObject(result, 'Branding', 'branding')))
+      emit(
+        'landing-navigation',
+        getHeaderNavigation(normalizeMenus(pickArray(result, 'Menus', 'menus'))),
+      )
+      return
+    }
+
+    sections.value = normalizeSections(resolveSectionsPayload(result))
 
     const rawMenus = pickArray(result, 'Menus', 'menus')
     const menus = normalizeMenus(rawMenus)
@@ -133,6 +162,34 @@ async function fetchPage(slug: string) {
   } finally {
     loading.value = false
   }
+}
+
+// ─── SEO (GrapesJS pages) ────────────────────────────────────────────────────
+
+function applyGrapesSeo(seo: RawRecord, fallbackTitle: string) {
+  const title = pickString(seo, 'meta_title', 'MetaTitle') || fallbackTitle
+  if (title) document.title = title
+
+  const description = pickString(seo, 'meta_description', 'MetaDescription')
+  setMetaTag('name', 'description', description)
+  setMetaTag('property', 'og:title', title)
+  setMetaTag('property', 'og:description', description)
+
+  const openGraph = pickObject(seo, 'open_graph', 'OpenGraph')
+  const ogImage =
+    pickString(openGraph, 'image_url', 'ImageURL') || pickString(seo, 'og_image_url', 'OgImageURL')
+  setMetaTag('property', 'og:image', ogImage)
+}
+
+function setMetaTag(attr: 'name' | 'property', key: string, value: string) {
+  if (!value) return
+  let tag = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`)
+  if (!tag) {
+    tag = document.createElement('meta')
+    tag.setAttribute(attr, key)
+    document.head.appendChild(tag)
+  }
+  tag.setAttribute('content', value)
 }
 
 // ─── Normalize helpers ───────────────────────────────────────────────────────
@@ -300,6 +357,14 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
         <p class="mt-2 text-sm text-gray-500">{{ error }}</p>
       </div>
     </div>
+
+    <!-- GrapesJS-authored page: isolated iframe render -->
+    <GrapesPageFrame
+      v-else-if="builder === 'grapesjs'"
+      :html="grapesHtml"
+      :css="grapesCss"
+      :title="pageData.title"
+    />
 
     <!-- Render sections via LandingPageRenderer -->
     <LandingPageRenderer

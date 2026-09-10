@@ -7,6 +7,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { http } from '@/lib/http'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
+import GrapesPageFrame from '../components/GrapesPageFrame.vue'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
 type RawRecord = Record<string, unknown>
@@ -19,6 +20,10 @@ const saving = ref(false)
 const errorMessage = ref('')
 const page = ref<LandingPage | null>(null)
 const sections = ref<LandingSection[]>([])
+const grapesHtml = ref('')
+const grapesCss = ref('')
+
+const isGrapes = computed(() => page.value?.builder === 'grapesjs')
 
 const slug = computed(() => String(route.params.slug || ''))
 const mode = computed(() => String(route.query.mode || 'template'))
@@ -56,7 +61,12 @@ async function loadPreview() {
     const result: RawRecord =
       (response.data as { data?: RawRecord }).data ?? (response.data as RawRecord)
     page.value = normalizePage(result, slug.value)
-    sections.value = normalizeSections(resolveSectionsPayload(result))
+    if (isGrapes.value) {
+      grapesHtml.value = pickString(result, 'HTML', 'html', 'Html')
+      grapesCss.value = pickString(result, 'CSS', 'css', 'Css')
+    } else {
+      sections.value = normalizeSections(resolveSectionsPayload(result))
+    }
   } catch (error) {
     console.error('LandingPreviewPage: failed to load preview', error)
     errorMessage.value = 'Preview tidak dapat dimuat. Pastikan template/page masih tersedia.'
@@ -66,11 +76,17 @@ async function loadPreview() {
 }
 
 async function loadAdminPreview(id: string) {
-  const [pageResponse, sectionResponse] = await Promise.all([
-    landingApi.getPage(id),
-    landingApi.getSections(id),
-  ])
+  const pageResponse = await landingApi.getPage(id)
   page.value = pageResponse.data
+
+  if (pageResponse.data.builder === 'grapesjs') {
+    const doc = await landingApi.getDocument(id)
+    grapesHtml.value = doc.data.html
+    grapesCss.value = doc.data.css
+    return
+  }
+
+  const sectionResponse = await landingApi.getSections(id)
   sections.value = sectionResponse.data
 }
 
@@ -235,7 +251,13 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
       </div>
     </div>
     <div v-else class="pt-16">
-      <LandingPageRenderer v-if="page" :page="page" :sections="sections" />
+      <GrapesPageFrame
+        v-if="page && isGrapes"
+        :html="grapesHtml"
+        :css="grapesCss"
+        :title="page.title"
+      />
+      <LandingPageRenderer v-else-if="page" :page="page" :sections="sections" />
     </div>
   </div>
 </template>
