@@ -41,4 +41,31 @@ describe('HeaderSection', () => {
     const wrapper = render({ ctaColor: '#ff0000', ctaLabel: 'Go' })
     expect(wrapper.find('.header-cta').attributes('style')).toContain('rgb(255, 0, 0)')
   })
+
+  it('defaults to a solid, centered bar with no shadow', () => {
+    const classes = render({}).find('.header-section').classes()
+    expect(classes).toContain('is-solid')
+    expect(classes).toContain('align-center')
+    expect(classes.some((c) => c.startsWith('has-shadow'))).toBe(false)
+  })
+
+  it('reflects alignment, variant, shadow and width from content', () => {
+    const classes = render({
+      alignment: 'left',
+      variant: 'glass',
+      shadow: 'md',
+      width: 'full',
+    })
+      .find('.header-section')
+      .classes()
+    expect(classes).toEqual(
+      expect.arrayContaining(['align-left', 'is-glass', 'has-shadow-md', 'is-full']),
+    )
+  })
+
+  it('maps the legacy transparentOnTop flag to the transparent variant', () => {
+    expect(render({ transparentOnTop: true }).find('.header-section').classes()).toContain(
+      'is-transparent',
+    )
+  })
 })
