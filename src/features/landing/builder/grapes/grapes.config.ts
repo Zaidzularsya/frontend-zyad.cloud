@@ -70,7 +70,16 @@ export function buildGrapesConfig(els: GrapesMountEls): EditorConfig {
     fromElement: false,
     storageManager: { type: 'none' },
     assetManager: { assets: [], upload: false },
-    plugins: [(editor) => blocksBasic(editor, { flexGrid: false, category: 'Dasar' })],
+    // Only borrow the flex column primitives; every other block is hand-rolled
+    // (grapes.blocks.ts) so the palette stays on-brand.
+    plugins: [
+      (editor) =>
+        blocksBasic(editor, {
+          flexGrid: true,
+          blocks: ['column1', 'column2', 'column3'],
+          category: 'Layout',
+        }),
+    ],
     deviceManager: { devices: GRAPES_DEVICES },
     blockManager: { appendTo: els.blocks, blocks: GRAPES_BLOCKS },
     layerManager: { appendTo: els.layers },

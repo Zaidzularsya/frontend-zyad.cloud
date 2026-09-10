@@ -163,6 +163,11 @@ defineExpose({ editor })
   --gjs-placeholder-background-color: #465fff;
   --gjs-main-font: 'Inter', 'Segoe UI', sans-serif;
   --gjs-font-size: 12px;
+  /* We host our own panels/top-bar outside the GrapesJS container, so it must
+     not reserve room for its default left panel / top bar — this is what makes
+     the canvas sit flush and centred. */
+  --gjs-left-width: 0px;
+  --gjs-canvas-top: 0px;
 
   display: flex;
   flex-direction: column;
@@ -191,16 +196,21 @@ defineExpose({ editor })
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
   color: #64748b;
   cursor: pointer;
   transition:
     background 0.12s ease,
     color 0.12s ease;
+}
+.grapes-dev-btn :deep(svg),
+.grapes-icon-btn :deep(svg) {
+  width: 15px;
+  height: 15px;
 }
 .grapes-dev-btn:hover,
 .grapes-icon-btn:hover {
@@ -266,38 +276,95 @@ defineExpose({ editor })
   background: #eef2f7;
 }
 
-/* ── Targeted GrapesJS chrome overrides the vars don't fully cover ─────────── */
+/* ── GrapesJS chrome: canvas view ─────────────────────────────────────────── */
+.grapes-shell :deep(.gjs-cv-canvas) {
+  background: #eef2f7;
+  padding: 20px;
+}
+.grapes-shell :deep(.gjs-frame-wrapper) {
+  padding: 0;
+}
+.grapes-shell :deep(.gjs-frame) {
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px #e2e8f0,
+    0 14px 40px rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+}
+
+/* ── GrapesJS chrome: block palette ──────────────────────────────────────── */
+.grapes-shell :deep(.gjs-blocks-c) {
+  padding: 8px 10px 14px;
+  justify-content: space-between;
+}
 .grapes-shell :deep(.gjs-block) {
+  width: calc(50% - 5px);
+  min-width: 0;
+  min-height: 60px;
+  margin: 5px 0;
+  padding: 10px 8px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #ffffff;
-  color: #475569;
-  min-height: 74px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: none;
   transition:
     border-color 0.12s ease,
     background 0.12s ease,
-    box-shadow 0.12s ease;
+    box-shadow 0.12s ease,
+    color 0.12s ease;
 }
 .grapes-shell :deep(.gjs-block:hover) {
   border-color: #465fff;
-  background: #eef4ff;
+  background: #f5f7ff;
   color: #1e293b;
-  box-shadow: 0 1px 3px rgba(70, 95, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(70, 95, 255, 0.12);
 }
-.grapes-shell :deep(.gjs-block__media svg) {
-  fill: #64748b;
+.grapes-shell :deep(.gjs-block__media) {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
 }
+.grapes-shell :deep(.gjs-block__media > *) {
+  max-width: 24px;
+  max-height: 24px;
+  font-size: 22px;
+}
+.grapes-shell :deep(.gjs-block:hover .gjs-block__media) {
+  color: #465fff;
+}
+.grapes-shell :deep(.gjs-block-label) {
+  font-size: 11px;
+}
+
+/* ── GrapesJS chrome: section / category headers ─────────────────────────── */
 .grapes-shell :deep(.gjs-block-category .gjs-title),
+.grapes-shell :deep(.gjs-category-title),
 .grapes-shell :deep(.gjs-sm-sector-title),
-.grapes-shell :deep(.gjs-layer-title) {
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
+.grapes-shell :deep(.gjs-layer-title-c),
+.grapes-shell :deep(.gjs-clm-tags .gjs-clm-header) {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 12px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8;
 }
+.grapes-shell :deep(.gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title) {
+  color: #475569;
+}
+
+/* ── GrapesJS chrome: fields, style manager, layers ──────────────────────── */
 .grapes-shell :deep(.gjs-field),
 .grapes-shell :deep(.gjs-sm-field input),
+.grapes-shell :deep(.gjs-sm-field select),
 .grapes-shell :deep(.gjs-clm-select),
 .grapes-shell :deep(.gjs-select) {
   border: 1px solid #e2e8f0;
@@ -306,20 +373,49 @@ defineExpose({ editor })
 }
 .grapes-shell :deep(.gjs-field:focus-within) {
   border-color: #465fff;
+  box-shadow: 0 0 0 3px rgba(70, 95, 255, 0.12);
+}
+.grapes-shell :deep(.gjs-sm-properties) {
+  padding: 8px 10px;
+}
+.grapes-shell :deep(.gjs-sm-property) {
+  padding: 6px 0;
+}
+.grapes-shell :deep(.gjs-sm-label),
+.grapes-shell :deep(.gjs-trt-trait__label) {
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+.grapes-shell :deep(.gjs-trt-traits) {
+  padding: 10px;
+}
+.grapes-shell :deep(.gjs-trt-trait) {
+  padding: 6px 0;
 }
 .grapes-shell :deep(.gjs-layer.gjs-selected),
 .grapes-shell :deep(.gjs-layer:hover) {
-  background: #eef4ff;
+  background: #f5f7ff;
 }
+.grapes-shell :deep(.gjs-layer-title) {
+  border-radius: 6px;
+}
+
+/* ── GrapesJS chrome: canvas overlays ────────────────────────────────────── */
 .grapes-shell :deep(.gjs-toolbar) {
   background: #465fff;
   border-radius: 8px;
 }
-.grapes-shell :deep(.gjs-badge),
+.grapes-shell :deep(.gjs-badge) {
+  background: #465fff;
+  border-radius: 4px;
+  font-weight: 600;
+}
 .grapes-shell :deep(.gjs-placeholder) {
   border-radius: 4px;
 }
-.grapes-shell :deep(.gjs-cm-editor-btn) {
-  border-radius: 6px;
+.grapes-shell :deep(.gjs-resizer-h) {
+  border-color: #465fff;
+  background: #ffffff;
 }
 </style>
