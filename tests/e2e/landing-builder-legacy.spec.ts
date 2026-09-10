@@ -1,11 +1,12 @@
 import { expect, test, type Route } from '@playwright/test'
 
 /**
- * Drives the visual landing-page builder end to end against a stubbed API, so it
- * runs against the plain `preview` build with no backend. It covers the browser
- * concerns the unit/component tests cannot: the 3-pane shell renders, the canvas
- * iframe route loads, a palette click inserts a block, and Publish issues a
- * `PUT /sections` followed by `POST /publish`.
+ * FROZEN legacy section builder (page.builder === 'sections'). Kept green so
+ * pre-pivot pages stay editable; new pages use GrapesJS (see
+ * landing-grapes.spec.ts). Runs against the plain `preview` build with a
+ * stubbed API. Covers the browser concerns unit tests cannot: the 3-pane shell
+ * renders, the canvas iframe route loads, a palette click inserts a block, and
+ * Publish issues a `PUT /sections` then `POST /publish`.
  *
  * Needs Chromium once: `npx playwright install chromium`.
  */

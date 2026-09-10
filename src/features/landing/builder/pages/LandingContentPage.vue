@@ -22,7 +22,9 @@ const props = defineProps<{
 const GrapesEditor = defineAsyncComponent(
   () => import('@/features/landing/builder/grapes/GrapesEditor.vue'),
 )
-const LegacySectionBuilderPage = defineAsyncComponent(() => import('./LandingBuilderPage.vue'))
+const LegacySectionBuilderPage = defineAsyncComponent(
+  () => import('./LegacySectionBuilderPage.vue'),
+)
 
 const { pages, selectedPageId, errorMessage, loadPages } = usePageSelection()
 

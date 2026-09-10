@@ -315,8 +315,9 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Landing Preview', requiresAuth: true },
   },
   {
-    // WYSIWYG canvas iframe host for the visual builder. Rendered inside an
-    // <iframe> by LandingBuilderPage; drives its section list over postMessage.
+    // WYSIWYG canvas iframe host for the FROZEN legacy section builder. Rendered
+    // inside an <iframe> by LegacySectionBuilderPage; drives its section list
+    // over postMessage. GrapesJS pages use GrapesPageFrame instead.
     path: '/landing-canvas/:pageId',
     name: 'landing-canvas',
     component: () => import('@/features/landing/renderer/pages/LandingCanvasFramePage.vue'),

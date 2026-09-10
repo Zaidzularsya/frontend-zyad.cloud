@@ -1,8 +1,10 @@
 import type { LandingSection } from '@/features/landing/shared/types/landing.types'
 
 /**
- * postMessage protocol between the visual builder shell (parent) and the
- * WYSIWYG canvas iframe (`/landing-canvas/:pageId`).
+ * FROZEN — postMessage protocol for the legacy section builder
+ * (page.builder === 'sections'), between its shell (parent) and the WYSIWYG
+ * canvas iframe (`/landing-canvas/:pageId`). GrapesJS pages don't use this
+ * bridge (GrapesJS owns its own iframe). Kept for pre-pivot pages only.
  *
  * Both windows are served by the same SPA on the same origin, so every message
  * is validated against `window.location.origin`. `type` is namespaced with

@@ -20,7 +20,7 @@ vi.mock('@/features/landing/builder/grapes/GrapesEditor.vue', () => ({
     template: '<div class="stub-grapes">{{ pageId }}</div>',
   },
 }))
-vi.mock('./LandingBuilderPage.vue', () => ({
+vi.mock('./LegacySectionBuilderPage.vue', () => ({
   __esModule: true,
   default: { name: 'LegacyBuilderStub', template: '<div class="stub-legacy" />' },
 }))

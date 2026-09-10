@@ -1,3 +1,6 @@
+// FROZEN — section registry for the legacy section builder + section renderer
+// (page.builder === 'sections'). Still shipped so pre-pivot pages render and
+// stay editable; new pages use GrapesJS (raw HTML/CSS, no section types).
 import type { Component } from 'vue'
 import HeroSection from '../sections/hero/HeroSection.vue'
 import ThreeJSHero from '../sections/hero/ThreeJSHero.vue'

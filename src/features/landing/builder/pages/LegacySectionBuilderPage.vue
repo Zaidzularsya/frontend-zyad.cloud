@@ -1,4 +1,12 @@
 <script setup lang="ts">
+/**
+ * FROZEN — legacy section builder (page.builder === 'sections').
+ *
+ * New pages are authored with GrapesJS (see GrapesEditor.vue). This screen and
+ * the section renderer stay only to keep pre-pivot pages editable; no new
+ * features land here. `LandingContentPage.vue` mounts it only when the selected
+ * page's `builder` is `'sections'`.
+ */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -118,7 +126,20 @@ onBeforeRouteLeave(() => {
 
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeader :title="title || 'Content'" :description="description" />
+    <PageHeader :title="title || 'Content'" :description="description">
+      <span
+        class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+      >
+        Builder lama
+      </span>
+    </PageHeader>
+
+    <p
+      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+    >
+      Halaman ini masih memakai builder section lama (dibekukan). Halaman baru otomatis memakai
+      editor visual GrapesJS.
+    </p>
 
     <div
       class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"

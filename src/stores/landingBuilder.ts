@@ -6,10 +6,14 @@ import { blockById } from '@/features/landing/shared/blocks/catalog'
 import type { LandingPage, LandingSection } from '@/features/landing/shared/types/landing.types'
 
 /**
- * Working buffer for the visual builder canvas. This deliberately holds section
- * data in Pinia rather than TanStack Query: it is an editor document with
- * undo/redo, dirty tracking and debounced autosave — client state, not a
- * passive server cache. The server copy is re-adopted on every load/save.
+ * FROZEN — working buffer for the legacy section builder canvas
+ * (page.builder === 'sections'). Kept so pre-pivot pages stay editable; new
+ * pages use `stores/landingDocument.ts` + GrapesJS. No new features here.
+ *
+ * Holds section data in Pinia rather than TanStack Query: it is an editor
+ * document with undo/redo, dirty tracking and debounced autosave — client
+ * state, not a passive server cache. The server copy is re-adopted on every
+ * load/save.
  */
 
 const AUTOSAVE_DELAY_MS = 2000
