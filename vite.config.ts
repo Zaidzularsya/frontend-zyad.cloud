@@ -7,11 +7,14 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   build: {
-    chunkSizeWarningLimit: 550,
+    // grapesjs (with backbone + codemirror + underscore) is ~1.1MB minified and
+    // lands in its own chunk, loaded only on the authenticated builder route.
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
           three: ['three'],
+          grapesjs: ['grapesjs', 'grapesjs-blocks-basic'],
         },
       },
     },
