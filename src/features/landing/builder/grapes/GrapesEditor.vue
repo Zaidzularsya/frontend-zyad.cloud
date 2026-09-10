@@ -378,6 +378,9 @@ defineExpose({ editor })
   background: #f8fafc;
   color: #0f172a;
   font-family: 'Inter', 'Segoe UI', sans-serif;
+  /* GrapesJS ships a dark UI; force light so native <select> popups (e.g. the
+     unit picker px/%/em) don't render on a dark ground. */
+  color-scheme: light;
 }
 
 .grapes-topbar {
@@ -715,6 +718,25 @@ defineExpose({ editor })
 .grapes-shell :deep(.gjs-field:focus-within) {
   border-color: #465fff;
   box-shadow: 0 0 0 3px rgba(70, 95, 255, 0.12);
+}
+/* Unit picker + every native <select> / <option> inside the panels: GrapesJS
+   leaves these on its dark theme, so pin them to the light palette. */
+.grapes-shell :deep(.gjs-field-units),
+.grapes-shell :deep(.gjs-field-unit),
+.grapes-shell :deep(.gjs-input-unit),
+.grapes-shell :deep(.gjs-field select),
+.grapes-shell :deep(.gjs-sm-field select),
+.grapes-shell :deep(.gjs-clm-select),
+.grapes-shell :deep(.gjs-select select) {
+  background-color: #ffffff;
+  color: #475569;
+}
+.grapes-shell :deep(.gjs-field option),
+.grapes-shell :deep(.gjs-sm-field option),
+.grapes-shell :deep(.gjs-clm-select option),
+.grapes-shell :deep(.gjs-select option) {
+  background-color: #ffffff;
+  color: #475569;
 }
 .grapes-shell :deep(.gjs-sm-properties) {
   padding: 8px 10px;
