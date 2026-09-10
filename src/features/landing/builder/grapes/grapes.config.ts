@@ -69,7 +69,9 @@ export function buildGrapesConfig(els: GrapesMountEls): EditorConfig {
     width: 'auto',
     fromElement: false,
     storageManager: { type: 'none' },
-    assetManager: { assets: [], upload: false },
+    // Assets + uploads are wired to our media API at runtime in GrapesEditor.vue
+    // (populate via AssetManager.add, override uploadFile, listen for asset:remove).
+    assetManager: { assets: [], upload: false, dropzone: true },
     // Only borrow the flex column primitives; every other block is hand-rolled
     // (grapes.blocks.ts) so the palette stays on-brand.
     plugins: [

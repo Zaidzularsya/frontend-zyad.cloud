@@ -5,9 +5,11 @@ import grapesjs, { type Editor } from 'grapesjs'
 import { Loader2, Monitor, Redo2, Rocket, Smartphone, Tablet, Undo2 } from 'lucide-vue-next'
 import 'grapesjs/dist/css/grapes.min.css'
 
+import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { useLandingDocumentStore } from '@/stores/landingDocument'
 import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
+import { GRAPES_STARTERS, type GrapesStarter } from './starter-templates'
 
 const props = defineProps<{ pageId: string }>()
 
@@ -25,6 +27,8 @@ const rightTab = ref<'styles' | 'traits'>('styles')
 const activeDevice = ref('Desktop')
 const publishing = ref(false)
 const publishNotice = ref('')
+const assetError = ref('')
+const showStarterPicker = ref(false)
 let ready = false
 let saveDebounce: ReturnType<typeof setTimeout> | null = null
 
@@ -62,6 +66,81 @@ function pushSnapshot() {
     html: ed.getHtml(),
     css: ed.getCss() ?? '',
   })
+}
+
+// ── Asset manager ↔ media API ──────────────────────────────────────────────
+// No new endpoints: reuse GET/POST/DELETE /admin/landing/media. GrapesJS' own
+// modal renders the library; we just feed and drain it.
+
+async function handleAssetUpload(e: {
+  dataTransfer?: DataTransfer | null
+  target?: HTMLInputElement | null
+}) {
+  const list = e?.dataTransfer?.files ?? e?.target?.files ?? null
+  const files = list ? Array.from(list).filter((f) => f.type.startsWith('image/')) : []
+  if (e?.target) e.target.value = ''
+  if (!files.length) return
+
+  assetError.value = ''
+  for (const file of files) {
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const { data } = await landingApi.uploadMedia(form)
+      if (data.public_url) {
+        editor.value?.AssetManager.add({
+          type: 'image',
+          src: data.public_url,
+          name: data.filename,
+          mediaId: data.id,
+        })
+      }
+    } catch (err) {
+      assetError.value =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Gagal mengunggah gambar.'
+    }
+  }
+}
+
+async function wireAssetManager(ed: Editor) {
+  const am = ed.AssetManager
+  ;(am.getConfig() as { uploadFile?: (e: unknown) => void }).uploadFile = (e) =>
+    void handleAssetUpload(e as { dataTransfer?: DataTransfer | null; target?: HTMLInputElement })
+
+  ed.on('asset:remove', (asset: { get?: (k: string) => unknown }) => {
+    const mediaId = asset?.get?.('mediaId')
+    if (typeof mediaId === 'string' && mediaId) void landingApi.deleteMedia(mediaId).catch(() => {})
+  })
+
+  try {
+    const media = await landingApi.getMedia({ per_page: 100 })
+    const images = media.data
+      .filter((m) => m.public_url && (m.mime_type ?? '').startsWith('image/'))
+      .map((m) => ({ type: 'image', src: m.public_url as string, name: m.filename, mediaId: m.id }))
+    if (images.length) am.add(images)
+  } catch {
+    // The asset library is best-effort — an empty list is a fine fallback.
+  }
+}
+
+// ── Starter templates (shown only for a blank document) ─────────────────────
+
+function isDocEmpty(): boolean {
+  const project = store.project as { pages?: unknown[] }
+  if (Array.isArray(project?.pages) && project.pages.length > 0) return false
+  const html = (store.html || '').replace(/\s+/g, '')
+  return html === '' || html === '<body></body>'
+}
+
+function applyStarter(starter: GrapesStarter) {
+  showStarterPicker.value = false
+  const ed = editor.value
+  if (!ed) return
+  ed.setComponents(starter.html)
+  ed.setStyle(starter.css)
+  ready = true
+  pushSnapshot()
 }
 
 async function onPublish() {
@@ -111,6 +190,9 @@ onMounted(async () => {
   ) {
     ed.loadProjectData(project)
   }
+
+  void wireAssetManager(ed)
+  showStarterPicker.value = isDocEmpty()
 
   // Let the initial load settle before autosave starts tracking edits.
   window.setTimeout(() => {
@@ -189,8 +271,31 @@ defineExpose({ editor })
     </div>
     <p v-if="publishNotice" class="grapes-notice">{{ publishNotice }}</p>
     <p v-if="store.loadError" class="grapes-notice is-error">{{ store.loadError }}</p>
+    <p v-if="assetError" class="grapes-notice is-error">{{ assetError }}</p>
 
     <div class="grapes-body">
+      <div v-if="showStarterPicker" class="grapes-starter">
+        <div class="grapes-starter-card">
+          <h2>Mulai dari mana?</h2>
+          <p>Pilih kerangka awal — semua isinya bisa diubah setelah dimuat.</p>
+          <div class="grapes-starter-grid">
+            <button
+              v-for="starter in GRAPES_STARTERS"
+              :key="starter.id"
+              type="button"
+              class="grapes-starter-option"
+              @click="applyStarter(starter)"
+            >
+              <span class="grapes-starter-name">{{ starter.label }}</span>
+              <span class="grapes-starter-desc">{{ starter.description }}</span>
+            </button>
+          </div>
+          <button type="button" class="grapes-starter-skip" @click="showStarterPicker = false">
+            Lewati, mulai dari kanvas kosong
+          </button>
+        </div>
+      </div>
+
       <aside class="grapes-left">
         <div class="grapes-tabs">
           <button
@@ -381,6 +486,87 @@ defineExpose({ editor })
   flex: 1;
   display: flex;
   min-height: 0;
+  position: relative;
+}
+
+/* ── Starter picker (blank document) ─────────────────────────────────────── */
+.grapes-starter {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(2px);
+}
+.grapes-starter-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+  text-align: center;
+}
+.grapes-starter-card h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.grapes-starter-card > p {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: #64748b;
+}
+.grapes-starter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.grapes-starter-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.grapes-starter-option:hover {
+  border-color: #465fff;
+  background: #f5f7ff;
+  box-shadow: 0 2px 10px rgba(70, 95, 255, 0.12);
+}
+.grapes-starter-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.grapes-starter-desc {
+  font-size: 11px;
+  color: #64748b;
+}
+.grapes-starter-skip {
+  margin-top: 16px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+}
+.grapes-starter-skip:hover {
+  color: #0f172a;
 }
 .grapes-left,
 .grapes-right {

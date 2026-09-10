@@ -5,15 +5,22 @@ import { createPinia, setActivePinia } from 'pinia'
 // jsdom cannot lay out GrapesJS' iframe canvas — mock the library and assert we
 // hand it the right config + lifecycle. Real drag behaviour is covered by e2e.
 const initMock = vi.fn()
+const assetManagerStub = {
+  add: vi.fn(),
+  getConfig: vi.fn(() => ({}) as Record<string, unknown>),
+}
 const editorStub = {
   getProjectData: vi.fn(() => ({ pages: [] })),
   getHtml: vi.fn(() => '<body></body>'),
   getCss: vi.fn(() => ''),
   loadProjectData: vi.fn(),
+  setComponents: vi.fn(),
+  setStyle: vi.fn(),
   setDevice: vi.fn(),
   runCommand: vi.fn(),
   on: vi.fn(),
   destroy: vi.fn(),
+  AssetManager: assetManagerStub,
 }
 
 vi.mock('grapesjs', () => ({
@@ -31,11 +38,17 @@ vi.mock('vue-router', () => ({ onBeforeRouteLeave: vi.fn() }))
 const getDocument = vi.fn()
 const saveDocument = vi.fn()
 const publishPage = vi.fn()
+const getMedia = vi.fn()
+const uploadMedia = vi.fn()
+const deleteMedia = vi.fn()
 vi.mock('@/features/landing/shared/api/landing.api', () => ({
   landingApi: {
     getDocument: (...a: unknown[]) => getDocument(...a),
     saveDocument: (...a: unknown[]) => saveDocument(...a),
     publishPage: (...a: unknown[]) => publishPage(...a),
+    getMedia: (...a: unknown[]) => getMedia(...a),
+    uploadMedia: (...a: unknown[]) => uploadMedia(...a),
+    deleteMedia: (...a: unknown[]) => deleteMedia(...a),
   },
 }))
 
@@ -52,6 +65,9 @@ describe('GrapesEditor', () => {
     })
     saveDocument.mockResolvedValue({ data: { updated_at: '2026-09-10T00:00:00Z' } })
     publishPage.mockResolvedValue({ data: {} })
+    getMedia.mockResolvedValue({ data: [] })
+    uploadMedia.mockResolvedValue({ data: { public_url: 'https://cdn.test/a.png', id: 'm1' } })
+    deleteMedia.mockResolvedValue({ data: null })
   })
 
   it('initialises grapesjs once with our config on mount', () => {
@@ -104,5 +120,57 @@ describe('GrapesEditor', () => {
     await wrapper.find('.grapes-publish').trigger('click')
     await flush()
     expect(publishPage).toHaveBeenCalledWith('p1')
+  })
+
+  it('wires the asset manager to the media API on mount', async () => {
+    const cfg: Record<string, unknown> = {}
+    assetManagerStub.getConfig.mockReturnValue(cfg)
+    getMedia.mockResolvedValue({
+      data: [
+        {
+          id: 'm1',
+          public_url: 'https://cdn.test/a.png',
+          filename: 'a.png',
+          mime_type: 'image/png',
+        },
+      ],
+    })
+
+    mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+
+    expect(getMedia).toHaveBeenCalled()
+    expect(typeof cfg.uploadFile).toBe('function')
+    expect(assetManagerStub.add).toHaveBeenCalledWith([
+      expect.objectContaining({ type: 'image', src: 'https://cdn.test/a.png', mediaId: 'm1' }),
+    ])
+  })
+
+  it('offers starter templates for a blank document and applies one', async () => {
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+
+    const options = wrapper.findAll('.grapes-starter-option')
+    expect(options.length).toBeGreaterThan(0)
+
+    await options[1]!.trigger('click')
+    expect(editorStub.setComponents).toHaveBeenCalled()
+    expect(editorStub.setStyle).toHaveBeenCalled()
+    expect(wrapper.find('.grapes-starter').exists()).toBe(false)
+  })
+
+  it('hides the starter picker when the document already has content', async () => {
+    getDocument.mockResolvedValue({
+      data: {
+        landing_page_id: 'p1',
+        project: {},
+        html: '<body><h1>Hi</h1></body>',
+        css: '',
+        updated_at: '',
+      },
+    })
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+    expect(wrapper.find('.grapes-starter').exists()).toBe(false)
   })
 })
