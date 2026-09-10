@@ -121,6 +121,7 @@ function normalizePage(result: RawRecord, fallbackSlug: string): LandingPage {
     title: pickString(rawPage, 'title', 'Title', 'name', 'Name'),
     slug: pickString(rawPage, 'slug', 'Slug') || fallbackSlug,
     page_type: 'campaign',
+    builder: (pickString(rawPage, 'builder', 'Builder') as LandingPage['builder']) || 'sections',
     status: 'published',
     visibility: 'public',
     locale: 'id-ID',

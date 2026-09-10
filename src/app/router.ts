@@ -323,14 +323,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Landing Canvas', requiresAuth: true },
   },
   {
-    // TEMPORARY — GrapesJS editor evaluation sandbox (not in the sidebar).
-    // Removed once the GrapesJS builder integration lands.
-    path: '/landing-grapes-sandbox',
-    name: 'landing-grapes-sandbox',
-    component: () => import('@/features/landing/builder/pages/GrapesSandboxPage.vue'),
-    meta: { title: 'GrapesJS Sandbox', requiresAuth: true },
-  },
-  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundPage.vue'),

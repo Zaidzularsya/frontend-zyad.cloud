@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import grapesjs, { type Editor } from 'grapesjs'
-import { Monitor, Redo2, Smartphone, Tablet, Undo2 } from 'lucide-vue-next'
+import { Loader2, Monitor, Redo2, Rocket, Smartphone, Tablet, Undo2 } from 'lucide-vue-next'
 import 'grapesjs/dist/css/grapes.min.css'
 
+import { useLandingDocumentStore } from '@/stores/landingDocument'
 import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
 
-const props = withDefaults(defineProps<{ initial?: { html?: string; css?: string } }>(), {
-  initial: () => ({}),
-})
+const props = defineProps<{ pageId: string }>()
+
+const store = useLandingDocumentStore()
 
 const canvasRef = ref<HTMLElement | null>(null)
 const blocksRef = ref<HTMLElement | null>(null)
@@ -21,8 +23,25 @@ const editor = shallowRef<Editor | null>(null)
 const leftTab = ref<'blocks' | 'layers'>('blocks')
 const rightTab = ref<'styles' | 'traits'>('styles')
 const activeDevice = ref('Desktop')
+const publishing = ref(false)
+const publishNotice = ref('')
+let ready = false
+let saveDebounce: ReturnType<typeof setTimeout> | null = null
 
 const DEVICE_ICONS = { Desktop: Monitor, Tablet, Mobile: Smartphone } as const
+
+const savedLabel = computed(() => {
+  if (store.saving) return 'Menyimpan…'
+  if (store.saveError) return store.saveError
+  if (store.dirty) return 'Belum tersimpan'
+  if (store.lastSavedAt) {
+    return `Tersimpan ${new Date(store.lastSavedAt).toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`
+  }
+  return 'Tersimpan'
+})
 
 function setDevice(name: string) {
   activeDevice.value = name
@@ -35,7 +54,33 @@ function redo() {
   editor.value?.runCommand('core:redo')
 }
 
-onMounted(() => {
+function pushSnapshot() {
+  const ed = editor.value
+  if (!ready || !ed) return
+  store.applyEditorSnapshot({
+    project: ed.getProjectData() as Record<string, unknown>,
+    html: ed.getHtml(),
+    css: ed.getCss() ?? '',
+  })
+}
+
+async function onPublish() {
+  publishing.value = true
+  publishNotice.value = ''
+  try {
+    await store.publish()
+    publishNotice.value = 'Halaman dipublish.'
+  } catch (error) {
+    publishNotice.value =
+      (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal publish.'
+  } finally {
+    publishing.value = false
+    window.setTimeout(() => (publishNotice.value = ''), 4000)
+  }
+}
+
+onMounted(async () => {
   if (
     !canvasRef.value ||
     !blocksRef.value ||
@@ -45,6 +90,7 @@ onMounted(() => {
   ) {
     return
   }
+
   const ed = grapesjs.init(
     buildGrapesConfig({
       container: canvasRef.value,
@@ -54,14 +100,46 @@ onMounted(() => {
       traits: traitsRef.value,
     }),
   )
-  if (props.initial?.html) ed.setComponents(props.initial.html)
-  if (props.initial?.css) ed.setStyle(props.initial.css)
   editor.value = ed
+
+  await store.load(props.pageId)
+  const project = store.project
+  if (
+    project &&
+    typeof project === 'object' &&
+    Array.isArray((project as { pages?: unknown }).pages)
+  ) {
+    ed.loadProjectData(project)
+  }
+
+  // Let the initial load settle before autosave starts tracking edits.
+  window.setTimeout(() => {
+    ready = true
+  }, 400)
+
+  const onChange = () => {
+    if (saveDebounce) clearTimeout(saveDebounce)
+    saveDebounce = setTimeout(pushSnapshot, 600)
+  }
+  ed.on('update', onChange)
+  ed.on('component:update', onChange)
+  ed.on('component:add', onChange)
+  ed.on('component:remove', onChange)
+  ed.on('style:update', onChange)
 })
 
 onBeforeUnmount(() => {
+  if (saveDebounce) clearTimeout(saveDebounce)
   editor.value?.destroy()
   editor.value = null
+  ready = false
+})
+
+onBeforeRouteLeave(() => {
+  if (store.dirty && !window.confirm('Ada perubahan yang belum tersimpan. Tinggalkan halaman?')) {
+    return false
+  }
+  return true
 })
 
 defineExpose({ editor })
@@ -90,8 +168,27 @@ defineExpose({ editor })
         <button type="button" class="grapes-icon-btn" title="Ulangi" @click="redo">
           <Redo2 class="size-4" />
         </button>
+        <span
+          class="grapes-saved"
+          :class="{ 'is-error': !!store.saveError }"
+          :title="store.saveError || undefined"
+        >
+          {{ savedLabel }}
+        </span>
+        <button
+          type="button"
+          class="grapes-publish"
+          :disabled="publishing || store.saving"
+          @click="onPublish"
+        >
+          <Loader2 v-if="publishing" class="size-4 animate-spin" />
+          <Rocket v-else class="size-4" />
+          Publish
+        </button>
       </div>
     </div>
+    <p v-if="publishNotice" class="grapes-notice">{{ publishNotice }}</p>
+    <p v-if="store.loadError" class="grapes-notice is-error">{{ store.loadError }}</p>
 
     <div class="grapes-body">
       <aside class="grapes-left">
@@ -171,7 +268,8 @@ defineExpose({ editor })
 
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: #f8fafc;
   color: #0f172a;
   font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -220,6 +318,63 @@ defineExpose({ editor })
 .grapes-dev-btn.is-active {
   background: #eef4ff;
   color: #465fff;
+}
+.grapes-actions {
+  align-items: center;
+}
+.grapes-saved {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  padding: 0 6px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grapes-saved.is-error {
+  color: #dc2626;
+}
+.grapes-publish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #465fff;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    opacity 0.12s ease;
+}
+.grapes-publish:hover:not(:disabled) {
+  background: #3641f5;
+}
+.grapes-publish:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.grapes-publish :deep(svg) {
+  width: 14px;
+  height: 14px;
+}
+.grapes-notice {
+  margin: 0;
+  padding: 8px 14px;
+  background: #eef4ff;
+  color: #3641f5;
+  font-size: 12px;
+  border-bottom: 1px solid #dbe4ff;
+}
+.grapes-notice.is-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border-bottom-color: #fecaca;
 }
 
 .grapes-body {

@@ -59,12 +59,25 @@ export interface LandingTheme {
   shape?: Record<string, unknown>
 }
 
+/** Which editor authors a landing page's content. */
+export type LandingBuilder = 'sections' | 'grapesjs'
+
+/** GrapesJS working copy of a page (builder === 'grapesjs'). */
+export interface LandingDocument {
+  landing_page_id: string
+  project: Record<string, unknown>
+  html: string
+  css: string
+  updated_at: string
+}
+
 export interface LandingPage {
   id: string
   name: string
   title: string
   slug: string
   page_type: PageType
+  builder: LandingBuilder
   status: PageStatus
   visibility: PageVisibility
   locale: string

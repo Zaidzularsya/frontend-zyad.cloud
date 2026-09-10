@@ -226,7 +226,7 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
       page.key === 'pages'
         ? () => import('../pages/LandingPagesManagementPage.vue')
         : page.key === 'content'
-          ? () => import('../pages/LandingBuilderPage.vue')
+          ? () => import('../pages/LandingContentPage.vue')
           : page.key === 'templates'
             ? () => import('../pages/LandingTemplatesManagementPage.vue')
             : page.key === 'domains'

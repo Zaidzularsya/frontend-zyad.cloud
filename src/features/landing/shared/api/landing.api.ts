@@ -5,6 +5,7 @@ import type {
   LandingAvailableDomain,
   LandingBranding,
   LandingDeliveryLog,
+  LandingDocument,
   LandingDomainBinding,
   LandingForm,
   LandingFormField,
@@ -45,6 +46,7 @@ function normalizePage(raw: RawRecord): LandingPage {
     title: pick(raw, 'title', 'Title', ''),
     slug: pick(raw, 'slug', 'Slug', ''),
     page_type: pick(raw, 'page_type', 'Type', 'homepage'),
+    builder: pick(raw, 'builder', 'Builder', 'sections'),
     status: pick(raw, 'status', 'Status', 'draft'),
     visibility: pick(raw, 'visibility', 'Visibility', 'public'),
     locale: pick(raw, 'locale', 'Locale', 'id-ID'),
@@ -175,6 +177,17 @@ function normalizeTemplate(raw: RawRecord): SectionTemplate {
     content: pick(raw, 'content', 'Content', {}),
     style: pick(raw, 'style', 'Style', {}),
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
+    updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
+  }
+}
+
+function normalizeDocument(raw: RawRecord): LandingDocument {
+  const project = pick(raw, 'project', 'Project', {})
+  return {
+    landing_page_id: pick(raw, 'landing_page_id', 'LandingPageID', ''),
+    project: project && typeof project === 'object' ? (project as Record<string, unknown>) : {},
+    html: pick(raw, 'html', 'HTML', ''),
+    css: pick(raw, 'css', 'CSS', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
   }
 }
@@ -488,6 +501,19 @@ export const landingApi = {
       data,
     )
     return { ...response, data: response.data.map(normalizeSection) }
+  },
+
+  // ── GrapesJS builder (builder === 'grapesjs') ────────────────────────────
+  getDocument: async (id: string) => {
+    const response = await getBase<RawRecord>(`/admin/landing-pages/${id}/document`)
+    return { ...response, data: normalizeDocument(response.data) }
+  },
+  saveDocument: async (
+    id: string,
+    payload: { project: Record<string, unknown>; html: string; css: string },
+  ) => {
+    const response = await putData<RawRecord>(`/admin/landing-pages/${id}/document`, payload)
+    return { ...response, data: normalizeDocument(response.data) }
   },
 
   getForms: async (id: string) => {

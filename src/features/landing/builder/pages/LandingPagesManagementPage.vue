@@ -689,7 +689,9 @@ async function savePage() {
       })
       showNotice('Draft berhasil dibuat dari template.')
     } else {
-      await landingApi.createPage(payload)
+      // New pages are authored with the GrapesJS visual builder; the legacy
+      // section builder stays available only for pages created before the pivot.
+      await landingApi.createPage({ ...payload, builder: 'grapesjs' })
       showNotice('Landing page custom berhasil dibuat.')
     }
 
