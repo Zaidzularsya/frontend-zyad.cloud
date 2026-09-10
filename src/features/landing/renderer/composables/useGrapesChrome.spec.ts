@@ -66,6 +66,7 @@ describe('buildGrapesChrome', () => {
       'Home',
     )
 
+    expect(chrome.brand).toEqual({ name: 'Acme', logoUrl: '/logo.png' })
     expect(chrome.footer?.brandName).toBe('Acme')
     expect(chrome.footer?.logoUrl).toBe('/logo.png')
     expect(chrome.footer?.copyright).toBe('© 2026 Acme')

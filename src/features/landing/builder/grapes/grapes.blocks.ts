@@ -126,23 +126,22 @@ const footerBlock = `
   </footer>`
 
 // ── Tenant chrome (live) ───────────────────────────────────────────────────
-// Sentinels: their innerHTML is (re)built at render time from the tenant's live
-// menu + branding by GrapesPageFrame, so editing the tenant menu updates every
-// GrapesJS page without re-publishing. Locked in the editor; the placeholder
-// span is replaced on the public page. Only `data-zyad-slot` survives the
-// backend HTML sanitiser — the `data-gjs-*` hints are editor-only.
-const tenantNavBlock = `<div data-zyad-slot="tenant-nav" data-gjs-name="Navigasi tenant" data-gjs-editable="false" data-gjs-droppable="false" data-gjs-copyable="false"><span style="display:block;padding:14px 24px;border:1px dashed #c7d2fe;border-radius:8px;color:#64748b;font-size:13px;font-family:system-ui,sans-serif">Navigasi tenant — terisi otomatis dari menu &amp; brand saat halaman tayang</span></div>`
-
+// The "Header tenant" block drops the `zyad-tenant-header` component
+// (grapes.header-component.ts): a locked component that renders a LIVE preview
+// (logo + nav + action) from the tenant menu + branding in the canvas, and
+// exports to `<div data-zyad-slot="tenant-nav" data-zyad-header='…'>`. The
+// footer sentinel's innerHTML is (re)built at render time by GrapesPageFrame /
+// document_ssr.go — only `data-zyad-slot` survives the backend HTML sanitiser.
 const tenantFooterBlock = `<div data-zyad-slot="tenant-footer" data-gjs-name="Footer tenant" data-gjs-editable="false" data-gjs-droppable="false" data-gjs-copyable="false"><span style="display:block;padding:14px 24px;border:1px dashed #c7d2fe;border-radius:8px;color:#64748b;font-size:13px;font-family:system-ui,sans-serif">Footer tenant — terisi otomatis dari menu footer &amp; brand saat halaman tayang</span></div>`
 
 export const GRAPES_BLOCKS: GrapesBlockDef[] = [
   // ── Tenant ───────────────────────────────────────────────────────────────
   {
-    id: 'tenant-nav',
-    label: 'Navigasi tenant',
+    id: 'tenant-header',
+    label: 'Header tenant',
     category: 'Tenant',
     media: icon('menu'),
-    content: tenantNavBlock,
+    content: { type: 'zyad-tenant-header' },
   },
   {
     id: 'tenant-footer',

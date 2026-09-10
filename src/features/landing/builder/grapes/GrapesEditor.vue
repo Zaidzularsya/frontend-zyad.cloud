@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import grapesjs, { type Editor } from 'grapesjs'
 import { Loader2, Monitor, Redo2, Rocket, Smartphone, Tablet, Undo2 } from 'lucide-vue-next'
@@ -7,13 +7,24 @@ import 'grapesjs/dist/css/grapes.min.css'
 
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { useLandingDocumentStore } from '@/stores/landingDocument'
+import { useLandingChromeStore } from '@/stores/landingChrome'
 import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
 import { GRAPES_STARTERS, type GrapesStarter } from './starter-templates'
+import { registerTenantHeader, TENANT_HEADER_TYPE } from './grapes.header-component'
+import GrapesHeaderPanel from './GrapesHeaderPanel.vue'
 
 const props = defineProps<{ pageId: string }>()
 
 const store = useLandingDocumentStore()
+const chrome = useLandingChromeStore()
+
+// The selected `zyad-tenant-header` component (if any) → swaps the right pane
+// for GrapesHeaderPanel. Typed loosely: it's a GrapesJS component model.
+const headerComponent = shallowRef<{
+  getAttributes: () => Record<string, string>
+  addAttributes: (attrs: Record<string, string>) => void
+} | null>(null)
 
 const canvasRef = ref<HTMLElement | null>(null)
 const blocksRef = ref<HTMLElement | null>(null)
@@ -181,6 +192,24 @@ onMounted(async () => {
   )
   editor.value = ed
 
+  // Live tenant header: the canvas preview reads menu + branding straight from
+  // the chrome store (kept fresh below via a watch).
+  registerTenantHeader(ed, () => ({
+    nav: chrome.canvasNav,
+    brandName: chrome.canvasBranding.companyName,
+    logoUrl: chrome.canvasBranding.logoUrl,
+  }))
+  void chrome.load()
+
+  ed.on('component:selected', (component: unknown) => {
+    const model = component as { get?: (k: string) => unknown } | undefined
+    headerComponent.value =
+      model?.get?.('type') === TENANT_HEADER_TYPE ? (component as never) : null
+  })
+  ed.on('component:deselected', () => {
+    headerComponent.value = null
+  })
+
   await store.load(props.pageId)
   const project = store.project
   if (
@@ -209,6 +238,20 @@ onMounted(async () => {
   ed.on('component:remove', onChange)
   ed.on('style:update', onChange)
 })
+
+/** Re-render every tenant-header preview when the tenant menu / branding changes. */
+watch(
+  () => [chrome.canvasNav, chrome.canvasBranding],
+  () => {
+    editor.value
+      ?.getWrapper()
+      ?.find(`[data-zyad-slot="tenant-nav"]`)
+      .forEach((component) => {
+        ;(component as unknown as { view?: { render: () => void } }).view?.render()
+      })
+  },
+  { deep: true },
+)
 
 onBeforeUnmount(() => {
   if (saveDebounce) clearTimeout(saveDebounce)
@@ -320,7 +363,9 @@ defineExpose({ editor })
       <div ref="canvasRef" class="grapes-canvas"></div>
 
       <aside class="grapes-right">
-        <div class="grapes-tabs">
+        <!-- GrapesJS style / trait managers stay mounted; just hidden while the
+             tenant-header panel is up so the editor keeps its append targets. -->
+        <div v-show="!headerComponent" class="grapes-tabs">
           <button
             type="button"
             :class="{ 'is-active': rightTab === 'styles' }"
@@ -336,8 +381,22 @@ defineExpose({ editor })
             Setelan
           </button>
         </div>
-        <div v-show="rightTab === 'styles'" ref="stylesRef" class="grapes-pane"></div>
-        <div v-show="rightTab === 'traits'" ref="traitsRef" class="grapes-pane"></div>
+        <div
+          v-show="!headerComponent && rightTab === 'styles'"
+          ref="stylesRef"
+          class="grapes-pane"
+        ></div>
+        <div
+          v-show="!headerComponent && rightTab === 'traits'"
+          ref="traitsRef"
+          class="grapes-pane"
+        ></div>
+
+        <GrapesHeaderPanel
+          v-if="headerComponent"
+          :component="headerComponent"
+          class="grapes-pane"
+        />
       </aside>
     </div>
   </div>

@@ -26,11 +26,51 @@ export interface GrapesChromeLink {
 }
 export interface GrapesChrome {
   nav?: GrapesChromeLink[]
+  /** Tenant brand for the header sentinel (logo + name next to the nav). */
+  brand?: { name?: string; logoUrl?: string }
   footer?: {
     brandName?: string
     logoUrl?: string
     copyright?: string
     columns?: { title: string; links: GrapesChromeLink[] }[]
+  }
+}
+
+interface HeaderPresentation {
+  sticky: boolean
+  variant: 'solid' | 'transparent' | 'glass'
+  align: 'left' | 'center' | 'right'
+  showAction: boolean
+  actionLabel: string
+  actionUrl: string
+}
+
+function readHeaderPresentation(slot: Element): HeaderPresentation {
+  const d: HeaderPresentation = {
+    sticky: true,
+    variant: 'solid',
+    align: 'left',
+    showAction: true,
+    actionLabel: 'Masuk',
+    actionUrl: '/login',
+  }
+  let p: Partial<HeaderPresentation> = {}
+  try {
+    p = JSON.parse(slot.getAttribute('data-zyad-header') || '{}') as Partial<HeaderPresentation>
+  } catch {
+    p = {}
+  }
+  return {
+    sticky: typeof p.sticky === 'boolean' ? p.sticky : d.sticky,
+    variant: ['solid', 'transparent', 'glass'].includes(p.variant as string)
+      ? (p.variant as HeaderPresentation['variant'])
+      : d.variant,
+    align: ['left', 'center', 'right'].includes(p.align as string)
+      ? (p.align as HeaderPresentation['align'])
+      : d.align,
+    showAction: typeof p.showAction === 'boolean' ? p.showAction : d.showAction,
+    actionLabel: typeof p.actionLabel === 'string' ? p.actionLabel : d.actionLabel,
+    actionUrl: typeof p.actionUrl === 'string' ? p.actionUrl : d.actionUrl,
   }
 }
 
@@ -78,13 +118,51 @@ function appendLinks(doc: Document, parent: HTMLElement, links: GrapesChromeLink
   })
 }
 
-function fillNav(doc: Document, slot: Element, nav: GrapesChromeLink[]) {
-  const el = doc.createElement('nav')
-  el.className = 'zyad-tenant-nav'
-  appendLinks(doc, el, nav)
+function fillHeader(
+  doc: Document,
+  slot: Element,
+  nav: GrapesChromeLink[],
+  brand: NonNullable<GrapesChrome['brand']>,
+) {
+  const p = readHeaderPresentation(slot)
+
+  const bar = doc.createElement('div')
+  bar.className = `zyad-tenant-header zyad-tenant-header--${p.variant} zyad-tenant-header--${p.align}`
+  if (p.sticky) bar.classList.add('zyad-tenant-header--sticky')
+
+  const brandEl = doc.createElement('a')
+  brandEl.className = 'zyad-tenant-header__brand'
+  brandEl.setAttribute('href', '/')
+  if (brand.logoUrl) {
+    const img = doc.createElement('img')
+    img.setAttribute('src', safeHref(brand.logoUrl))
+    img.setAttribute('alt', brand.name || '')
+    brandEl.appendChild(img)
+  }
+  if (brand.name) {
+    const span = doc.createElement('span')
+    span.textContent = brand.name
+    brandEl.appendChild(span)
+  }
+  bar.appendChild(brandEl)
+
+  const navEl = doc.createElement('nav')
+  navEl.className = 'zyad-tenant-header__nav'
+  appendLinks(doc, navEl, nav)
+  bar.appendChild(navEl)
+
+  if (p.showAction && (p.actionLabel || p.actionUrl)) {
+    const action = doc.createElement('a')
+    action.className = 'zyad-tenant-header__action'
+    action.setAttribute('href', safeHref(p.actionUrl))
+    action.textContent = p.actionLabel || 'Masuk'
+    bar.appendChild(action)
+  }
+
   slot.removeAttribute('style')
+  slot.removeAttribute('data-zyad-header')
   slot.setAttribute('class', 'zyad-slot zyad-slot--nav')
-  slot.replaceChildren(el)
+  slot.replaceChildren(bar)
 }
 
 function fillFooter(doc: Document, slot: Element, footer: NonNullable<GrapesChrome['footer']>) {
@@ -145,13 +223,13 @@ const bodyHtml = computed(() => {
   })
 
   const chrome = props.chrome
-  if (!chrome || (!chrome.nav?.length && !chrome.footer)) return clean
+  if (!chrome || (!chrome.nav?.length && !chrome.brand && !chrome.footer)) return clean
 
   const parsed = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html')
-  if (chrome.nav?.length) {
+  if (chrome.nav?.length || chrome.brand) {
     parsed.body
       .querySelectorAll('[data-zyad-slot="tenant-nav"]')
-      .forEach((slot) => fillNav(parsed, slot, chrome.nav as GrapesChromeLink[]))
+      .forEach((slot) => fillHeader(parsed, slot, chrome.nav ?? [], chrome.brand ?? {}))
   }
   if (chrome.footer) {
     parsed.body
@@ -162,9 +240,20 @@ const bodyHtml = computed(() => {
 })
 
 const CHROME_CSS = `
-.zyad-tenant-nav{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;padding:16px 24px;border-bottom:1px solid #e2e8f0}
-.zyad-tenant-nav a{color:#0f172a;text-decoration:none;font-size:14px;font-weight:500}
-.zyad-tenant-nav a:hover{color:#465fff}
+.zyad-tenant-header{display:flex;align-items:center;gap:24px;padding:14px 24px;font-family:'Inter','Segoe UI',system-ui,sans-serif}
+.zyad-tenant-header--solid{background:#fff;border-bottom:1px solid #e5e7eb}
+.zyad-tenant-header--glass{background:rgba(255,255,255,.72);backdrop-filter:blur(8px);border-bottom:1px solid #e5e7eb}
+.zyad-tenant-header--transparent{background:transparent}
+.zyad-tenant-header--sticky{position:sticky;top:0;z-index:50}
+.zyad-tenant-header--left{justify-content:space-between}
+.zyad-tenant-header--center{justify-content:center}
+.zyad-tenant-header--right{justify-content:flex-end}
+.zyad-tenant-header__brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#0f172a;text-decoration:none;font-size:16px}
+.zyad-tenant-header__brand img{height:28px;width:auto;display:block}
+.zyad-tenant-header__nav{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.zyad-tenant-header__nav a{color:#475569;text-decoration:none;font-size:14px;font-weight:500}
+.zyad-tenant-header__nav a:hover{color:#465fff}
+.zyad-tenant-header__action{display:inline-block;padding:9px 18px;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
 .zyad-tenant-footer{padding:48px 24px;background:#0f172a;color:#cbd5e1;font-size:14px}
 .zyad-tenant-footer__top{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between}
 .zyad-tenant-footer__brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:16px}

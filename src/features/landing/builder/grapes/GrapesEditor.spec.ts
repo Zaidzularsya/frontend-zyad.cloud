@@ -21,6 +21,8 @@ const editorStub = {
   on: vi.fn(),
   destroy: vi.fn(),
   AssetManager: assetManagerStub,
+  Components: { addType: vi.fn() },
+  getWrapper: vi.fn(() => ({ find: vi.fn(() => []) })),
 }
 
 vi.mock('grapesjs', () => ({
@@ -41,6 +43,9 @@ const publishPage = vi.fn()
 const getMedia = vi.fn()
 const uploadMedia = vi.fn()
 const deleteMedia = vi.fn()
+const getMenus = vi.fn()
+const getDefaultBranding = vi.fn()
+const getMenuItems = vi.fn()
 vi.mock('@/features/landing/shared/api/landing.api', () => ({
   landingApi: {
     getDocument: (...a: unknown[]) => getDocument(...a),
@@ -49,6 +54,9 @@ vi.mock('@/features/landing/shared/api/landing.api', () => ({
     getMedia: (...a: unknown[]) => getMedia(...a),
     uploadMedia: (...a: unknown[]) => uploadMedia(...a),
     deleteMedia: (...a: unknown[]) => deleteMedia(...a),
+    getMenus: (...a: unknown[]) => getMenus(...a),
+    getDefaultBranding: (...a: unknown[]) => getDefaultBranding(...a),
+    getMenuItems: (...a: unknown[]) => getMenuItems(...a),
   },
 }))
 
@@ -68,6 +76,9 @@ describe('GrapesEditor', () => {
     getMedia.mockResolvedValue({ data: [] })
     uploadMedia.mockResolvedValue({ data: { public_url: 'https://cdn.test/a.png', id: 'm1' } })
     deleteMedia.mockResolvedValue({ data: null })
+    getMenus.mockResolvedValue({ data: [] })
+    getDefaultBranding.mockResolvedValue({ data: { company_name: 'Acme', colors: {} } })
+    getMenuItems.mockResolvedValue({ data: [] })
   })
 
   it('initialises grapesjs once with our config on mount', () => {

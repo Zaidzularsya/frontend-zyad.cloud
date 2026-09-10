@@ -14,6 +14,7 @@ export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): Gra
   const footer = useFooterContent(result, fallbackTitle)
   return {
     nav: headerLinks(result),
+    brand: { name: footer.brandName, logoUrl: footer.logoUrl },
     footer: {
       brandName: footer.brandName,
       logoUrl: footer.logoUrl,

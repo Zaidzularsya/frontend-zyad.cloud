@@ -57,12 +57,13 @@ describe('GrapesPageFrame', () => {
     expect(wrapper.get('iframe').classes()).toContain('grapes-page-frame')
   })
 
-  it('fills the tenant-nav sentinel from live chrome data', () => {
+  it('fills the tenant-nav sentinel with the live header (brand + nav + action)', () => {
     const wrapper = mount(GrapesPageFrame, {
       props: {
-        html: '<div data-zyad-slot="tenant-nav" style="border:1px dashed red"><span>placeholder</span></div><p>body</p>',
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"sticky":true,"variant":"glass","align":"center","showAction":true,"actionLabel":"Masuk","actionUrl":"/login"}' style="border:1px dashed red"><span>placeholder</span></div><p>body</p>`,
         css: '',
         chrome: {
+          brand: { name: 'Acme', logoUrl: 'https://cdn.test/logo.png' },
           nav: [
             { label: 'Harga', href: '/pricing' },
             { label: 'Blog', href: 'https://blog.test', target: 'new_tab' },
@@ -72,15 +73,37 @@ describe('GrapesPageFrame', () => {
     })
 
     const doc = srcdocOf(wrapper)
-    expect(doc).toContain('class="zyad-tenant-nav"')
+    expect(doc).toContain('zyad-tenant-header--glass')
+    expect(doc).toContain('zyad-tenant-header--center')
+    expect(doc).toContain('zyad-tenant-header--sticky')
+    expect(doc).toContain('class="zyad-tenant-header__brand"')
+    expect(doc).toContain('src="https://cdn.test/logo.png"')
+    expect(doc).toContain('>Acme<')
     expect(doc).toContain('href="/pricing"')
     expect(doc).toContain('>Harga<')
     expect(doc).toContain('href="https://blog.test"')
     expect(doc).toContain('target="_blank"')
+    expect(doc).toContain('class="zyad-tenant-header__action"')
+    expect(doc).toContain('>Masuk<')
     // Placeholder + its inline style are replaced.
     expect(doc).not.toContain('placeholder')
     expect(doc).not.toContain('dashed red')
     expect(doc).toContain('<p>body</p>')
+  })
+
+  it('honours header presentation (no sticky / no action)', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"sticky":false,"variant":"transparent","align":"left","showAction":false,"actionLabel":"x","actionUrl":"/x"}'></div>`,
+        css: '',
+        chrome: { brand: { name: 'Acme' }, nav: [] },
+      },
+    })
+    const doc = srcdocOf(wrapper)
+    expect(doc).toContain(
+      'class="zyad-tenant-header zyad-tenant-header--transparent zyad-tenant-header--left"',
+    )
+    expect(doc).not.toContain('class="zyad-tenant-header__action"')
   })
 
   it('drops unsafe hrefs in chrome links', () => {
