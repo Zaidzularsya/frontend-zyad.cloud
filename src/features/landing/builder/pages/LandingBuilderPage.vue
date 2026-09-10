@@ -249,7 +249,7 @@ onBeforeRouteLeave(() => {
         class="overflow-auto rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
       >
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          {{ headerSelected ? 'Header & Brand' : 'Properti section' }}
+          {{ headerSelected ? 'Header' : 'Properti section' }}
         </p>
         <HeaderSectionPanel
           v-if="headerSelected && selectedSection"

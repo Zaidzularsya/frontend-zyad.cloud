@@ -119,4 +119,22 @@ describe('useLandingChromeStore', () => {
     expect(updateDefaultBranding).toHaveBeenCalledWith({ company_name: 'Beta' })
     expect(store.branding?.company_name).toBe('Beta')
   })
+
+  it('brandDraft overlays canvasBranding for live preview and clears on save', async () => {
+    getMenus.mockResolvedValue({ data: [{ id: 'm-head', location: 'header', is_active: true }] })
+    updateDefaultBranding.mockResolvedValue({ data: { ...branding, company_name: 'Gamma' } })
+
+    const store = useLandingChromeStore()
+    await store.load()
+    expect(store.canvasBranding.companyName).toBe('Acme')
+
+    store.setBrandDraft({ company_name: 'Draft Co', logo_dark_url: '/dark.png' })
+    expect(store.canvasBranding).toMatchObject({
+      companyName: 'Draft Co',
+      logoDarkUrl: '/dark.png',
+    })
+
+    await store.saveBranding({ company_name: 'Gamma' })
+    expect(store.canvasBranding.companyName).toBe('Gamma')
+  })
 })

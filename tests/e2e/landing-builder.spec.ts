@@ -187,11 +187,12 @@ test('adds a Header section and edits the tenant-wide menu', async ({ page }) =>
   // It lands on the canvas as a real section, auto-selected → Header panel opens.
   const canvas = page.frameLocator('iframe[title="Canvas landing page"]')
   await expect(canvas.locator('.header-section')).toBeVisible()
-  const propertyPanel = page.locator('aside').filter({ hasText: 'Header & Brand' })
-  await expect(propertyPanel.getByText('Tampilan header (halaman ini)')).toBeVisible()
+  const propertyPanel = page.locator('aside').filter({ hasText: 'Brand & Logo' })
+  await expect(propertyPanel.getByText('Navigation', { exact: true })).toBeVisible()
 
-  // Expand "Navigasi (semua halaman)" and add an item → POST creates menu + item.
-  await propertyPanel.getByText('Navigasi (semua halaman)').click()
+  // The Navigation area is open by default; reveal the add-item form, then add an
+  // item → POST creates the header menu + the item.
+  await propertyPanel.getByRole('button', { name: 'Tambah item' }).click()
   const createMenu = page.waitForRequest(
     (r) => r.method() === 'POST' && /\/admin\/landing\/menus$/.test(r.url()),
   )

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Trash2 } from 'lucide-vue-next'
+import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import {
   buildDestination,
   destinationForApi,
   formFromItem,
+  hrefForItem,
   normalizeLinkType,
   type NavLinkType,
 } from '@/features/landing/shared/nav/destination'
@@ -68,6 +69,7 @@ const topLevelItems = computed(() =>
 // ── Nav item editor ─────────────────────────────────────────────────────────
 const publishedPages = ref<LandingPage[]>([])
 const editingId = ref('')
+const showItemForm = ref(false)
 const itemForm = reactive({
   label: '',
   link_type: 'internal_page' as NavLinkType,
@@ -108,6 +110,18 @@ function resetItemForm() {
   itemForm.is_enabled = true
 }
 
+function startAddItem() {
+  resetItemForm()
+  formError.value = ''
+  showItemForm.value = true
+}
+
+function cancelItemForm() {
+  resetItemForm()
+  formError.value = ''
+  showItemForm.value = false
+}
+
 function editItem(item: LandingMenuItem) {
   editingId.value = item.id
   const f = formFromItem(item)
@@ -118,6 +132,12 @@ function editItem(item: LandingMenuItem) {
   itemForm.externalUrl = f.externalUrl
   itemForm.target = item.target || 'self'
   itemForm.is_enabled = item.is_enabled
+  formError.value = ''
+  showItemForm.value = true
+}
+
+function destinationLabel(item: LandingMenuItem) {
+  return hrefForItem(item) || '—'
 }
 
 const formError = ref('')
@@ -166,10 +186,13 @@ async function submitItem() {
   }
   if (editingId.value) await store.updateNavItem(editingId.value, payload)
   else await store.addNavItem(payload)
-  if (!store.saveError) resetItemForm()
+  if (!store.saveError) {
+    resetItemForm()
+    showItemForm.value = false
+  }
 }
 
-// ── Brand editor (tenant-wide, persisted immediately on "Simpan brand") ──────
+// ── Brand editor (tenant-wide, persisted on "Simpan brand"; live-previewed) ──
 const brand = reactive({
   company_name: '',
   tagline: '',
@@ -204,6 +227,16 @@ function seedBrand() {
 
 watch(() => store.branding, seedBrand, { immediate: true })
 
+// Live-preview brand name / logos in the canvas before "Simpan brand" persists.
+watch(
+  () => ({
+    company_name: brand.company_name,
+    logo_light_url: brand.logo_light_url,
+    logo_dark_url: brand.logo_dark_url,
+  }),
+  (draft) => store.setBrandDraft(draft),
+)
+
 async function saveBrand() {
   const existingColors = (store.branding?.colors ?? {}) as Record<string, unknown>
   const existingTypo = (store.branding?.typography ?? {}) as Record<string, unknown>
@@ -234,202 +267,184 @@ async function saveBrand() {
 
 const inputCls =
   'mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950'
-const areaTitleCls = 'text-[11px] font-semibold uppercase tracking-wide text-gray-400'
-const subTitleCls = 'text-xs font-medium text-gray-500'
+const summaryCls =
+  'flex cursor-pointer select-none items-center justify-between py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500'
 const checkboxRowCls = 'flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300'
+const hintCls = 'text-[11px] leading-snug text-gray-400'
+const iconBtnCls =
+  'rounded p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 dark:hover:text-gray-200'
 </script>
 
 <template>
-  <div class="space-y-5">
-    <p v-if="store.saveError" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+  <div>
+    <p v-if="store.saveError" class="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
       {{ store.saveError }}
     </p>
     <p
       v-if="store.readOnly"
-      class="rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800"
+      class="mb-2 rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800"
     >
       Mode baca saja — Anda tidak punya izin mengubah navigasi / brand.
     </p>
 
-    <!-- ── Area 1 · Logo & Brand ──────────────────────────────────────────── -->
-    <section class="space-y-3">
-      <h4 :class="areaTitleCls">Logo &amp; Brand</h4>
-
-      <LogoUploadField
-        :model-value="cval('logoUrl', '')"
-        label="Logo halaman ini (override)"
-        hint="Kosongkan untuk memakai logo brand di bawah."
-        @update:model-value="patchHeaderField('logoUrl', $event)"
-      />
-
-      <div class="space-y-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-        <p :class="subTitleCls">Brand — berlaku di semua halaman</p>
-        <label class="block text-xs text-gray-500">
-          Nama brand
-          <input v-model="brand.company_name" :class="inputCls" />
-        </label>
-        <label class="block text-xs text-gray-500">
-          Tagline
-          <input v-model="brand.tagline" :class="inputCls" />
-        </label>
-        <LogoUploadField v-model="brand.logo_light_url" label="Logo utama (mode terang)" />
-        <LogoUploadField v-model="brand.logo_dark_url" label="Logo mode gelap (opsional)" />
+    <!-- ── Brand & Logo ──────────────────────────────────────────────────── -->
+    <details class="group" open>
+      <summary :class="summaryCls">
+        Brand &amp; Logo
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="space-y-3 pb-3">
         <div>
-          <span class="text-xs font-medium text-gray-500">Warna primary</span>
-          <ColorField v-model="brand.primary" class="mt-1" />
-        </div>
-        <div>
-          <span class="text-xs font-medium text-gray-500">Warna secondary</span>
-          <ColorField v-model="brand.secondary" class="mt-1" />
-        </div>
-        <div>
-          <span class="text-xs font-medium text-gray-500">Warna accent</span>
-          <ColorField v-model="brand.accent" class="mt-1" />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <label class="block text-xs text-gray-500">
-            Font judul
-            <input v-model="brand.heading_font" :class="inputCls" placeholder="Inter" />
-          </label>
-          <label class="block text-xs text-gray-500">
-            Font isi
-            <input v-model="brand.body_font" :class="inputCls" placeholder="Inter" />
-          </label>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <label class="block text-xs text-gray-500">
-            Email kontak
-            <input v-model="brand.email" :class="inputCls" />
-          </label>
-          <label class="block text-xs text-gray-500">
-            Telepon
-            <input v-model="brand.phone" :class="inputCls" />
-          </label>
-        </div>
-        <button
-          type="button"
-          class="rounded border px-3 py-1.5 text-xs font-semibold hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
-          :disabled="store.saving || store.readOnly"
-          @click="saveBrand"
-        >
-          Simpan brand
-        </button>
-      </div>
-    </section>
-
-    <!-- ── Area 2 · Navigation ────────────────────────────────────────────── -->
-    <section class="space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">
-      <h4 :class="areaTitleCls">Navigation</h4>
-
-      <div class="grid grid-cols-2 gap-2">
-        <label class="block text-xs text-gray-500">
-          Posisi menu
-          <select
-            :value="cval('alignment', 'center')"
-            :class="inputCls"
-            @change="patchHeaderField('alignment', ($event.target as HTMLSelectElement).value)"
-          >
-            <option v-for="o in alignmentOpts" :key="o.value" :value="o.value">
-              {{ o.label }}
-            </option>
-          </select>
-        </label>
-        <label class="block text-xs text-gray-500">
-          Gaya latar
-          <select
-            :value="cval('variant', 'solid')"
-            :class="inputCls"
-            @change="patchHeaderField('variant', ($event.target as HTMLSelectElement).value)"
-          >
-            <option v-for="o in variantOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
-          </select>
-        </label>
-        <label class="block text-xs text-gray-500">
-          Bayangan
-          <select
-            :value="cval('shadow', 'sm')"
-            :class="inputCls"
-            @change="patchHeaderField('shadow', ($event.target as HTMLSelectElement).value)"
-          >
-            <option v-for="o in shadowOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
-          </select>
-        </label>
-        <label class="block text-xs text-gray-500">
-          Lebar bar
-          <select
-            :value="cval('width', 'container')"
-            :class="inputCls"
-            @change="patchHeaderField('width', ($event.target as HTMLSelectElement).value)"
-          >
-            <option v-for="o in widthOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="space-y-1.5">
-        <label :class="checkboxRowCls">
-          <input
-            type="checkbox"
-            :checked="cval<boolean>('sticky', true) !== false"
-            @change="patchHeaderField('sticky', ($event.target as HTMLInputElement).checked)"
+          <LogoUploadField
+            :model-value="cval('logoUrl', '')"
+            label="Logo halaman ini"
+            hint="Kosongkan untuk memakai logo utama brand."
+            @update:model-value="patchHeaderField('logoUrl', $event)"
           />
-          Sticky (menempel saat scroll)
-        </label>
-        <label :class="checkboxRowCls">
-          <input
-            type="checkbox"
-            :checked="cval<boolean>('hideOnScroll', false) === true"
-            @change="patchHeaderField('hideOnScroll', ($event.target as HTMLInputElement).checked)"
-          />
-          Sembunyikan saat scroll ke bawah
-        </label>
-      </div>
+          <p class="mt-1 text-[10px] uppercase tracking-wide text-gray-400">
+            Halaman ini · tersimpan otomatis
+          </p>
+        </div>
 
-      <div class="space-y-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-        <p :class="subTitleCls">Item menu — berlaku di semua halaman</p>
-        <ul v-if="topLevelItems.length" class="space-y-1.5">
+        <div class="space-y-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+          <p class="text-xs font-medium text-gray-500">Brand — berlaku di semua halaman</p>
+          <label class="block text-xs text-gray-500">
+            Nama brand
+            <input v-model="brand.company_name" :class="inputCls" placeholder="Zyad Technovation" />
+          </label>
+          <p :class="hintCls">
+            Perubahan langsung tampil di preview. Klik “Simpan brand” untuk menyimpan permanen.
+          </p>
+          <LogoUploadField v-model="brand.logo_light_url" label="Logo utama" />
+          <LogoUploadField
+            v-model="brand.logo_dark_url"
+            label="Logo mode gelap"
+            hint="Dipakai header saat gaya latar Transparan / Glass."
+          />
+
+          <details class="group/theme">
+            <summary
+              class="flex cursor-pointer select-none items-center justify-between py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400"
+            >
+              Tema situs (semua halaman)
+              <ChevronDown class="size-3.5 transition-transform group-open/theme:rotate-180" />
+            </summary>
+            <div class="space-y-3 pt-2">
+              <div>
+                <span class="text-xs font-medium text-gray-500">Warna primary</span>
+                <ColorField v-model="brand.primary" class="mt-1" />
+                <p :class="hintCls">Warna tombol CTA &amp; aksen utama.</p>
+              </div>
+              <div>
+                <span class="text-xs font-medium text-gray-500">Warna secondary</span>
+                <ColorField v-model="brand.secondary" class="mt-1" />
+              </div>
+              <div>
+                <span class="text-xs font-medium text-gray-500">Warna accent</span>
+                <ColorField v-model="brand.accent" class="mt-1" />
+              </div>
+              <p :class="hintCls">Secondary &amp; accent belum diterapkan ke section (menyusul).</p>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block text-xs text-gray-500">
+                  Font judul
+                  <input v-model="brand.heading_font" :class="inputCls" placeholder="Inter" />
+                </label>
+                <label class="block text-xs text-gray-500">
+                  Font isi
+                  <input v-model="brand.body_font" :class="inputCls" placeholder="Inter" />
+                </label>
+              </div>
+              <p :class="hintCls">
+                Font tema seluruh situs (judul vs isi). Navbar mengikuti font isi. Belum diterapkan
+                ke section (menyusul).
+              </p>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block text-xs text-gray-500">
+                  Email kontak
+                  <input v-model="brand.email" :class="inputCls" />
+                </label>
+                <label class="block text-xs text-gray-500">
+                  Telepon
+                  <input v-model="brand.phone" :class="inputCls" />
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <button
+            type="button"
+            class="rounded border px-3 py-1.5 text-xs font-semibold hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
+            :disabled="store.saving || store.readOnly"
+            @click="saveBrand"
+          >
+            {{ store.saving ? 'Menyimpan…' : 'Simpan brand' }}
+          </button>
+        </div>
+      </div>
+    </details>
+
+    <!-- ── Navigation ────────────────────────────────────────────────────── -->
+    <details class="group border-t border-gray-100 dark:border-gray-800" open>
+      <summary :class="summaryCls">
+        Navigation
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="space-y-2 pb-3">
+        <p :class="hintCls">Item menu berlaku di semua halaman.</p>
+
+        <ul v-if="topLevelItems.length" class="space-y-0.5">
           <li
             v-for="(item, index) in topLevelItems"
             :key="item.id"
-            class="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-sm dark:border-gray-700"
+            class="group/nav flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
           >
-            <span class="min-w-0 flex-1 truncate">
-              {{ item.label }}
-              <span v-if="!item.is_enabled" class="text-xs text-gray-400">· nonaktif</span>
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span
+                class="truncate text-sm font-medium"
+                :class="item.is_enabled ? 'text-gray-800 dark:text-gray-100' : 'text-gray-400'"
+              >
+                {{ item.label }}
+              </span>
+              <span class="truncate text-[11px] text-gray-400">{{ destinationLabel(item) }}</span>
             </span>
-            <button
-              type="button"
-              class="rounded px-1 text-gray-400 hover:text-gray-700 disabled:opacity-30"
-              :disabled="index === 0 || store.saving"
-              title="Naik"
-              @click="store.moveNavItem(item.id, -1)"
+            <span
+              v-if="!item.is_enabled"
+              class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-700"
             >
-              ↑
-            </button>
-            <button
-              type="button"
-              class="rounded px-1 text-gray-400 hover:text-gray-700 disabled:opacity-30"
-              :disabled="index === topLevelItems.length - 1 || store.saving"
-              title="Turun"
-              @click="store.moveNavItem(item.id, 1)"
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              class="rounded px-1.5 text-xs font-semibold text-brand-600 hover:underline"
-              @click="editItem(item)"
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              class="rounded p-1 text-gray-400 hover:text-red-600"
-              title="Hapus"
-              @click="store.removeNavItem(item.id)"
-            >
-              <Trash2 class="size-3.5" />
-            </button>
+              nonaktif
+            </span>
+            <div class="flex shrink-0 items-center opacity-60 group-hover/nav:opacity-100">
+              <button
+                type="button"
+                :class="iconBtnCls"
+                :disabled="index === 0 || store.saving"
+                title="Naik"
+                @click="store.moveNavItem(item.id, -1)"
+              >
+                <ChevronUp class="size-4" />
+              </button>
+              <button
+                type="button"
+                :class="iconBtnCls"
+                :disabled="index === topLevelItems.length - 1 || store.saving"
+                title="Turun"
+                @click="store.moveNavItem(item.id, 1)"
+              >
+                <ChevronDown class="size-4" />
+              </button>
+              <button type="button" :class="iconBtnCls" title="Edit" @click="editItem(item)">
+                <Pencil class="size-3.5" />
+              </button>
+              <button
+                type="button"
+                class="rounded p-1 text-gray-400 hover:text-red-600 disabled:opacity-30"
+                title="Hapus"
+                :disabled="store.saving"
+                @click="store.removeNavItem(item.id)"
+              >
+                <Trash2 class="size-3.5" />
+              </button>
+            </div>
           </li>
         </ul>
         <p
@@ -439,9 +454,19 @@ const checkboxRowCls = 'flex items-center gap-2 text-xs text-gray-600 dark:text-
           Belum ada item navigasi.
         </p>
 
-        <div class="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+        <button
+          v-if="!showItemForm"
+          type="button"
+          class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-semibold text-gray-500 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40 dark:border-gray-700"
+          :disabled="store.readOnly"
+          @click="startAddItem"
+        >
+          <Plus class="size-3.5" /> Tambah item
+        </button>
+
+        <div v-else class="space-y-2.5 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
           <p class="text-xs font-semibold text-gray-500">
-            {{ editingId ? 'Edit item' : 'Tambah item' }}
+            {{ editingId ? 'Edit item' : 'Item baru' }}
           </p>
           <label class="block text-xs text-gray-500">
             Label
@@ -491,79 +516,161 @@ const checkboxRowCls = 'flex items-center gap-2 text-xs text-gray-600 dark:text-
           <div class="flex gap-2">
             <button
               type="button"
-              class="rounded border px-2 py-1 text-xs font-semibold hover:bg-white disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
+              class="rounded border px-2.5 py-1 text-xs font-semibold hover:bg-white disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
               :disabled="store.saving || store.readOnly"
               @click="submitItem"
             >
-              {{ editingId ? 'Simpan item' : 'Tambah' }}
+              {{ editingId ? 'Simpan' : 'Tambah' }}
             </button>
             <button
-              v-if="editingId"
               type="button"
-              class="rounded border px-2 py-1 text-xs font-semibold hover:bg-white dark:border-gray-700 dark:hover:bg-gray-800"
-              @click="resetItemForm"
+              class="rounded border px-2.5 py-1 text-xs font-semibold hover:bg-white dark:border-gray-700 dark:hover:bg-gray-800"
+              @click="cancelItemForm"
             >
               Batal
             </button>
           </div>
         </div>
       </div>
-    </section>
+    </details>
 
-    <!-- ── Area 3 · Action ────────────────────────────────────────────────── -->
-    <section class="space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">
-      <h4 :class="areaTitleCls">Action</h4>
+    <!-- ── Action ────────────────────────────────────────────────────────── -->
+    <details class="group border-t border-gray-100 dark:border-gray-800">
+      <summary :class="summaryCls">
+        Action
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="space-y-3 pb-3">
+        <label :class="checkboxRowCls">
+          <input
+            type="checkbox"
+            :checked="cval<boolean>('showLoginCta', true) !== false"
+            @change="patchHeaderField('showLoginCta', ($event.target as HTMLInputElement).checked)"
+          />
+          Tampilkan tombol CTA
+        </label>
+        <label class="block text-xs text-gray-500">
+          Label tombol CTA
+          <input
+            :value="cval('ctaLabel', '')"
+            :class="inputCls"
+            placeholder="Login"
+            @input="patchHeaderField('ctaLabel', ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <label class="block text-xs text-gray-500">
+          Link tombol CTA
+          <input
+            :value="cval('ctaUrl', '')"
+            :class="inputCls"
+            placeholder="/"
+            @input="patchHeaderField('ctaUrl', ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <div>
+          <span class="text-xs font-medium text-gray-500">Warna tombol CTA</span>
+          <ColorField
+            :model-value="cval('ctaColor', '')"
+            class="mt-1"
+            @update:model-value="patchHeaderField('ctaColor', $event)"
+          />
+        </div>
 
-      <label :class="checkboxRowCls">
-        <input
-          type="checkbox"
-          :checked="cval<boolean>('showLoginCta', true) !== false"
-          @change="patchHeaderField('showLoginCta', ($event.target as HTMLInputElement).checked)"
-        />
-        Tampilkan tombol CTA
-      </label>
-      <label class="block text-xs text-gray-500">
-        Label tombol CTA
-        <input
-          :value="cval('ctaLabel', '')"
-          :class="inputCls"
-          placeholder="Login"
-          @input="patchHeaderField('ctaLabel', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <label class="block text-xs text-gray-500">
-        Link tombol CTA
-        <input
-          :value="cval('ctaUrl', '')"
-          :class="inputCls"
-          placeholder="/"
-          @input="patchHeaderField('ctaUrl', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <div>
-        <span class="text-xs font-medium text-gray-500">Warna tombol CTA</span>
-        <ColorField
-          :model-value="cval('ctaColor', '')"
-          class="mt-1"
-          @update:model-value="patchHeaderField('ctaColor', $event)"
-        />
+        <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+          <p class="text-xs font-semibold text-gray-500">Aksi lain</p>
+          <p class="mt-0.5 text-[11px] text-gray-400">
+            Segera hadir — belum didukung komponen header.
+          </p>
+          <div class="mt-2 space-y-1.5 opacity-60">
+            <label class="flex items-center gap-2 text-xs text-gray-500">
+              <input type="checkbox" disabled /> Pencarian
+            </label>
+            <label class="flex items-center gap-2 text-xs text-gray-500">
+              <input type="checkbox" disabled /> Notifikasi
+            </label>
+            <label class="flex items-center gap-2 text-xs text-gray-500">
+              <input type="checkbox" disabled /> Menu profil
+            </label>
+          </div>
+        </div>
       </div>
+    </details>
 
-      <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
-        <p class="text-xs font-semibold text-gray-500">Aksi lain</p>
-        <p class="mt-0.5 text-xs text-gray-400">Segera hadir — belum didukung komponen header.</p>
-        <div class="mt-2 space-y-1.5 opacity-60">
-          <label class="flex items-center gap-2 text-xs text-gray-500">
-            <input type="checkbox" disabled /> Pencarian
+    <!-- ── Preference ────────────────────────────────────────────────────── -->
+    <details class="group border-t border-gray-100 dark:border-gray-800">
+      <summary :class="summaryCls">
+        Preference
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
+      </summary>
+      <div class="space-y-3 pb-3">
+        <p :class="hintCls">Gaya &amp; posisi navbar untuk header di halaman ini.</p>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="block text-xs text-gray-500">
+            Posisi menu
+            <select
+              :value="cval('alignment', 'center')"
+              :class="inputCls"
+              @change="patchHeaderField('alignment', ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="o in alignmentOpts" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
           </label>
-          <label class="flex items-center gap-2 text-xs text-gray-500">
-            <input type="checkbox" disabled /> Notifikasi
+          <label class="block text-xs text-gray-500">
+            Gaya latar
+            <select
+              :value="cval('variant', 'solid')"
+              :class="inputCls"
+              @change="patchHeaderField('variant', ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="o in variantOpts" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
           </label>
-          <label class="flex items-center gap-2 text-xs text-gray-500">
-            <input type="checkbox" disabled /> Menu profil
+          <label class="block text-xs text-gray-500">
+            Bayangan
+            <select
+              :value="cval('shadow', 'sm')"
+              :class="inputCls"
+              @change="patchHeaderField('shadow', ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="o in shadowOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </label>
+          <label class="block text-xs text-gray-500">
+            Lebar bar
+            <select
+              :value="cval('width', 'container')"
+              :class="inputCls"
+              @change="patchHeaderField('width', ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="o in widthOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="space-y-1.5">
+          <label :class="checkboxRowCls">
+            <input
+              type="checkbox"
+              :checked="cval<boolean>('sticky', true) !== false"
+              @change="patchHeaderField('sticky', ($event.target as HTMLInputElement).checked)"
+            />
+            Sticky (menempel saat scroll)
+          </label>
+          <label :class="checkboxRowCls">
+            <input
+              type="checkbox"
+              :checked="cval<boolean>('hideOnScroll', false) === true"
+              @change="
+                patchHeaderField('hideOnScroll', ($event.target as HTMLInputElement).checked)
+              "
+            />
+            Sembunyikan saat scroll ke bawah
           </label>
         </div>
       </div>
-    </section>
+    </details>
   </div>
 </template>

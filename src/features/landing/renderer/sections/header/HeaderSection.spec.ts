@@ -68,4 +68,37 @@ describe('HeaderSection', () => {
       'is-transparent',
     )
   })
+
+  describe('logo resolution', () => {
+    it('prefers the per-page override over the tenant logo', () => {
+      const wrapper = render({
+        logoUrl: '/page-logo.png',
+        brandLogoLight: '/brand-light.png',
+        brandLogoDark: '/brand-dark.png',
+      })
+      expect(wrapper.find('.header-logo').attributes('src')).toBe('/page-logo.png')
+    })
+
+    it('uses the tenant light logo on a solid bar', () => {
+      const wrapper = render({
+        brandLogoLight: '/brand-light.png',
+        brandLogoDark: '/brand-dark.png',
+      })
+      expect(wrapper.find('.header-logo').attributes('src')).toBe('/brand-light.png')
+    })
+
+    it('switches to the dark logo on a see-through bar', () => {
+      const wrapper = render({
+        variant: 'glass',
+        brandLogoLight: '/brand-light.png',
+        brandLogoDark: '/brand-dark.png',
+      })
+      expect(wrapper.find('.header-logo').attributes('src')).toBe('/brand-dark.png')
+    })
+
+    it('falls back to the light logo when no dark asset exists', () => {
+      const wrapper = render({ variant: 'transparent', brandLogoLight: '/brand-light.png' })
+      expect(wrapper.find('.header-logo').attributes('src')).toBe('/brand-light.png')
+    })
+  })
 })

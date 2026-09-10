@@ -25,8 +25,11 @@ const props = defineProps<{
     ctaLabel?: string
     ctaUrl?: string
     ctaColor?: string
-    // Brand (per page override; falls back to tenant branding at synth time)
+    // Brand — `logoUrl` is the per-page override; `brandLogo*` are the tenant
+    // defaults, both injected at synth time (LandingPageRenderer / canvas).
     logoUrl?: string
+    brandLogoLight?: string
+    brandLogoDark?: string
     /** Synthesized at render time from the tenant location=header menu + branding. */
     items?: HeaderItem[]
     brandName?: string
@@ -39,12 +42,24 @@ const items = computed<HeaderItem[]>(() =>
 )
 
 const brandName = computed(() => props.content?.brandName || '')
-const logoUrl = computed(() => String(props.content?.logoUrl ?? '').trim())
 
 const variant = computed<'solid' | 'transparent' | 'glass'>(() => {
   const v = props.content?.variant
   if (v === 'transparent' || v === 'glass' || v === 'solid') return v
   return props.content?.transparentOnTop ? 'transparent' : 'solid'
+})
+
+/**
+ * Per-page override wins outright; otherwise use the tenant logo, preferring the
+ * dark-mode asset when the bar sits on a see-through (transparent/glass) surface.
+ */
+const logoUrl = computed(() => {
+  const own = String(props.content?.logoUrl ?? '').trim()
+  if (own) return own
+  const light = String(props.content?.brandLogoLight ?? '').trim()
+  const dark = String(props.content?.brandLogoDark ?? '').trim()
+  const seeThrough = variant.value === 'transparent' || variant.value === 'glass'
+  return seeThrough ? dark || light : light || dark
 })
 
 const shadowClass = computed(() => {

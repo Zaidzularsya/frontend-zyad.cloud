@@ -24,7 +24,12 @@ const props = defineProps<{
    * DynamicLandingPage / builder canvas. Menimpa content section bertipe
    * "header" — pola sama seperti footerContent.
    */
-  headerChrome?: { items: unknown[]; brandName: string; brandLogoUrl: string }
+  headerChrome?: {
+    items: unknown[]
+    brandName: string
+    brandLogoUrl: string
+    brandLogoDarkUrl?: string
+  }
   /**
    * Aktif saat renderer dipakai di dalam canvas builder: section components
    * menetralkan side-effect (fetch/navigasi/POST/WebGL/scroll) dan semua
@@ -59,13 +64,20 @@ useScrollReveal(rootRef)
 function contentOverrideFor(section: LandingSection): Record<string, unknown> | undefined {
   if (section.type === 'footer') return props.footerContent
   if (section.type === 'header') {
-    const chrome = props.headerChrome ?? { items: [], brandName: '', brandLogoUrl: '' }
+    const chrome = props.headerChrome ?? {
+      items: [],
+      brandName: '',
+      brandLogoUrl: '',
+      brandLogoDarkUrl: '',
+    }
     const own = (section.content ?? {}) as Record<string, unknown>
     return {
       ...own,
       items: chrome.items,
       brandName: chrome.brandName,
-      logoUrl: own.logoUrl || chrome.brandLogoUrl,
+      logoUrl: own.logoUrl ?? '',
+      brandLogoLight: chrome.brandLogoUrl,
+      brandLogoDark: chrome.brandLogoDarkUrl ?? '',
     }
   }
   return undefined

@@ -32,7 +32,7 @@ export interface CanvasSetDeviceMessage {
 export interface CanvasSetChromeMessage {
   type: 'canvas:set-chrome'
   header: { items: Array<{ id: string; label: string; href: string; target: string }> }
-  branding: { companyName: string; logoUrl: string; primary: string }
+  branding: { companyName: string; logoUrl: string; logoDarkUrl: string; primary: string }
 }
 
 /** parent -> iframe */

@@ -70,10 +70,16 @@ const footerContent = ref<FooterContent>({
 
 // Synthesized header data (tenant menu items + branding) injected into the
 // `header` section at render time — same pattern as footerContent.
-const headerChrome = ref<{ items: NavItem[]; brandName: string; brandLogoUrl: string }>({
+const headerChrome = ref<{
+  items: NavItem[]
+  brandName: string
+  brandLogoUrl: string
+  brandLogoDarkUrl: string
+}>({
   items: [],
   brandName: '',
   brandLogoUrl: '',
+  brandLogoDarkUrl: '',
 })
 
 const resolvedSlug = computed(() => props.slug ?? (route.params.slug as string) ?? '')
@@ -117,6 +123,7 @@ async function fetchPage(slug: string) {
       items: headerNav,
       brandName: branding.company_name ?? '',
       brandLogoUrl: branding.logo_light_url ?? '',
+      brandLogoDarkUrl: branding.logo_dark_url ?? '',
     }
 
     footerContent.value = useFooterContent(result, pageData.value.title ?? '')

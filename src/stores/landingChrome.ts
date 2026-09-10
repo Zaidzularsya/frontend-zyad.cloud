@@ -45,6 +45,17 @@ export const useLandingChromeStore = defineStore('landingChrome', () => {
   const navItems = ref<LandingMenuItem[]>([])
   const branding = ref<LandingBranding | null>(null)
 
+  /**
+   * Unsaved brand edits from the builder panel, overlaid on `branding` so the
+   * canvas previews the brand name / logo live before "Simpan brand" persists
+   * them. Cleared on a successful save (and on reset).
+   */
+  const brandDraft = ref<{
+    company_name?: string
+    logo_light_url?: string
+    logo_dark_url?: string
+  }>({})
+
   const loading = ref(false)
   const loadError = ref('')
   const saving = ref(false)
@@ -66,13 +77,27 @@ export const useLandingChromeStore = defineStore('landingChrome', () => {
 
   const canvasBranding = computed(() => {
     const b = branding.value
+    const d = brandDraft.value
     const colors = (b?.colors ?? {}) as Record<string, string>
     return {
-      companyName: b?.company_name ?? '',
-      logoUrl: b?.logo_light_url ?? '',
+      companyName: d.company_name ?? b?.company_name ?? '',
+      logoUrl: d.logo_light_url ?? b?.logo_light_url ?? '',
+      logoDarkUrl: d.logo_dark_url ?? b?.logo_dark_url ?? '',
       primary: colors.primary || '#2563EB',
     }
   })
+
+  function setBrandDraft(patch: {
+    company_name?: string
+    logo_light_url?: string
+    logo_dark_url?: string
+  }) {
+    brandDraft.value = { ...brandDraft.value, ...patch }
+  }
+
+  function clearBrandDraft() {
+    brandDraft.value = {}
+  }
 
   async function load(force = false) {
     if (loadedForOrg && !force) return
@@ -174,6 +199,7 @@ export const useLandingChromeStore = defineStore('landingChrome', () => {
     await run(async () => {
       const res = await landingApi.updateDefaultBranding(patch)
       branding.value = res.data
+      clearBrandDraft()
     }, 'Gagal menyimpan brand.')
   }
 
@@ -194,6 +220,7 @@ export const useLandingChromeStore = defineStore('landingChrome', () => {
     headerMenu.value = null
     navItems.value = []
     branding.value = null
+    brandDraft.value = {}
     loadError.value = ''
     saveError.value = ''
     readOnly.value = false
@@ -211,6 +238,9 @@ export const useLandingChromeStore = defineStore('landingChrome', () => {
     readOnly,
     canvasNav,
     canvasBranding,
+    brandDraft,
+    setBrandDraft,
+    clearBrandDraft,
     load,
     ensureHeaderMenu,
     addNavItem,

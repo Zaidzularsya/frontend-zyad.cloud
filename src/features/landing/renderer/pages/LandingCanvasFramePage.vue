@@ -30,8 +30,11 @@ const errorMessage = ref('')
 
 const chrome = ref<{
   header: { items: Array<{ id: string; label: string; href: string; target: string }> }
-  branding: { companyName: string; logoUrl: string; primary: string }
-}>({ header: { items: [] }, branding: { companyName: '', logoUrl: '', primary: '#2563EB' } })
+  branding: { companyName: string; logoUrl: string; logoDarkUrl: string; primary: string }
+}>({
+  header: { items: [] },
+  branding: { companyName: '', logoUrl: '', logoDarkUrl: '', primary: '#2563EB' },
+})
 
 /** Synthesized content for the `header` section (tenant menu items + brand). */
 function headerOverride(section: LandingSection): Record<string, unknown> | undefined {
@@ -41,7 +44,9 @@ function headerOverride(section: LandingSection): Record<string, unknown> | unde
     ...own,
     items: chrome.value.header.items,
     brandName: chrome.value.branding.companyName,
-    logoUrl: own.logoUrl || chrome.value.branding.logoUrl,
+    logoUrl: own.logoUrl ?? '',
+    brandLogoLight: chrome.value.branding.logoUrl,
+    brandLogoDark: chrome.value.branding.logoDarkUrl,
   }
 }
 
