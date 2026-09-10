@@ -1,5 +1,5 @@
 import type { LandingSection } from '@/features/landing/shared/types/landing.types'
-import type { BlockDefinition, BlockGroup } from './types'
+import type { BlockDefinition, BlockGroup, BlockKind } from './types'
 
 /**
  * The visual builder block catalog — single source of truth for the palette,
@@ -112,6 +112,178 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
       box: { borderColor: '#e2e8f0', borderWidth: 1, width: 640 },
     },
     schema: [],
+  },
+  {
+    id: 'element.buttonGroup',
+    sectionType: 'content',
+    variant: 'element.buttonGroup',
+    label: 'Button Group',
+    description: 'Beberapa tombol sejajar dengan gaya berbeda.',
+    icon: 'smart_button',
+    group: 'interactive',
+    kind: 'element',
+    keyPrefix: 'btn-group',
+    defaultContent: {
+      direction: 'row',
+      gap: 12,
+      wrap: true,
+      align: 'center',
+      items: [
+        { label: 'Mulai sekarang', url: '#', target: '_self', variant: 'primary' },
+        { label: 'Pelajari dulu', url: '#', target: '_self', variant: 'secondary' },
+      ],
+    },
+    defaultStyle: {
+      variant: 'element.buttonGroup',
+      align: 'center',
+      colors: { primary: '#2563EB', text: '#ffffff' },
+      box: { radius: 8 },
+      typography: { weight: '600' },
+    },
+    schema: [
+      { key: 'direction', label: 'Arah', type: 'select', options: ['row', 'column'] },
+      { key: 'gap', label: 'Jarak (px)', type: 'number' },
+      { key: 'wrap', label: 'Bungkus baris', type: 'checkbox' },
+      {
+        key: 'align',
+        label: 'Perataan',
+        type: 'select',
+        options: ['start', 'center', 'end', 'stretch'],
+      },
+      {
+        key: 'items',
+        label: 'Tombol',
+        type: 'repeater',
+        itemSchema: [
+          { key: 'label', label: 'Label', type: 'text', required: true },
+          { key: 'url', label: 'URL', type: 'url' },
+          { key: 'target', label: 'Buka di', type: 'select', options: ['_self', '_blank'] },
+          {
+            key: 'variant',
+            label: 'Gaya',
+            type: 'select',
+            options: ['primary', 'secondary', 'ghost'],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'element.buttonList',
+    sectionType: 'content',
+    variant: 'element.buttonList',
+    label: 'Button List',
+    description: 'Daftar tombol vertikal (mis. tautan menu / link-in-bio).',
+    icon: 'list',
+    group: 'interactive',
+    kind: 'element',
+    keyPrefix: 'btn-list',
+    defaultContent: {
+      direction: 'column',
+      gap: 10,
+      wrap: false,
+      align: 'stretch',
+      items: [
+        { label: 'Tautan pertama', url: '#', target: '_self', variant: 'secondary' },
+        { label: 'Tautan kedua', url: '#', target: '_self', variant: 'secondary' },
+        { label: 'Tautan ketiga', url: '#', target: '_self', variant: 'secondary' },
+      ],
+    },
+    defaultStyle: {
+      variant: 'element.buttonList',
+      align: 'center',
+      colors: { primary: '#2563EB', text: '#ffffff' },
+      box: { radius: 8 },
+      typography: { weight: '600' },
+    },
+    schema: [
+      { key: 'direction', label: 'Arah', type: 'select', options: ['row', 'column'] },
+      { key: 'gap', label: 'Jarak (px)', type: 'number' },
+      { key: 'wrap', label: 'Bungkus baris', type: 'checkbox' },
+      {
+        key: 'align',
+        label: 'Perataan',
+        type: 'select',
+        options: ['start', 'center', 'end', 'stretch'],
+      },
+      {
+        key: 'items',
+        label: 'Tombol',
+        type: 'repeater',
+        itemSchema: [
+          { key: 'label', label: 'Label', type: 'text', required: true },
+          { key: 'url', label: 'URL', type: 'url' },
+          { key: 'target', label: 'Buka di', type: 'select', options: ['_self', '_blank'] },
+          {
+            key: 'variant',
+            label: 'Gaya',
+            type: 'select',
+            options: ['primary', 'secondary', 'ghost'],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'element.socialButtons',
+    sectionType: 'content',
+    variant: 'element.socialButtons',
+    label: 'Social buttons',
+    description: 'Tautan media sosial dengan ikon.',
+    icon: 'share',
+    group: 'interactive',
+    kind: 'element',
+    keyPrefix: 'social',
+    defaultContent: {
+      direction: 'row',
+      gap: 12,
+      size: 40,
+      shape: 'circle',
+      style: 'solid',
+      items: [
+        { platform: 'instagram', url: 'https://instagram.com/', label: '' },
+        { platform: 'linkedin', url: 'https://linkedin.com/', label: '' },
+        { platform: 'youtube', url: 'https://youtube.com/', label: '' },
+      ],
+    },
+    defaultStyle: {
+      variant: 'element.socialButtons',
+      align: 'center',
+      colors: { primary: '' },
+      box: { radius: 8 },
+    },
+    schema: [
+      { key: 'direction', label: 'Arah', type: 'select', options: ['row', 'column'] },
+      { key: 'gap', label: 'Jarak (px)', type: 'number' },
+      { key: 'size', label: 'Ukuran (px)', type: 'number' },
+      { key: 'shape', label: 'Bentuk', type: 'select', options: ['circle', 'rounded', 'square'] },
+      { key: 'style', label: 'Gaya', type: 'select', options: ['solid', 'outline', 'bare'] },
+      {
+        key: 'items',
+        label: 'Akun',
+        type: 'repeater',
+        itemSchema: [
+          {
+            key: 'platform',
+            label: 'Platform',
+            type: 'select',
+            options: [
+              'x',
+              'linkedin',
+              'facebook',
+              'instagram',
+              'youtube',
+              'github',
+              'tiktok',
+              'whatsapp',
+              'email',
+            ],
+          },
+          { key: 'url', label: 'URL', type: 'url', required: true },
+          { key: 'label', label: 'Label (aria)', type: 'text' },
+        ],
+      },
+    ],
   },
   {
     id: 'hero.default',
@@ -447,6 +619,10 @@ export const BLOCK_CATALOG: BlockDefinition[] = [
     description: 'Daftar paket harga.',
     icon: 'sell',
     group: 'conversion',
+    // Content is user-edited today (`content.source: 'custom'`); the `platform_catalog`
+    // source (billing plans) is the future module binding.
+    dataSource: 'static',
+    moduleKey: 'billing.plans',
     keyPrefix: 'pricing',
     defaultContent: {
       title: 'Pilih paket yang sesuai',
@@ -650,6 +826,15 @@ export function blocksByGroup(): Array<{
 /** First catalog block declared for a section type (the type's default block). */
 export function defaultBlockForType(sectionType: string): BlockDefinition | undefined {
   return BLOCK_CATALOG.find((block) => block.sectionType === sectionType)
+}
+
+/**
+ * Broad taxonomy of a block. Explicit `block.kind` wins; otherwise derived from
+ * the `element.*` variant marker. Everything else is an opinionated `section`.
+ */
+export function blockKind(block: BlockDefinition): BlockKind {
+  if (block.kind) return block.kind
+  return block.variant?.startsWith('element.') ? 'element' : 'section'
 }
 
 /**

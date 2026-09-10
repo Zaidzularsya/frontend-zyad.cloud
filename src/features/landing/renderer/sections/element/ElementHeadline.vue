@@ -7,7 +7,7 @@ const props = defineProps<{
   styleConfig?: Record<string, unknown>
 }>()
 
-const { textStyle } = useElementStyle(() => props.styleConfig)
+const { textStyle, boxStyle, layoutStyle } = useElementStyle(() => props.styleConfig)
 
 const tag = computed(() => {
   const level = props.content?.level
@@ -16,7 +16,7 @@ const tag = computed(() => {
 </script>
 
 <template>
-  <div class="element-block">
+  <div class="element-block" :style="[boxStyle, layoutStyle]">
     <component :is="tag" class="element-headline" :style="textStyle" data-field="text">
       {{ content?.text || 'Judul baru' }}
     </component>

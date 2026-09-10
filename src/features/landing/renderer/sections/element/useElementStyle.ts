@@ -28,6 +28,16 @@ export interface BoxStyle {
   /** Fixed height in px — pairs with objectFit for image crops. */
   height?: number
   objectFit?: 'cover' | 'contain' | 'fill' | 'none'
+  // ── Advanced layout (custom positioning / overlap) ──────────────────────────
+  /** `relative` lets zIndex / nudge take effect without leaving the flow. */
+  position?: 'relative'
+  /** Stacking order — implies `position: relative` when set. */
+  zIndex?: number
+  /** Visual nudge in px, applied as `transform: translate()` (no reflow). */
+  offsetX?: number
+  offsetY?: number
+  /** Float an element so adjacent content wraps beside it. */
+  float?: 'none' | 'left' | 'right'
 }
 
 const SHADOW_PRESETS: Record<string, string> = {
@@ -76,5 +86,26 @@ export function useElementStyle(styleConfig: () => Record<string, unknown> | und
     return out
   })
 
-  return { typography, box, textStyle, boxStyle }
+  /**
+   * Custom-positioning CSS from `box` — kept separate from `boxStyle` so callers
+   * can apply it to the element's outer wrapper (`.element-block`) rather than the
+   * visual box. `SectionRenderer.wrapperStyle` mirrors the non-float parts so
+   * whole sections can overlap too.
+   */
+  const layoutStyle = computed<CSSProperties>(() => {
+    const b = box.value
+    const out: CSSProperties = {}
+    const hasOffset =
+      (typeof b.offsetX === 'number' && b.offsetX !== 0) ||
+      (typeof b.offsetY === 'number' && b.offsetY !== 0)
+    if (b.position === 'relative' || typeof b.zIndex === 'number' || hasOffset) {
+      out.position = 'relative'
+    }
+    if (typeof b.zIndex === 'number') out.zIndex = b.zIndex
+    if (hasOffset) out.transform = `translate(${b.offsetX || 0}px, ${b.offsetY || 0}px)`
+    if (b.float && b.float !== 'none') out.float = b.float
+    return out
+  })
+
+  return { typography, box, textStyle, boxStyle, layoutStyle }
 }

@@ -17,12 +17,22 @@ const variant = computed(
 )
 const isElement = computed(() => variant.value.startsWith('element.'))
 const showTypography = computed(() =>
-  ['element.headline', 'element.paragraph', 'element.button'].includes(variant.value),
+  [
+    'element.headline',
+    'element.paragraph',
+    'element.button',
+    'element.buttonGroup',
+    'element.buttonList',
+  ].includes(variant.value),
 )
-const showColors = computed(() => variant.value === 'element.button')
-const showBox = computed(() =>
-  ['element.button', 'element.image', 'element.divider'].includes(variant.value),
+const showColors = computed(() =>
+  ['element.button', 'element.buttonGroup', 'element.buttonList', 'element.socialButtons'].includes(
+    variant.value,
+  ),
 )
+// Every atomic element gets the box + advanced-layout controls; individual
+// controls stay guarded (e.g. radius/shadow hidden for a divider).
+const showBox = computed(() => isElement.value)
 const isImage = computed(() => variant.value === 'element.image')
 
 const FOOTER_VARIANTS = ['default', 'simple', 'newsletter', 'mega']
@@ -35,6 +45,7 @@ const ALIGN_OPTIONS = [
 const WEIGHT_OPTIONS = ['400', '500', '600', '700', '800']
 const SHADOW_OPTIONS = ['none', 'sm', 'md', 'lg']
 const BORDER_STYLE_OPTIONS = ['solid', 'dashed', 'dotted']
+const FLOAT_OPTIONS = ['none', 'left', 'right']
 const OBJECT_FIT_OPTIONS = [
   { value: '', label: 'Default' },
   { value: 'cover', label: 'Cover (crop)' },
@@ -304,6 +315,87 @@ function numOrUndef(value: string): number | undefined {
         />
         Lebar penuh
       </label>
+
+      <div class="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          Tata letak lanjutan
+        </p>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-xs text-gray-500">
+            Z-index
+            <input
+              type="number"
+              :value="(box.zIndex as number) ?? ''"
+              placeholder="auto"
+              class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              @input="
+                patchNested('box', {
+                  zIndex: numOrUndef(($event.target as HTMLInputElement).value),
+                })
+              "
+            />
+          </label>
+          <label v-if="variant !== 'element.divider'" class="text-xs text-gray-500">
+            Float
+            <select
+              :value="String(box.float ?? 'none')"
+              class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              @change="
+                patchNested('box', {
+                  float:
+                    ($event.target as HTMLSelectElement).value === 'none'
+                      ? undefined
+                      : ($event.target as HTMLSelectElement).value,
+                })
+              "
+            >
+              <option v-for="f in FLOAT_OPTIONS" :key="f" :value="f">{{ f }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-xs text-gray-500">
+            Geser X (px)
+            <input
+              type="number"
+              :value="(box.offsetX as number) ?? ''"
+              placeholder="0"
+              class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              @input="
+                patchNested('box', {
+                  offsetX: numOrUndef(($event.target as HTMLInputElement).value),
+                })
+              "
+            />
+          </label>
+          <label class="text-xs text-gray-500">
+            Geser Y (px)
+            <input
+              type="number"
+              :value="(box.offsetY as number) ?? ''"
+              placeholder="0"
+              class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+              @input="
+                patchNested('box', {
+                  offsetY: numOrUndef(($event.target as HTMLInputElement).value),
+                })
+              "
+            />
+          </label>
+        </div>
+        <label class="flex items-center gap-2 text-xs text-gray-500">
+          <input
+            type="checkbox"
+            :checked="box.position === 'relative'"
+            @change="
+              patchNested('box', {
+                position: ($event.target as HTMLInputElement).checked ? 'relative' : undefined,
+              })
+            "
+          />
+          Posisi relatif (aktif otomatis bila z-index / geser diisi)
+        </label>
+      </div>
     </template>
 
     <div v-if="!isElement">

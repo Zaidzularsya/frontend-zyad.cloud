@@ -41,7 +41,9 @@ function addRepeaterItem(field: SectionFieldSchema) {
   const items = repeaterItems(field.key).map((item) => ({ ...item }))
   const blank: Record<string, unknown> = {}
   for (const itemField of field.itemSchema ?? []) {
-    blank[itemField.key] = itemField.type === 'checkbox' ? false : ''
+    if (itemField.type === 'checkbox') blank[itemField.key] = false
+    else if (itemField.type === 'select') blank[itemField.key] = itemField.options?.[0] ?? ''
+    else blank[itemField.key] = ''
   }
   items.push(blank)
   emit('field-change', field.key, items)
@@ -168,16 +170,37 @@ function inputType(type: SectionFieldSchema['type']) {
                     )
                   "
                 ></textarea>
+                <select
+                  v-else-if="itemField.type === 'select'"
+                  :value="String(item[itemField.key] ?? '')"
+                  class="mt-1 w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                  @change="
+                    updateRepeaterItemField(
+                      field,
+                      index,
+                      itemField.key,
+                      ($event.target as HTMLSelectElement).value,
+                    )
+                  "
+                >
+                  <option v-for="option in itemField.options ?? []" :key="option" :value="option">
+                    {{ option }}
+                  </option>
+                </select>
                 <input
                   v-else
+                  :type="inputType(itemField.type)"
                   :value="String(item[itemField.key] ?? '')"
+                  :placeholder="itemField.placeholder"
                   class="mt-1 w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
                   @input="
                     updateRepeaterItemField(
                       field,
                       index,
                       itemField.key,
-                      ($event.target as HTMLInputElement).value,
+                      itemField.type === 'number'
+                        ? Number(($event.target as HTMLInputElement).value)
+                        : ($event.target as HTMLInputElement).value,
                     )
                   "
                 />

@@ -14,6 +14,9 @@ export type BlockGroup =
   | 'conversion'
   | 'navigation'
 
+/** Broad taxonomy of a block, independent of its palette `group`. */
+export type BlockKind = 'section' | 'element' | 'layout'
+
 /**
  * A single insertable block in the visual builder.
  *
@@ -41,6 +44,19 @@ export interface BlockDefinition {
   /** Material Symbols icon name shown in the palette. */
   icon: string
   group: BlockGroup
+  /**
+   * Taxonomy hint (see `blockKind()`): `section` = opinionated pre-config block,
+   * `element` = atomic primitive, `layout` = structural primitive (grid/container).
+   * Optional — derived from `variant` when absent.
+   */
+  kind?: BlockKind
+  /**
+   * Where a block's content comes from. `static` = user-edited content only;
+   * `module` = (future) bound to a backend module named by `moduleKey`.
+   */
+  dataSource?: 'static' | 'module'
+  /** Reserved: module binding key for `dataSource: 'module'`, e.g. `billing.plans`. */
+  moduleKey?: string
   /** Prefix for generated section_key values, e.g. `hero` -> `hero-1`. */
   keyPrefix: string
   /** Seed `content` on insert. Keys MUST match what the renderer component reads. */

@@ -7,7 +7,7 @@ const props = defineProps<{
   styleConfig?: Record<string, unknown>
 }>()
 
-const { boxStyle, textStyle } = useElementStyle(() => props.styleConfig)
+const { boxStyle, textStyle, layoutStyle } = useElementStyle(() => props.styleConfig)
 
 const colors = computed(
   () => (props.styleConfig?.colors ?? {}) as { primary?: string; text?: string },
@@ -22,7 +22,7 @@ const buttonStyle = computed<CSSProperties>(() => ({
 </script>
 
 <template>
-  <div class="element-block">
+  <div class="element-block" :style="layoutStyle">
     <a
       class="element-button"
       :href="content?.url || '#'"

@@ -7,13 +7,13 @@ const props = defineProps<{
   styleConfig?: Record<string, unknown>
 }>()
 
-const { boxStyle } = useElementStyle(() => props.styleConfig)
+const { boxStyle, layoutStyle } = useElementStyle(() => props.styleConfig)
 
 const src = computed(() => String(props.content?.src ?? '').trim())
 </script>
 
 <template>
-  <div class="element-block">
+  <div class="element-block" :style="layoutStyle">
     <img v-if="src" class="element-image" :src="src" :alt="content?.alt || ''" :style="boxStyle" />
     <div v-else class="element-image-placeholder" :style="boxStyle">
       <span class="material-symbols-outlined">image</span>

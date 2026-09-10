@@ -7,7 +7,7 @@ const props = defineProps<{
   styleConfig?: Record<string, unknown>
 }>()
 
-const { box } = useElementStyle(() => props.styleConfig)
+const { box, layoutStyle } = useElementStyle(() => props.styleConfig)
 
 const dividerStyle = computed<CSSProperties>(() => {
   const b = box.value
@@ -20,7 +20,7 @@ const dividerStyle = computed<CSSProperties>(() => {
 </script>
 
 <template>
-  <div class="element-block">
+  <div class="element-block" :style="layoutStyle">
     <hr class="element-divider" :style="dividerStyle" />
   </div>
 </template>

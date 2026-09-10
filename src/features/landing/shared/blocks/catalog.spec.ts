@@ -4,6 +4,7 @@ import { resolveSection } from '@/features/landing/renderer/registry/section-reg
 import {
   BLOCK_CATALOG,
   blockById,
+  blockKind,
   blocksByGroup,
   defaultBlockForType,
   resolveBlockForSection,
@@ -45,6 +46,16 @@ describe('BLOCK_CATALOG integrity', () => {
           ).toBe(true)
         }
       }
+    }
+  })
+
+  it('blockKind resolves to a valid taxonomy value for every block', () => {
+    for (const block of BLOCK_CATALOG) {
+      expect(['section', 'element', 'layout'], block.id).toContain(blockKind(block))
+    }
+    // element.* variants must derive to 'element'
+    for (const block of BLOCK_CATALOG.filter((b) => b.variant?.startsWith('element.'))) {
+      expect(blockKind(block), block.id).toBe('element')
     }
   })
 

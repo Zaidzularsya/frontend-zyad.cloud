@@ -49,4 +49,16 @@ describe('ElementImage', () => {
       'border: 1px solid rgb(0, 0, 0)',
     )
   })
+
+  it('applies advanced-layout box keys (float / zIndex / offset) to the wrapper', () => {
+    const wrapper = render(
+      { src: '/photo.jpg' },
+      { box: { float: 'right', zIndex: 3, offsetY: -30 } },
+    )
+    const wrapStyle = wrapper.find('.element-block').attributes('style') ?? ''
+    expect(wrapStyle).toContain('float: right')
+    expect(wrapStyle).toContain('z-index: 3')
+    expect(wrapStyle).toContain('position: relative')
+    expect(wrapStyle).toContain('transform: translate(0px, -30px)')
+  })
 })

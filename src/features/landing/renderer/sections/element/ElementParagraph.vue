@@ -8,7 +8,7 @@ const props = defineProps<{
   styleConfig?: Record<string, unknown>
 }>()
 
-const { textStyle } = useElementStyle(() => props.styleConfig)
+const { textStyle, boxStyle, layoutStyle } = useElementStyle(() => props.styleConfig)
 
 const html = computed(() =>
   DOMPurify.sanitize(String(props.content?.bodyHtml ?? ''), {
@@ -19,7 +19,7 @@ const html = computed(() =>
 </script>
 
 <template>
-  <div class="element-block">
+  <div class="element-block" :style="[boxStyle, layoutStyle]">
     <!-- eslint-disable vue/no-v-html -- konten admin tersanitasi backend + DOMPurify di `html` -->
     <div class="element-paragraph" :style="textStyle" data-field="bodyHtml" v-html="html" />
     <!-- eslint-enable vue/no-v-html -->

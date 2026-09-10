@@ -50,6 +50,22 @@ const wrapperStyle = computed(() => {
     out.textAlign = style.align
   }
 
+  // Advanced layout on `style.box` — lets a whole section overlap / be nudged,
+  // mirroring the element-level `layoutStyle` in useElementStyle.ts (no `float`).
+  const box = style.box as
+    | { zIndex?: number; position?: string; offsetX?: number; offsetY?: number }
+    | undefined
+  if (box) {
+    const hasOffset =
+      (typeof box.offsetX === 'number' && box.offsetX !== 0) ||
+      (typeof box.offsetY === 'number' && box.offsetY !== 0)
+    if (box.position === 'relative' || typeof box.zIndex === 'number' || hasOffset) {
+      out.position = 'relative'
+    }
+    if (typeof box.zIndex === 'number') out.zIndex = String(box.zIndex)
+    if (hasOffset) out.transform = `translate(${box.offsetX || 0}px, ${box.offsetY || 0}px)`
+  }
+
   return out
 })
 
