@@ -7,7 +7,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { http } from '@/lib/http'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
-import GrapesPageFrame from '../components/GrapesPageFrame.vue'
+import GrapesPageFrame, { type GrapesChrome } from '../components/GrapesPageFrame.vue'
+import { buildGrapesChrome } from '../composables/useGrapesChrome'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
 type RawRecord = Record<string, unknown>
@@ -22,6 +23,7 @@ const page = ref<LandingPage | null>(null)
 const sections = ref<LandingSection[]>([])
 const grapesHtml = ref('')
 const grapesCss = ref('')
+const grapesChrome = ref<GrapesChrome>({})
 
 const isGrapes = computed(() => page.value?.builder === 'grapesjs')
 
@@ -64,6 +66,7 @@ async function loadPreview() {
     if (isGrapes.value) {
       grapesHtml.value = pickString(result, 'HTML', 'html', 'Html')
       grapesCss.value = pickString(result, 'CSS', 'css', 'Css')
+      grapesChrome.value = buildGrapesChrome(result, page.value.title ?? '')
     } else {
       sections.value = normalizeSections(resolveSectionsPayload(result))
     }
@@ -255,6 +258,7 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
         v-if="page && isGrapes"
         :html="grapesHtml"
         :css="grapesCss"
+        :chrome="grapesChrome"
         :title="page.title"
       />
       <LandingPageRenderer v-else-if="page" :page="page" :sections="sections" />

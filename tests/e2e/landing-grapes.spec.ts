@@ -18,6 +18,7 @@ function json(route: Route, data: unknown, status = 200) {
 }
 
 const GRAPES_HTML =
+  '<div data-zyad-slot="tenant-nav"><span>placeholder nav</span></div>' +
   '<main><h1 class="hero-title">Halaman GrapesJS</h1><p>Konten publik.</p>' +
   '<script>window.__pwned = true</script>' +
   '<img src="x" onerror="window.__pwned = true"></main>'
@@ -36,8 +37,22 @@ test.beforeEach(async ({ page }) => {
         slug: 'grapes-demo',
         seo: { meta_title: 'Halaman GrapesJS', meta_description: 'Deskripsi demo.' },
       },
-      Menus: [],
-      Branding: {},
+      Menus: [
+        {
+          location: 'header',
+          is_active: true,
+          items: [
+            {
+              label: 'Harga',
+              link_type: 'internal_page',
+              destination: 'pricing',
+              sort_order: 1,
+              is_enabled: true,
+            },
+          ],
+        },
+      ],
+      Branding: { company_name: 'Demo Co' },
     }),
   )
 })
@@ -56,6 +71,12 @@ test('renders a grapesjs page inside a script-less iframe', async ({ page }) => 
   await expect(inner.locator('h1.hero-title')).toHaveText('Halaman GrapesJS')
   // CSS from the document blob is applied inside the frame.
   await expect(inner.locator('h1.hero-title')).toHaveCSS('color', 'rgb(10, 20, 30)')
+
+  // The tenant-nav sentinel is filled live from the resolve payload's menu.
+  const tenantLink = inner.locator('nav.zyad-tenant-nav a')
+  await expect(tenantLink).toHaveText('Harga')
+  await expect(tenantLink).toHaveAttribute('href', '/pricing')
+  await expect(inner.locator('text=placeholder nav')).toHaveCount(0)
 
   // The smuggled <script> / onerror never ran in the top document.
   expect(

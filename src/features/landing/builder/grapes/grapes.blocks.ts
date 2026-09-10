@@ -10,7 +10,7 @@
 export interface GrapesBlockDef {
   id: string
   label: string
-  category: 'Section' | 'Layout' | 'Dasar' | 'Media'
+  category: 'Section' | 'Tenant' | 'Layout' | 'Dasar' | 'Media'
   /** HTML string or a GrapesJS component definition. */
   content: string | Record<string, unknown>
   media?: string
@@ -125,7 +125,33 @@ const footerBlock = `
     <p style="max-width:1120px;margin:32px auto 0;font-size:13px;border-top:1px solid #1e293b;padding-top:16px">© 2026 Brand. Semua hak dilindungi.</p>
   </footer>`
 
+// ── Tenant chrome (live) ───────────────────────────────────────────────────
+// Sentinels: their innerHTML is (re)built at render time from the tenant's live
+// menu + branding by GrapesPageFrame, so editing the tenant menu updates every
+// GrapesJS page without re-publishing. Locked in the editor; the placeholder
+// span is replaced on the public page. Only `data-zyad-slot` survives the
+// backend HTML sanitiser — the `data-gjs-*` hints are editor-only.
+const tenantNavBlock = `<div data-zyad-slot="tenant-nav" data-gjs-name="Navigasi tenant" data-gjs-editable="false" data-gjs-droppable="false" data-gjs-copyable="false"><span style="display:block;padding:14px 24px;border:1px dashed #c7d2fe;border-radius:8px;color:#64748b;font-size:13px;font-family:system-ui,sans-serif">Navigasi tenant — terisi otomatis dari menu &amp; brand saat halaman tayang</span></div>`
+
+const tenantFooterBlock = `<div data-zyad-slot="tenant-footer" data-gjs-name="Footer tenant" data-gjs-editable="false" data-gjs-droppable="false" data-gjs-copyable="false"><span style="display:block;padding:14px 24px;border:1px dashed #c7d2fe;border-radius:8px;color:#64748b;font-size:13px;font-family:system-ui,sans-serif">Footer tenant — terisi otomatis dari menu footer &amp; brand saat halaman tayang</span></div>`
+
 export const GRAPES_BLOCKS: GrapesBlockDef[] = [
+  // ── Tenant ───────────────────────────────────────────────────────────────
+  {
+    id: 'tenant-nav',
+    label: 'Navigasi tenant',
+    category: 'Tenant',
+    media: icon('menu'),
+    content: tenantNavBlock,
+  },
+  {
+    id: 'tenant-footer',
+    label: 'Footer tenant',
+    category: 'Tenant',
+    media: icon('call_to_action'),
+    content: tenantFooterBlock,
+  },
+
   // ── Section ──────────────────────────────────────────────────────────────
   { id: 'sec-hero', label: 'Hero', category: 'Section', media: icon('web'), content: heroBlock },
   {

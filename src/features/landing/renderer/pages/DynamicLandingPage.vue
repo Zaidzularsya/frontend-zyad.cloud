@@ -4,8 +4,9 @@ import { useRoute } from 'vue-router'
 import { http } from '@/lib/http'
 import { normalizeBranding } from '../../shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
-import GrapesPageFrame from '../components/GrapesPageFrame.vue'
+import GrapesPageFrame, { type GrapesChrome } from '../components/GrapesPageFrame.vue'
 import { useFooterContent } from '../composables/useFooterContent'
+import { buildGrapesChrome } from '../composables/useGrapesChrome'
 import type {
   FooterContent,
   LandingBranding,
@@ -58,6 +59,7 @@ const error = ref<string | null>(null)
 const builder = ref<'sections' | 'grapesjs'>('sections')
 const grapesHtml = ref('')
 const grapesCss = ref('')
+const grapesChrome = ref<GrapesChrome>({})
 
 const sections = ref<LandingSection[]>([])
 const pageData = ref<Partial<LandingPage>>({
@@ -121,10 +123,11 @@ async function fetchPage(slug: string) {
     if (builder.value === 'grapesjs') {
       grapesHtml.value = pickString(result, 'HTML', 'html', 'Html')
       grapesCss.value = pickString(result, 'CSS', 'css', 'Css')
+      grapesChrome.value = buildGrapesChrome(result, pageData.value.title ?? '')
       applyGrapesSeo(pickObject(rawPage, 'seo', 'SEO'), pageData.value.title ?? '')
       // The GrapesJS page owns its full chrome; never stack the layout <nav>.
       emit('landing-header-mode', 'section')
-      // Still forward tenant branding/nav so a future live-chrome layer can use it.
+      // Forward tenant branding/nav for the layout (favicon etc.).
       emit('landing-branding', normalizeBranding(pickObject(result, 'Branding', 'branding')))
       emit(
         'landing-navigation',
@@ -363,6 +366,7 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
       v-else-if="builder === 'grapesjs'"
       :html="grapesHtml"
       :css="grapesCss"
+      :chrome="grapesChrome"
       :title="pageData.title"
     />
 
