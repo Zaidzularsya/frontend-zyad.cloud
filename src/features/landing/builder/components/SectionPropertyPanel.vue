@@ -48,6 +48,9 @@ watch(
   { immediate: true },
 )
 
+const summaryCls =
+  'flex cursor-pointer select-none items-center justify-between py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500'
+
 function applyJson(which: 'content' | 'style') {
   try {
     const parsed = JSON.parse(which === 'content' ? contentJson.value : styleJson.value)
@@ -104,14 +107,12 @@ function applyJson(which: 'content' | 'style') {
       </div>
     </div>
 
-    <details class="group rounded-lg border border-gray-200 dark:border-gray-700" open>
-      <summary
-        class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
-      >
+    <details class="group" open>
+      <summary :class="summaryCls">
         Content
-        <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
       </summary>
-      <div class="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+      <div class="pb-3 pt-1">
         <p
           v-if="schema.length === 0"
           class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-gray-400"
@@ -127,26 +128,22 @@ function applyJson(which: 'content' | 'style') {
       </div>
     </details>
 
-    <details class="group rounded-lg border border-gray-200 dark:border-gray-700">
-      <summary
-        class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
-      >
+    <details class="group border-t border-gray-100 dark:border-gray-800">
+      <summary :class="summaryCls">
         Appearance
-        <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
       </summary>
-      <div class="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+      <div class="pb-3 pt-1">
         <AppearanceForm :section="section" />
       </div>
     </details>
 
-    <details class="group rounded-lg border border-gray-200 dark:border-gray-700">
-      <summary
-        class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
-      >
+    <details class="group border-t border-gray-100 dark:border-gray-800">
+      <summary :class="summaryCls">
         Spacing
-        <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
       </summary>
-      <div class="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+      <div class="pb-3 pt-1">
         <span class="text-xs font-medium text-gray-500">Jarak vertikal</span>
         <SpacingField
           class="mt-1"
@@ -156,14 +153,12 @@ function applyJson(which: 'content' | 'style') {
       </div>
     </details>
 
-    <details class="group rounded-lg border border-gray-200 dark:border-gray-700">
-      <summary
-        class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"
-      >
+    <details class="group border-t border-gray-100 dark:border-gray-800">
+      <summary :class="summaryCls">
         Advanced
-        <ChevronDown class="size-4 transition-transform group-open:rotate-180" />
+        <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
       </summary>
-      <div class="space-y-3 border-t border-gray-100 px-3 py-3 text-sm dark:border-gray-800">
+      <div class="space-y-3 pb-3 pt-1 text-sm">
         <label class="block">
           <span class="text-xs font-medium text-gray-500">content (JSON)</span>
           <textarea

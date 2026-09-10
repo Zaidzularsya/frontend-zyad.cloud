@@ -20,10 +20,14 @@ export interface BoxStyle {
   radius?: number
   borderWidth?: number
   borderColor?: string
+  borderStyle?: 'solid' | 'dashed' | 'dotted'
   shadow?: 'none' | 'sm' | 'md' | 'lg'
   /** Max width in px for the element itself (not the section wrapper). */
   width?: number
   fullWidth?: boolean
+  /** Fixed height in px — pairs with objectFit for image crops. */
+  height?: number
+  objectFit?: 'cover' | 'contain' | 'fill' | 'none'
 }
 
 const SHADOW_PRESETS: Record<string, string> = {
@@ -59,7 +63,7 @@ export function useElementStyle(styleConfig: () => Record<string, unknown> | und
     const out: CSSProperties = {}
     if (typeof b.radius === 'number') out.borderRadius = `${b.radius}px`
     if (typeof b.borderWidth === 'number' && b.borderWidth > 0) {
-      out.border = `${b.borderWidth}px solid ${b.borderColor || '#e2e8f0'}`
+      out.border = `${b.borderWidth}px ${b.borderStyle || 'solid'} ${b.borderColor || '#e2e8f0'}`
     }
     if (b.shadow && SHADOW_PRESETS[b.shadow]) out.boxShadow = SHADOW_PRESETS[b.shadow]
     if (b.fullWidth) {
@@ -67,6 +71,8 @@ export function useElementStyle(styleConfig: () => Record<string, unknown> | und
     } else if (typeof b.width === 'number') {
       out.maxWidth = `${b.width}px`
     }
+    if (typeof b.height === 'number' && b.height > 0) out.height = `${b.height}px`
+    if (b.objectFit) out.objectFit = b.objectFit
     return out
   })
 

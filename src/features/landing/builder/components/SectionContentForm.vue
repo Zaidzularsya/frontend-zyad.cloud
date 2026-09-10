@@ -3,6 +3,7 @@ import { defineAsyncComponent } from 'vue'
 
 import type { SectionFieldSchema } from '@/features/landing/shared/constants/section-schemas'
 import ColorField from './fields/ColorField.vue'
+import ImageField from './fields/ImageField.vue'
 
 // TipTap is heavy; only pull it when a richtext field is actually rendered.
 const RichTextField = defineAsyncComponent(() => import('./RichTextField.vue'))
@@ -78,6 +79,14 @@ function inputType(type: SectionFieldSchema['type']) {
         <ColorField
           v-else-if="field.type === 'color'"
           :model-value="String(valueAt(field.key) ?? '')"
+          class="mt-1"
+          @update:model-value="emit('field-change', field.key, $event)"
+        />
+
+        <ImageField
+          v-else-if="field.type === 'image'"
+          :model-value="String(valueAt(field.key) ?? '')"
+          :placeholder="field.placeholder"
           class="mt-1"
           @update:model-value="emit('field-change', field.key, $event)"
         />

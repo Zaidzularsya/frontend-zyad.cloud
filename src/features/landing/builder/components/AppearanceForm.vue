@@ -23,6 +23,7 @@ const showColors = computed(() => variant.value === 'element.button')
 const showBox = computed(() =>
   ['element.button', 'element.image', 'element.divider'].includes(variant.value),
 )
+const isImage = computed(() => variant.value === 'element.image')
 
 const FOOTER_VARIANTS = ['default', 'simple', 'newsletter', 'mega']
 const ALIGN_OPTIONS = [
@@ -33,6 +34,13 @@ const ALIGN_OPTIONS = [
 ]
 const WEIGHT_OPTIONS = ['400', '500', '600', '700', '800']
 const SHADOW_OPTIONS = ['none', 'sm', 'md', 'lg']
+const BORDER_STYLE_OPTIONS = ['solid', 'dashed', 'dotted']
+const OBJECT_FIT_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: 'cover', label: 'Cover (crop)' },
+  { value: 'contain', label: 'Contain (muat)' },
+  { value: 'fill', label: 'Fill (regang)' },
+]
 
 const typography = computed(() => (style.value.typography ?? {}) as Record<string, unknown>)
 const colors = computed(() => (style.value.colors ?? {}) as Record<string, unknown>)
@@ -223,14 +231,64 @@ function numOrUndef(value: string): number | undefined {
           </select>
         </label>
       </div>
-      <div>
-        <span class="text-xs font-medium text-gray-500">Warna garis</span>
-        <ColorField
-          class="mt-1"
-          :model-value="(box.borderColor as string) ?? ''"
-          @update:model-value="patchNested('box', { borderColor: $event || undefined })"
-        />
+      <div class="grid grid-cols-2 gap-2">
+        <label class="text-xs text-gray-500">
+          Gaya garis
+          <select
+            :value="String(box.borderStyle ?? '')"
+            class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+            @change="
+              patchNested('box', {
+                borderStyle: ($event.target as HTMLSelectElement).value || undefined,
+              })
+            "
+          >
+            <option value="">solid</option>
+            <option v-for="bs in BORDER_STYLE_OPTIONS" :key="bs" :value="bs">{{ bs }}</option>
+          </select>
+        </label>
+        <div>
+          <span class="text-xs text-gray-500">Warna garis</span>
+          <ColorField
+            class="mt-1"
+            :model-value="(box.borderColor as string) ?? ''"
+            @update:model-value="patchNested('box', { borderColor: $event || undefined })"
+          />
+        </div>
       </div>
+
+      <div v-if="isImage" class="grid grid-cols-2 gap-2">
+        <label class="text-xs text-gray-500">
+          Tinggi (px)
+          <input
+            type="number"
+            min="0"
+            :value="(box.height as number) ?? ''"
+            placeholder="auto"
+            class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+            @input="
+              patchNested('box', { height: numOrUndef(($event.target as HTMLInputElement).value) })
+            "
+          />
+        </label>
+        <label class="text-xs text-gray-500">
+          Penyesuaian
+          <select
+            :value="String(box.objectFit ?? '')"
+            class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+            @change="
+              patchNested('box', {
+                objectFit: ($event.target as HTMLSelectElement).value || undefined,
+              })
+            "
+          >
+            <option v-for="opt in OBJECT_FIT_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </label>
+      </div>
+
       <label
         v-if="variant !== 'element.divider'"
         class="flex items-center gap-2 text-xs text-gray-500"

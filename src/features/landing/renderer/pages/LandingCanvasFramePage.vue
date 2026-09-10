@@ -274,6 +274,16 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
+<style>
+/* CanvasFrame sizes this iframe to the document height, so the app-wide
+   `html { scrollbar-gutter: stable }` (main.css) would just reserve a permanent
+   empty strip down the right edge with no scrollbar in it. Opt out here — the
+   canvas only needs a scrollbar in the rare moment content briefly overflows. */
+html {
+  scrollbar-gutter: auto;
+}
+</style>
+
 <style scoped>
 .canvas-root {
   min-height: 100vh;

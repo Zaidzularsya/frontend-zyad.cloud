@@ -17,7 +17,7 @@ const src = computed(() => String(props.content?.src ?? '').trim())
     <img v-if="src" class="element-image" :src="src" :alt="content?.alt || ''" :style="boxStyle" />
     <div v-else class="element-image-placeholder" :style="boxStyle">
       <span class="material-symbols-outlined">image</span>
-      <span>Tambahkan URL gambar di panel properti</span>
+      <span>Upload atau tempel URL gambar di panel properti</span>
     </div>
   </div>
 </template>
