@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue'
 
 interface HeaderItem {
   id?: string
@@ -104,9 +104,28 @@ const ctaStyle = computed<CSSProperties>(() => {
   return typeof color === 'string' && color ? { backgroundColor: color } : {}
 })
 
+const showCta = computed(() => props.content?.showLoginCta !== false)
+const ctaLabel = computed(() => props.content?.ctaLabel || 'Login')
+
 function isNewTab(target?: string) {
   return target === 'new_tab' || target === '_blank'
 }
+
+// ── Mobile drawer ───────────────────────────────────────────────────────────
+const isMobileOpen = ref(false)
+
+function closeMobile() {
+  isMobileOpen.value = false
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closeMobile()
+}
+
+watch(() => props.content?.items, closeMobile)
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -130,20 +149,52 @@ function isNewTab(target?: string) {
         </a>
       </nav>
 
+      <a v-if="showCta" class="header-cta" :href="content?.ctaUrl || '/'" :style="ctaStyle">
+        {{ ctaLabel }}
+      </a>
+
+      <button
+        type="button"
+        class="header-burger"
+        :aria-expanded="isMobileOpen ? 'true' : 'false'"
+        aria-controls="header-mobile-nav"
+        :aria-label="isMobileOpen ? 'Tutup menu' : 'Buka menu'"
+        @click="isMobileOpen = !isMobileOpen"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">
+          {{ isMobileOpen ? 'close' : 'menu' }}
+        </span>
+      </button>
+    </div>
+
+    <nav id="header-mobile-nav" class="header-drawer" :class="{ 'is-open': isMobileOpen }">
       <a
-        v-if="content?.showLoginCta !== false"
-        class="header-cta"
+        v-for="(item, i) in items"
+        :key="item.id || i"
+        :href="item.href"
+        :target="isNewTab(item.target) ? '_blank' : undefined"
+        :rel="isNewTab(item.target) ? 'noopener noreferrer' : undefined"
+        class="header-drawer__link"
+        @click="closeMobile"
+      >
+        {{ item.label }}
+      </a>
+      <a
+        v-if="showCta"
+        class="header-drawer__cta"
         :href="content?.ctaUrl || '/'"
         :style="ctaStyle"
+        @click="closeMobile"
       >
-        {{ content?.ctaLabel || 'Login' }}
+        {{ ctaLabel }}
       </a>
-    </div>
+    </nav>
   </header>
 </template>
 
 <style scoped>
 .header-section {
+  position: relative;
   width: 100%;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   background: #ffffff;
@@ -234,5 +285,96 @@ function isNewTab(target?: string) {
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+}
+
+/* ── Mobile drawer (≤ 768px) ────────────────────────────────────────────── */
+.header-burger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+}
+.header-burger:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+.header-burger:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.header-burger .material-symbols-outlined {
+  font-size: 26px;
+}
+.header-drawer {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .header-links,
+  .header-inner > .header-cta {
+    display: none;
+  }
+  .header-burger {
+    display: inline-flex;
+  }
+  .header-drawer.is-open {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 41;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 16px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+    animation: header-drawer-in 0.16s ease;
+  }
+  .header-drawer__link {
+    padding: 12px 8px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #1e293b;
+    text-decoration: none;
+    border-radius: 8px;
+  }
+  .header-drawer__link:hover {
+    background: #f1f5f9;
+  }
+  .header-drawer__link:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+  }
+  .header-drawer__cta {
+    margin-top: 8px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+  }
+}
+
+@keyframes header-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

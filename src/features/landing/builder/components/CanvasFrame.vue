@@ -216,9 +216,12 @@ watch([canvasNav, canvasBranding], () => pushChrome(), { deep: true })
       ref="frameRef"
       :src="src"
       title="Canvas landing page"
-      class="mx-auto block w-full rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800"
+      class="mx-auto block rounded-lg border border-gray-200 bg-white shadow-sm transition-[width] duration-200 dark:border-gray-800"
       :class="{ 'ring-2 ring-brand-400': drag?.active }"
-      :style="{ height: `${frameHeight}px` }"
+      :style="{
+        width: deviceWidth ? `${deviceWidth}px` : '100%',
+        height: `${frameHeight}px`,
+      }"
       @load="onFrameLoad"
     />
 

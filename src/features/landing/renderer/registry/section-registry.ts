@@ -23,6 +23,8 @@ import ElementButtonGroup from '../sections/element/ElementButtonGroup.vue'
 import ElementSocialButtons from '../sections/element/ElementSocialButtons.vue'
 import ElementImage from '../sections/element/ElementImage.vue'
 import ElementDivider from '../sections/element/ElementDivider.vue'
+import ElementContainer from '../sections/element/ElementContainer.vue'
+import ElementGrid from '../sections/element/ElementGrid.vue'
 import HeaderSection from '../sections/header/HeaderSection.vue'
 
 const enterpriseTemplateVariants = new Set([
@@ -151,6 +153,8 @@ export const sectionRegistry: Record<string, Record<string, Component>> = {
     'element.socialButtons': ElementSocialButtons,
     'element.image': ElementImage,
     'element.divider': ElementDivider,
+    'element.container': ElementContainer,
+    'element.grid': ElementGrid,
   },
   services: {
     default: ServicesSection,

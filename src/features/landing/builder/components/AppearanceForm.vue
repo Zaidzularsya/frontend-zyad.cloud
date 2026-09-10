@@ -34,6 +34,7 @@ const showColors = computed(() =>
 // controls stay guarded (e.g. radius/shadow hidden for a divider).
 const showBox = computed(() => isElement.value)
 const isImage = computed(() => variant.value === 'element.image')
+const showContainerBg = computed(() => variant.value === 'element.container')
 
 const FOOTER_VARIANTS = ['default', 'simple', 'newsletter', 'mega']
 const ALIGN_OPTIONS = [
@@ -398,7 +399,7 @@ function numOrUndef(value: string): number | undefined {
       </div>
     </template>
 
-    <div v-if="!isElement">
+    <div v-if="!isElement || showContainerBg">
       <span class="text-xs font-medium text-gray-500">Warna latar</span>
       <ColorField
         class="mt-1"

@@ -53,10 +53,13 @@ describe('BLOCK_CATALOG integrity', () => {
     for (const block of BLOCK_CATALOG) {
       expect(['section', 'element', 'layout'], block.id).toContain(blockKind(block))
     }
-    // element.* variants must derive to 'element'
-    for (const block of BLOCK_CATALOG.filter((b) => b.variant?.startsWith('element.'))) {
+    // an element.* variant with no explicit `kind` must derive to 'element'
+    for (const block of BLOCK_CATALOG.filter((b) => b.variant?.startsWith('element.') && !b.kind)) {
       expect(blockKind(block), block.id).toBe('element')
     }
+    // explicit `kind` always wins
+    expect(blockKind(blockById('element.grid')!)).toBe('layout')
+    expect(blockKind(blockById('element.container')!)).toBe('layout')
   })
 
   it('blockById round-trips', () => {

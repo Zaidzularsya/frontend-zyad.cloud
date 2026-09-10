@@ -101,4 +101,49 @@ describe('HeaderSection', () => {
       expect(wrapper.find('.header-logo').attributes('src')).toBe('/brand-light.png')
     })
   })
+
+  describe('mobile drawer', () => {
+    const items = [
+      { id: '1', label: 'Pricing', href: '/pricing' },
+      { id: '2', label: 'Docs', href: '/docs' },
+    ]
+
+    it('toggles the drawer and tracks aria-expanded', async () => {
+      const wrapper = render({ items })
+      const burger = wrapper.find('.header-burger')
+      const drawer = wrapper.find('#header-mobile-nav')
+      expect(burger.attributes('aria-expanded')).toBe('false')
+      expect(drawer.classes()).not.toContain('is-open')
+
+      await burger.trigger('click')
+      expect(burger.attributes('aria-expanded')).toBe('true')
+      expect(burger.attributes('aria-label')).toBe('Tutup menu')
+      expect(drawer.classes()).toContain('is-open')
+    })
+
+    it('mirrors the same nav labels (plus CTA) inside the drawer', () => {
+      const wrapper = render({ items, ctaLabel: 'Masuk' })
+      const drawerLinks = wrapper.findAll('#header-mobile-nav .header-drawer__link')
+      expect(drawerLinks.map((l) => l.text())).toEqual(['Pricing', 'Docs'])
+      expect(wrapper.find('#header-mobile-nav .header-drawer__cta').text()).toBe('Masuk')
+    })
+
+    it('closes when a drawer link is clicked', async () => {
+      const wrapper = render({ items })
+      await wrapper.find('.header-burger').trigger('click')
+      expect(wrapper.find('#header-mobile-nav').classes()).toContain('is-open')
+      await wrapper.find('#header-mobile-nav .header-drawer__link').trigger('click')
+      expect(wrapper.find('#header-mobile-nav').classes()).not.toContain('is-open')
+    })
+
+    it('closes on Escape', async () => {
+      const wrapper = render({ items })
+      await wrapper.find('.header-burger').trigger('click')
+      expect(wrapper.find('#header-mobile-nav').classes()).toContain('is-open')
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('#header-mobile-nav').classes()).not.toContain('is-open')
+      wrapper.unmount()
+    })
+  })
 })
