@@ -188,12 +188,7 @@ function closeMobileSidebar() {
                   >
                     <component :is="child.icon || item.icon" class="size-4" />
                   </span>
-                  <span class="min-w-0 flex-1">
-                    <span class="block truncate">{{ child.label }}</span>
-                    <span class="block truncate text-xs text-gray-400">
-                      {{ child.description || 'Open page' }}
-                    </span>
-                  </span>
+                  <span class="min-w-0 flex-1 truncate">{{ child.label }}</span>
                   <ChevronRight
                     class="size-4 shrink-0 text-gray-300 transition group-hover:text-gray-500"
                   />

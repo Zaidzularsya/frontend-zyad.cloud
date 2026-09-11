@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted } from 'vue'
 
-import PageHeader from '@/components/common/PageHeader.vue'
 import LandingPagePicker from '@/features/landing/builder/components/LandingPagePicker.vue'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 
@@ -42,8 +41,6 @@ const builder = computed(() => currentPage.value?.builder ?? null)
 
   <!-- GrapesJS pages + the loading / empty states. -->
   <div v-else class="flex flex-col gap-4">
-    <PageHeader :title="title || 'Content'" :description="description" />
-
     <div
       class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
     >
