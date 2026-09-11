@@ -8,28 +8,34 @@ import 'grapesjs/dist/css/grapes.min.css'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { useLandingDocumentStore } from '@/stores/landingDocument'
 import { useLandingChromeStore } from '@/stores/landingChrome'
+import { useLandingPricingStore } from '@/stores/landingPricing'
 import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
 import { GRAPES_STARTERS, type GrapesStarter } from './starter-templates'
 import { registerTenantHeader, TENANT_HEADER_TYPE } from './grapes.header-component'
 import { registerTenantFooter, TENANT_FOOTER_TYPE } from './grapes.footer-component'
+import { registerTenantPricing, TENANT_PRICING_TYPE } from './grapes.pricing-component'
 import GrapesHeaderPanel from './GrapesHeaderPanel.vue'
 import GrapesFooterPanel from './GrapesFooterPanel.vue'
+import GrapesPricingPanel from './GrapesPricingPanel.vue'
 
 const props = defineProps<{ pageId: string }>()
 
 const store = useLandingDocumentStore()
 const chrome = useLandingChromeStore()
+const pricing = useLandingPricingStore()
 
-// The selected `zyad-tenant-header` / `zyad-tenant-footer` component (if any)
-// → swaps the right pane for GrapesHeaderPanel / GrapesFooterPanel. Typed
-// loosely: it's a GrapesJS component model.
+// The selected `zyad-tenant-header` / `zyad-tenant-footer` / `zyad-pricing-plans`
+// component (if any) → swaps the right pane for GrapesHeaderPanel /
+// GrapesFooterPanel / GrapesPricingPanel. Typed loosely: it's a GrapesJS
+// component model.
 type TenantComponent = {
   getAttributes: () => Record<string, string>
   addAttributes: (attrs: Record<string, string>) => void
 }
 const headerComponent = shallowRef<TenantComponent | null>(null)
 const footerComponent = shallowRef<TenantComponent | null>(null)
+const pricingComponent = shallowRef<TenantComponent | null>(null)
 const duplicateNotice = ref('')
 
 const canvasRef = ref<HTMLElement | null>(null)
@@ -64,7 +70,9 @@ const savedLabel = computed(() => {
   return 'Tersimpan'
 })
 
-const tenantPanelActive = computed(() => !!headerComponent.value || !!footerComponent.value)
+const tenantPanelActive = computed(
+  () => !!headerComponent.value || !!footerComponent.value || !!pricingComponent.value,
+)
 
 function setDevice(name: string) {
   activeDevice.value = name
@@ -213,14 +221,30 @@ onMounted(async () => {
     brandName: chrome.canvasBranding.companyName,
     logoUrl: chrome.canvasBranding.logoUrl,
   }))
+  registerTenantPricing(ed, () => ({
+    plans: pricing.canvasPlans.map((p) => ({
+      id: p.id,
+      name: p.name,
+      priceLabel: p.price_label,
+      intervalLabel: p.interval_label,
+      description: p.description,
+      features: p.features,
+      ctaLabel: p.cta_label,
+      ctaUrl: p.cta_url,
+      isFeatured: p.is_featured,
+    })),
+  }))
   void chrome.load()
+  void pricing.load()
 
   ed.on('component:selected', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown } | undefined
     const type = model?.get?.('type')
-    const isTenant = type === TENANT_HEADER_TYPE || type === TENANT_FOOTER_TYPE
+    const isTenant =
+      type === TENANT_HEADER_TYPE || type === TENANT_FOOTER_TYPE || type === TENANT_PRICING_TYPE
     headerComponent.value = type === TENANT_HEADER_TYPE ? (component as never) : null
     footerComponent.value = type === TENANT_FOOTER_TYPE ? (component as never) : null
+    pricingComponent.value = type === TENANT_PRICING_TYPE ? (component as never) : null
     // Default to the custom content panel on selection, but leave Style/Setelan
     // reachable via the tab bar — GrapesJS's Style Manager already has the
     // sectors (Dekorasi: background/opacity, Posisi: position/z-index) needed
@@ -232,31 +256,35 @@ onMounted(async () => {
   ed.on('component:deselected', () => {
     headerComponent.value = null
     footerComponent.value = null
+    pricingComponent.value = null
     if (rightTab.value === 'content') rightTab.value = 'styles'
   })
 
-  // "Header tenant" / "Footer tenant" are meant to appear at most once per
-  // page — dropping a second one from the palette (or a starter template that
-  // ships one already) would otherwise render two on the live page (both the
-  // SSR and client fill loops fill every sentinel they find). Remove the
-  // newly-added duplicate immediately and tell the author why.
+  // "Header tenant" / "Footer tenant" / "Pricing tenant" are meant to appear
+  // at most once per page — dropping a second one from the palette (or a
+  // starter template that ships one already) would otherwise render two on
+  // the live page (both the SSR and client fill loops fill every sentinel
+  // they find). Remove the newly-added duplicate immediately and tell the
+  // author why.
+  const TENANT_SLOT_BY_TYPE: Record<string, string> = {
+    [TENANT_HEADER_TYPE]: 'tenant-nav',
+    [TENANT_FOOTER_TYPE]: 'tenant-footer',
+    [TENANT_PRICING_TYPE]: 'pricing-plans',
+  }
+  const TENANT_LABEL_BY_TYPE: Record<string, string> = {
+    [TENANT_HEADER_TYPE]: 'Header tenant',
+    [TENANT_FOOTER_TYPE]: 'Footer tenant',
+    [TENANT_PRICING_TYPE]: 'Pricing tenant',
+  }
   ed.on('component:add', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown; remove?: () => void } | undefined
-    const type = model?.get?.('type')
-    const slotName =
-      type === TENANT_HEADER_TYPE
-        ? 'tenant-nav'
-        : type === TENANT_FOOTER_TYPE
-          ? 'tenant-footer'
-          : null
+    const type = (model?.get?.('type') as string) ?? ''
+    const slotName = TENANT_SLOT_BY_TYPE[type]
     if (!slotName) return
     const existing = ed.getWrapper()?.find(`[data-zyad-slot="${slotName}"]`) ?? []
     if (existing.length > 1) {
       model?.remove?.()
-      duplicateNotice.value =
-        type === TENANT_HEADER_TYPE
-          ? 'Header tenant sudah ada di halaman ini — hanya boleh satu.'
-          : 'Footer tenant sudah ada di halaman ini — hanya boleh satu.'
+      duplicateNotice.value = `${TENANT_LABEL_BY_TYPE[type]} sudah ada di halaman ini — hanya boleh satu.`
       window.setTimeout(() => (duplicateNotice.value = ''), 4000)
     }
   })
@@ -285,7 +313,8 @@ onMounted(async () => {
   }
   const removedNavDup = dedupeTenantSlot('tenant-nav')
   const removedFooterDup = dedupeTenantSlot('tenant-footer')
-  if (removedNavDup || removedFooterDup) {
+  const removedPricingDup = dedupeTenantSlot('pricing-plans')
+  if (removedNavDup || removedFooterDup || removedPricingDup) {
     store.applyEditorSnapshot({
       project: ed.getProjectData() as Record<string, unknown>,
       html: ed.getHtml(),
@@ -332,6 +361,13 @@ watch(
 watch(
   () => [chrome.canvasFooterNav, chrome.canvasBranding],
   () => rerenderTenantSlot('tenant-footer'),
+  { deep: true },
+)
+
+/** Re-render every pricing-plans preview when the tenant's plan list changes. */
+watch(
+  () => pricing.canvasPlans,
+  () => rerenderTenantSlot('pricing-plans'),
   { deep: true },
 )
 
@@ -484,6 +520,11 @@ defineExpose({ editor })
         />
         <GrapesFooterPanel
           v-if="footerComponent"
+          v-show="rightTab === 'content'"
+          class="grapes-pane"
+        />
+        <GrapesPricingPanel
+          v-if="pricingComponent"
           v-show="rightTab === 'content'"
           class="grapes-pane"
         />

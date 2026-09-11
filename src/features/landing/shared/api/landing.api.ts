@@ -14,6 +14,7 @@ import type {
   LandingMenu,
   LandingMenuItem,
   LandingPage,
+  LandingPricingPlan,
   LandingRevision,
   LandingSection,
   PaginatedResponse,
@@ -77,6 +78,24 @@ function normalizeCTA(raw: RawRecord): CallToAction {
     target: pick(raw, 'target', 'Target', 'self'),
     destination: pick(raw, 'destination', 'Destination', ''),
     tracking_key: pick(raw, 'tracking_key', 'TrackingKey', ''),
+    created_at: pick(raw, 'created_at', 'CreatedAt', ''),
+    updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
+  }
+}
+
+function normalizePricingPlan(raw: RawRecord): LandingPricingPlan {
+  return {
+    id: pick(raw, 'id', 'ID', ''),
+    name: pick(raw, 'name', 'Name', ''),
+    price_label: pick(raw, 'price_label', 'PriceLabel', ''),
+    interval_label: pick(raw, 'interval_label', 'IntervalLabel', ''),
+    description: pick(raw, 'description', 'Description', ''),
+    features: pick(raw, 'features', 'Features', []),
+    cta_label: pick(raw, 'cta_label', 'CTALabel', 'Pilih paket'),
+    cta_url: pick(raw, 'cta_url', 'CTAURL', ''),
+    is_featured: pick(raw, 'is_featured', 'IsFeatured', false),
+    sort_order: pick(raw, 'sort_order', 'SortOrder', 0),
+    is_enabled: pick(raw, 'is_enabled', 'IsEnabled', true),
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
   }
@@ -667,6 +686,21 @@ export const landingApi = {
     deleteData<null>(`/admin/landing/menus/${id}/items/${itemId}`),
   reorderMenuItems: (id: string, data: unknown) =>
     putData<null>(`/admin/landing/menus/${id}/items/reorder`, data),
+
+  getPricingPlans: async (params?: QueryParams) =>
+    mapList(await getList<RawRecord>('/admin/landing/pricing-plans', params), normalizePricingPlan),
+  createPricingPlan: async (data: unknown) => {
+    const response = await postData<RawRecord>('/admin/landing/pricing-plans', data)
+    return { ...response, data: normalizePricingPlan(response.data) }
+  },
+  updatePricingPlan: (id: string, data: unknown) =>
+    patchData<RawRecord>(`/admin/landing/pricing-plans/${id}`, data).then((response) => ({
+      ...response,
+      data: normalizePricingPlan(response.data),
+    })),
+  deletePricingPlan: (id: string) => deleteData<null>(`/admin/landing/pricing-plans/${id}`),
+  reorderPricingPlans: (data: unknown) =>
+    putData<null>('/admin/landing/pricing-plans/reorder', data),
 
   getIntegrations: (params?: QueryParams) =>
     getList<RawRecord>('/admin/landing/lead-integrations', params).then((response) =>

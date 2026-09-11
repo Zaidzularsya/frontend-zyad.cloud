@@ -240,6 +240,24 @@ export interface CallToAction {
   updated_at: string
 }
 
+// ─── Pricing plan (tenant-owned, for the zyad-pricing-plans block) ───────────
+
+export interface LandingPricingPlan {
+  id: string
+  name: string
+  price_label: string
+  interval_label?: string
+  description?: string
+  features: string[]
+  cta_label: string
+  cta_url?: string
+  is_featured: boolean
+  sort_order: number
+  is_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
 // ─── Media ───────────────────────────────────────────────────────────────────
 
 export interface LandingMedia {

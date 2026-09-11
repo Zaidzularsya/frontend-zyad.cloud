@@ -192,6 +192,62 @@ describe('GrapesPageFrame', () => {
     expect(doc.match(/data-zyad-slot="tenant-footer"/g)?.length).toBe(1)
   })
 
+  it('fills the pricing-plans sentinel with plan cards', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: '<div data-zyad-slot="pricing-plans"></div><main>x</main>',
+        css: '',
+        chrome: {
+          pricingPlans: [
+            {
+              id: 'p1',
+              name: 'Starter',
+              priceLabel: 'Rp 199.000',
+              intervalLabel: '/bulan',
+              features: ['5 halaman'],
+              ctaLabel: 'Mulai',
+              ctaUrl: '/daftar',
+              isFeatured: true,
+            },
+          ],
+        },
+      },
+    })
+    const doc = srcdocOf(wrapper)
+    expect(doc).toContain('zyad-pricing-plans')
+    expect(doc).toContain('Starter')
+    expect(doc).toContain('Rp 199.000')
+    expect(doc).toContain('<li>5 halaman</li>')
+    expect(doc).toContain('href="/daftar"')
+    expect(doc).toContain('zyad-pricing-plans__card--featured')
+  })
+
+  it('fills only the first pricing-plans sentinel and drops any extra duplicate', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html:
+          '<div data-zyad-slot="pricing-plans"></div><main>x</main>' +
+          '<div data-zyad-slot="pricing-plans"></div>',
+        css: '',
+        chrome: {
+          pricingPlans: [
+            {
+              id: 'p1',
+              name: 'Starter',
+              priceLabel: 'Rp 199.000',
+              features: [],
+              ctaLabel: 'Mulai',
+              isFeatured: false,
+            },
+          ],
+        },
+      },
+    })
+    const doc = srcdocOf(wrapper)
+    expect(doc.match(/class="zyad-pricing-plans"/g)?.length).toBe(1)
+    expect(doc.match(/data-zyad-slot="pricing-plans"/g)?.length).toBe(1)
+  })
+
   it('leaves the HTML untouched when there is no sentinel', () => {
     const wrapper = mount(GrapesPageFrame, {
       props: {

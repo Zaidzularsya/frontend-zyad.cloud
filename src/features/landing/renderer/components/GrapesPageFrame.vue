@@ -28,6 +28,17 @@ export interface GrapesChromeLink {
   href: string
   target?: string
 }
+export interface GrapesChromePricingPlan {
+  id: string
+  name: string
+  priceLabel: string
+  intervalLabel?: string
+  description?: string
+  features: string[]
+  ctaLabel: string
+  ctaUrl?: string
+  isFeatured: boolean
+}
 export interface GrapesChrome {
   nav?: GrapesChromeLink[]
   /** Tenant brand for the header sentinel (logo + name next to the nav). */
@@ -38,6 +49,8 @@ export interface GrapesChrome {
     copyright?: string
     columns?: { title: string; links: GrapesChromeLink[] }[]
   }
+  /** Tenant's own pricing-plan cards for the pricing-plans sentinel. */
+  pricingPlans?: GrapesChromePricingPlan[]
 }
 
 interface HeaderPresentation {
@@ -218,6 +231,75 @@ function fillFooter(doc: Document, slot: Element, footer: NonNullable<GrapesChro
   slot.replaceChildren(wrap)
 }
 
+function fillPricing(doc: Document, slot: Element, plans: GrapesChromePricingPlan[]) {
+  const wrap = doc.createElement('div')
+  wrap.className = 'zyad-pricing-plans'
+  const grid = doc.createElement('div')
+  grid.className = 'zyad-pricing-plans__grid'
+
+  for (const plan of plans) {
+    const card = doc.createElement('div')
+    card.className = plan.isFeatured
+      ? 'zyad-pricing-plans__card zyad-pricing-plans__card--featured'
+      : 'zyad-pricing-plans__card'
+
+    if (plan.isFeatured) {
+      const badge = doc.createElement('span')
+      badge.className = 'zyad-pricing-plans__badge'
+      badge.textContent = 'Populer'
+      card.appendChild(badge)
+    }
+
+    const name = doc.createElement('p')
+    name.className = 'zyad-pricing-plans__name'
+    name.textContent = plan.name
+    card.appendChild(name)
+
+    const price = doc.createElement('p')
+    price.className = 'zyad-pricing-plans__price'
+    price.textContent = plan.priceLabel
+    if (plan.intervalLabel) {
+      const interval = doc.createElement('span')
+      interval.className = 'zyad-pricing-plans__interval'
+      interval.textContent = ` ${plan.intervalLabel}`
+      price.appendChild(interval)
+    }
+    card.appendChild(price)
+
+    if (plan.description) {
+      const desc = doc.createElement('p')
+      desc.className = 'zyad-pricing-plans__desc'
+      desc.textContent = plan.description
+      card.appendChild(desc)
+    }
+
+    if (plan.features.length) {
+      const list = doc.createElement('ul')
+      list.className = 'zyad-pricing-plans__features'
+      for (const feature of plan.features) {
+        if (!feature) continue
+        const li = doc.createElement('li')
+        li.textContent = feature
+        list.appendChild(li)
+      }
+      card.appendChild(list)
+    }
+
+    if (plan.ctaLabel) {
+      const cta = doc.createElement('a')
+      cta.className = 'zyad-pricing-plans__cta'
+      cta.setAttribute('href', safeHref(plan.ctaUrl || ''))
+      cta.textContent = plan.ctaLabel
+      card.appendChild(cta)
+    }
+
+    grid.appendChild(card)
+  }
+
+  wrap.appendChild(grid)
+  slot.replaceChildren(wrap)
+}
+
 /**
  * A tenant-chrome sentinel is meant to appear at most once per page (dropping
  * "Header tenant" / "Footer tenant" twice is a builder mistake, guarded against
@@ -241,7 +323,12 @@ const bodyHtml = computed(() => {
   })
 
   const chrome = props.chrome
-  if (!chrome || (!chrome.nav?.length && !chrome.brand && !chrome.footer)) return clean
+  if (
+    !chrome ||
+    (!chrome.nav?.length && !chrome.brand && !chrome.footer && !chrome.pricingPlans?.length)
+  ) {
+    return clean
+  }
 
   const parsed = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html')
   if (chrome.nav?.length || chrome.brand) {
@@ -255,6 +342,12 @@ const bodyHtml = computed(() => {
       parsed.body.querySelectorAll('[data-zyad-slot="tenant-footer"]'),
     )
     if (slot) fillFooter(parsed, slot, chrome.footer!)
+  }
+  if (chrome.pricingPlans?.length) {
+    const slot = firstSlotDroppingRest(
+      parsed.body.querySelectorAll('[data-zyad-slot="pricing-plans"]'),
+    )
+    if (slot) fillPricing(parsed, slot, chrome.pricingPlans)
   }
   return parsed.body.innerHTML
 })
@@ -283,6 +376,18 @@ const CHROME_CSS = `
 .zyad-tenant-footer__col a{color:#cbd5e1;text-decoration:none}
 .zyad-tenant-footer__col a:hover{color:#fff}
 .zyad-tenant-footer__copyright{max-width:1120px;margin:28px auto 0;border-top:1px solid #1e293b;padding-top:16px;font-size:13px}
+.zyad-pricing-plans{padding:64px 24px;font-family:'Inter','Segoe UI',system-ui,sans-serif}
+.zyad-pricing-plans__grid{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
+.zyad-pricing-plans__card{padding:32px 28px;border:1px solid #e2e8f0;border-radius:16px;background:#fff}
+.zyad-pricing-plans__card--featured{border-color:#465fff;box-shadow:0 12px 32px rgba(70,95,255,.16)}
+.zyad-pricing-plans__badge{display:inline-block;margin:0 0 12px;padding:4px 10px;border-radius:999px;background:#465fff;color:#fff;font-size:12px;font-weight:600}
+.zyad-pricing-plans__name{margin:0 0 8px;font-size:18px;font-weight:700;color:#0f172a}
+.zyad-pricing-plans__price{margin:0 0 4px;font-size:32px;font-weight:800;color:#0f172a}
+.zyad-pricing-plans__interval{font-size:14px;font-weight:500;color:#64748b}
+.zyad-pricing-plans__desc{margin:8px 0 20px;font-size:14px;color:#475569}
+.zyad-pricing-plans__features{list-style:none;margin:0 0 24px;padding:0;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#334155}
+.zyad-pricing-plans__cta{display:block;text-align:center;padding:11px 20px;border-radius:10px;background:#465fff;color:#fff;font-weight:600;text-decoration:none}
+.zyad-pricing-plans__card--featured .zyad-pricing-plans__cta{background:#2563eb}
 `.trim()
 
 const srcdoc = computed(

@@ -126,13 +126,14 @@ const footerBlock = `
   </footer>`
 
 // ── Tenant chrome (live) ───────────────────────────────────────────────────
-// "Header tenant" / "Footer tenant" drop the `zyad-tenant-header` /
-// `zyad-tenant-footer` components (grapes.header-component.ts,
-// grapes.footer-component.ts): locked components that render a LIVE preview
-// from the tenant menu + branding in the canvas, and export to a
-// `data-zyad-slot` sentinel — the sentinel's innerHTML is (re)built at render
-// time by GrapesPageFrame.vue / document_ssr.go. Each is meant to appear at
-// most once per page (enforced in GrapesEditor.vue's `component:add` guard).
+// "Header tenant" / "Footer tenant" / "Pricing tenant" drop the
+// `zyad-tenant-header` / `zyad-tenant-footer` / `zyad-pricing-plans`
+// components (grapes.header-component.ts, grapes.footer-component.ts,
+// grapes.pricing-component.ts): locked components that render a LIVE preview
+// from tenant-wide data in the canvas, and export to a `data-zyad-slot`
+// sentinel — the sentinel's innerHTML is (re)built at render time by
+// GrapesPageFrame.vue / document_ssr.go. Each is meant to appear at most once
+// per page (enforced in GrapesEditor.vue's `component:add` guard).
 
 export const GRAPES_BLOCKS: GrapesBlockDef[] = [
   // ── Tenant ───────────────────────────────────────────────────────────────
@@ -149,6 +150,13 @@ export const GRAPES_BLOCKS: GrapesBlockDef[] = [
     category: 'Tenant',
     media: icon('call_to_action'),
     content: { type: 'zyad-tenant-footer' },
+  },
+  {
+    id: 'tenant-pricing',
+    label: 'Pricing tenant',
+    category: 'Tenant',
+    media: icon('sell'),
+    content: { type: 'zyad-pricing-plans' },
   },
 
   // ── Section ──────────────────────────────────────────────────────────────

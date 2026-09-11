@@ -1,5 +1,9 @@
 import { useFooterContent } from './useFooterContent'
-import type { GrapesChrome, GrapesChromeLink } from '../components/GrapesPageFrame.vue'
+import type {
+  GrapesChrome,
+  GrapesChromeLink,
+  GrapesChromePricingPlan,
+} from '../components/GrapesPageFrame.vue'
 
 /**
  * Builds the live tenant chrome (header nav + footer) for GrapesJS pages from a
@@ -21,7 +25,22 @@ export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): Gra
       copyright: footer.copyright,
       columns: footer.columns,
     },
+    pricingPlans: pricingPlans(result),
   }
+}
+
+function pricingPlans(result: RawRecord): GrapesChromePricingPlan[] {
+  return pickArray(result, 'PricingPlans', 'pricing_plans').map((plan) => ({
+    id: pickString(plan, 'id', 'ID'),
+    name: pickString(plan, 'name', 'Name'),
+    priceLabel: pickString(plan, 'price_label', 'PriceLabel'),
+    intervalLabel: pickString(plan, 'interval_label', 'IntervalLabel'),
+    description: pickString(plan, 'description', 'Description'),
+    features: pickStringArray(plan, 'features', 'Features'),
+    ctaLabel: pickString(plan, 'cta_label', 'CTALabel'),
+    ctaUrl: pickString(plan, 'cta_url', 'CTAURL'),
+    isFeatured: pickBoolean(plan, ['is_featured', 'IsFeatured'], false),
+  }))
 }
 
 function headerLinks(result: RawRecord): GrapesChromeLink[] {
@@ -82,6 +101,14 @@ function pickBoolean(record: RawRecord, keys: string[], fallback: boolean): bool
     if (typeof val === 'boolean') return val
   }
   return fallback
+}
+
+function pickStringArray(record: RawRecord, ...keys: string[]): string[] {
+  for (const key of keys) {
+    const val = record?.[key]
+    if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string')
+  }
+  return []
 }
 
 function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {

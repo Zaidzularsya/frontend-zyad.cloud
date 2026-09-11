@@ -46,6 +46,7 @@ const deleteMedia = vi.fn()
 const getMenus = vi.fn()
 const getDefaultBranding = vi.fn()
 const getMenuItems = vi.fn()
+const getPricingPlans = vi.fn()
 vi.mock('@/features/landing/shared/api/landing.api', () => ({
   landingApi: {
     getDocument: (...a: unknown[]) => getDocument(...a),
@@ -57,6 +58,7 @@ vi.mock('@/features/landing/shared/api/landing.api', () => ({
     getMenus: (...a: unknown[]) => getMenus(...a),
     getDefaultBranding: (...a: unknown[]) => getDefaultBranding(...a),
     getMenuItems: (...a: unknown[]) => getMenuItems(...a),
+    getPricingPlans: (...a: unknown[]) => getPricingPlans(...a),
   },
 }))
 
@@ -82,6 +84,7 @@ describe('GrapesEditor', () => {
     uploadMedia.mockResolvedValue({ data: { public_url: 'https://cdn.test/a.png', id: 'm1' } })
     deleteMedia.mockResolvedValue({ data: null })
     getMenus.mockResolvedValue({ data: [] })
+    getPricingPlans.mockResolvedValue({ data: [] })
     getDefaultBranding.mockResolvedValue({ data: { company_name: 'Acme', colors: {} } })
     getMenuItems.mockResolvedValue({ data: [] })
   })
@@ -264,6 +267,14 @@ describe('GrapesEditor', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).not.toContain('Action & Tampilan')
     expect(wrapper.text()).toContain('Hapus block ini') // GrapesFooterPanel-only hint
+
+    onSelect({
+      get: (k: string) => (k === 'type' ? 'zyad-pricing-plans' : undefined),
+      getAttributes: () => ({}),
+      addAttributes: vi.fn(),
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Belum ada paket harga') // GrapesPricingPanel-only empty state
   })
 
   it('keeps Style/Setelan reachable for a selected header — GrapesJS Style Manager still customizes it', async () => {
