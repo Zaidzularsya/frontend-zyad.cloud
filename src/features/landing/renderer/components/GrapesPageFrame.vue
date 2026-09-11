@@ -163,9 +163,10 @@ function fillHeader(
     bar.appendChild(action)
   }
 
-  slot.removeAttribute('style')
+  // Only the consumed presentation attribute is removed — any class/style the
+  // author added via the Style Manager (background, opacity, position for a
+  // transparent header overlapping a hero section, etc.) stays intact.
   slot.removeAttribute('data-zyad-header')
-  slot.setAttribute('class', 'zyad-slot zyad-slot--nav')
   slot.replaceChildren(bar)
 }
 
@@ -212,8 +213,8 @@ function fillFooter(doc: Document, slot: Element, footer: NonNullable<GrapesChro
     wrap.appendChild(cr)
   }
 
-  slot.removeAttribute('style')
-  slot.setAttribute('class', 'zyad-slot zyad-slot--footer')
+  // Any class/style the author added via the Style Manager stays intact —
+  // nothing to strip here (the footer has no per-page presentation attribute).
   slot.replaceChildren(wrap)
 }
 

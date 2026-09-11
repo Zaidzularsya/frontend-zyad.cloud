@@ -68,11 +68,6 @@ export function buildFooterPreview(data: TenantFooterData): string {
   return `<div style="padding:32px 24px;background:#0f172a;color:#cbd5e1;font-family:'Inter','Segoe UI',system-ui,sans-serif"><div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">${brand}${nav}</div></div>`
 }
 
-/** Serialise the export sentinel. */
-export function footerSentinelHTML(): string {
-  return `<div data-zyad-slot="tenant-footer"></div>`
-}
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function registerTenantFooter(editor: Editor, getData: () => TenantFooterData): void {
   editor.Components.addType(TENANT_FOOTER_TYPE, {
@@ -91,13 +86,14 @@ export function registerTenantFooter(editor: Editor, getData: () => TenantFooter
         removable: true,
         selectable: true,
         highlightable: true,
+        stylable: true,
         attributes: {
           'data-zyad-slot': 'tenant-footer',
         },
       },
-      toHTML() {
-        return footerSentinelHTML()
-      },
+      // No custom toHTML(): see grapes.header-component.ts — the model never
+      // has real children, so GrapesJS's default export already preserves
+      // whatever class/style the Style Manager added, instead of discarding it.
     },
     view: {
       onRender(this: any) {

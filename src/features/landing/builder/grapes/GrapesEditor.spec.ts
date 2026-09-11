@@ -265,4 +265,30 @@ describe('GrapesEditor', () => {
     expect(wrapper.text()).not.toContain('Action & Tampilan')
     expect(wrapper.text()).toContain('Hapus block ini') // GrapesFooterPanel-only hint
   })
+
+  it('keeps Style/Setelan reachable for a selected header — GrapesJS Style Manager still customizes it', async () => {
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+    const onSelect = onHandler('component:selected')!
+
+    onSelect({
+      get: (k: string) => (k === 'type' ? 'zyad-tenant-header' : undefined),
+      getAttributes: () => ({}),
+      addAttributes: vi.fn(),
+    })
+    await wrapper.vm.$nextTick()
+
+    // Defaults to the custom "Konten" panel, but Style/Setelan tabs are there too
+    // — previously the whole tab bar (and the native Style Manager pane) was
+    // hidden outright whenever a tenant header/footer was selected.
+    const tabButtons = () => wrapper.find('.grapes-right').findAll('.grapes-tabs button')
+    expect(tabButtons().map((b) => b.text())).toEqual(['Konten', 'Style', 'Setelan'])
+
+    expect(wrapper.get('.hp').attributes('style') ?? '').not.toContain('display: none')
+
+    await tabButtons()
+      .find((b) => b.text() === 'Style')!
+      .trigger('click')
+    expect(wrapper.get('.hp').attributes('style') ?? '').toContain('display: none')
+  })
 })

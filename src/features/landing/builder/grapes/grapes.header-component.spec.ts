@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_HEADER_PRESENTATION,
   buildHeaderPreview,
-  headerSentinelHTML,
   parseHeaderPresentation,
   safeHeaderHref,
 } from './grapes.header-component'
@@ -77,21 +76,5 @@ describe('buildHeaderPreview', () => {
     )
     expect(html).toContain('Belum ada item navigasi')
     expect(html).not.toContain('Masuk')
-  })
-})
-
-describe('headerSentinelHTML', () => {
-  it('emits the sentinel with the presentation as a data attribute', () => {
-    const html = headerSentinelHTML(DEFAULT_HEADER_PRESENTATION)
-    expect(html).toContain('data-zyad-slot="tenant-nav"')
-    expect(html).toContain('data-zyad-header=')
-    expect(html).not.toContain('<span')
-    // round-trips
-    const attr = html.match(/data-zyad-header='([^']*)'/)?.[1] ?? ''
-    const decoded = attr
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&amp;/g, '&')
-    expect(parseHeaderPresentation(decoded)).toEqual(DEFAULT_HEADER_PRESENTATION)
   })
 })

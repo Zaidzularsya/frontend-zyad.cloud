@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildFooterPreview, footerSentinelHTML, safeFooterHref } from './grapes.footer-component'
+import { buildFooterPreview, safeFooterHref } from './grapes.footer-component'
 
 describe('safeFooterHref', () => {
   it('allows anchors, roots, http(s), mailto, tel', () => {
@@ -35,11 +35,5 @@ describe('buildFooterPreview', () => {
   it('shows an empty-nav hint when there are no items', () => {
     const html = buildFooterPreview({ nav: [], brandName: 'Acme', logoUrl: '' })
     expect(html).toContain('Belum ada item navigasi footer')
-  })
-})
-
-describe('footerSentinelHTML', () => {
-  it('emits the bare sentinel (no per-page presentation)', () => {
-    expect(footerSentinelHTML()).toBe('<div data-zyad-slot="tenant-footer"></div>')
   })
 })

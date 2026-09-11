@@ -120,11 +120,6 @@ export function buildHeaderPreview(data: TenantHeaderData, p: TenantHeaderPresen
   return `<div style="display:flex;align-items:center;gap:24px;justify-content:${justify};padding:14px 24px;background:${bg};border-bottom:${borderBottom};font-family:'Inter','Segoe UI',system-ui,sans-serif">${brand}${nav}${action}</div>`
 }
 
-/** Serialise presentation into the export sentinel's attribute value. */
-export function headerSentinelHTML(presentation: TenantHeaderPresentation): string {
-  return `<div data-zyad-slot="tenant-nav" data-zyad-header='${esc(JSON.stringify(presentation))}'></div>`
-}
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function registerTenantHeader(editor: Editor, getData: () => TenantHeaderData): void {
   editor.Components.addType(TENANT_HEADER_TYPE, {
@@ -143,15 +138,21 @@ export function registerTenantHeader(editor: Editor, getData: () => TenantHeader
         removable: true,
         selectable: true,
         highlightable: true,
+        stylable: true,
         attributes: {
           'data-zyad-slot': 'tenant-nav',
           'data-zyad-header': JSON.stringify(DEFAULT_HEADER_PRESENTATION),
         },
       },
-      toHTML(this: any) {
-        const raw = this.getAttributes()['data-zyad-header']
-        return headerSentinelHTML(parseHeaderPresentation(raw))
-      },
+      // No custom toHTML(): the model never has real children (onRender below
+      // only mutates the view's live DOM for the canvas preview, never the
+      // component tree), so GrapesJS's default export already emits an
+      // empty-inside <div> with whatever attributes/classes/inline style the
+      // author set — including anything added via the Style Manager (Dekorasi:
+      // background/opacity, Posisi: position/z-index — a transparent header
+      // pinned over a hero section is just those, no special-casing needed).
+      // A custom override here previously rebuilt the tag from scratch with
+      // only the two data- attributes, silently discarding all of that.
     },
     view: {
       init(this: any) {

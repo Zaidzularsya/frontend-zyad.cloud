@@ -40,7 +40,7 @@ const traitsRef = ref<HTMLElement | null>(null)
 
 const editor = shallowRef<Editor | null>(null)
 const leftTab = ref<'blocks' | 'layers'>('blocks')
-const rightTab = ref<'styles' | 'traits'>('styles')
+const rightTab = ref<'content' | 'styles' | 'traits'>('styles')
 const activeDevice = ref('Desktop')
 const publishing = ref(false)
 const publishNotice = ref('')
@@ -218,12 +218,21 @@ onMounted(async () => {
   ed.on('component:selected', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown } | undefined
     const type = model?.get?.('type')
+    const isTenant = type === TENANT_HEADER_TYPE || type === TENANT_FOOTER_TYPE
     headerComponent.value = type === TENANT_HEADER_TYPE ? (component as never) : null
     footerComponent.value = type === TENANT_FOOTER_TYPE ? (component as never) : null
+    // Default to the custom content panel on selection, but leave Style/Setelan
+    // reachable via the tab bar — GrapesJS's Style Manager already has the
+    // sectors (Dekorasi: background/opacity, Posisi: position/z-index) needed
+    // to make the header/footer actually customizable (a transparent header
+    // pinned over a hero section is just those two, no bespoke UI needed).
+    if (isTenant) rightTab.value = 'content'
+    else if (rightTab.value === 'content') rightTab.value = 'styles'
   })
   ed.on('component:deselected', () => {
     headerComponent.value = null
     footerComponent.value = null
+    if (rightTab.value === 'content') rightTab.value = 'styles'
   })
 
   // "Header tenant" / "Footer tenant" are meant to appear at most once per
@@ -437,9 +446,20 @@ defineExpose({ editor })
       <div ref="canvasRef" class="grapes-canvas"></div>
 
       <aside class="grapes-right">
-        <!-- GrapesJS style / trait managers stay mounted; just hidden while a
-             tenant header/footer panel is up so the editor keeps its append targets. -->
-        <div v-show="!tenantPanelActive" class="grapes-tabs">
+        <!-- Tenant header/footer get a 3rd "Konten" tab for their custom panel
+             (nav items / brand / action), alongside the normal Style/Setelan
+             tabs — GrapesJS's Style Manager still works on them, so background/
+             opacity/position (a transparent header over a hero section, say)
+             are just a tab away instead of being walled off. -->
+        <div class="grapes-tabs">
+          <button
+            v-if="tenantPanelActive"
+            type="button"
+            :class="{ 'is-active': rightTab === 'content' }"
+            @click="rightTab = 'content'"
+          >
+            Konten
+          </button>
           <button
             type="button"
             :class="{ 'is-active': rightTab === 'styles' }"
@@ -455,23 +475,21 @@ defineExpose({ editor })
             Setelan
           </button>
         </div>
-        <div
-          v-show="!tenantPanelActive && rightTab === 'styles'"
-          ref="stylesRef"
-          class="grapes-pane"
-        ></div>
-        <div
-          v-show="!tenantPanelActive && rightTab === 'traits'"
-          ref="traitsRef"
-          class="grapes-pane"
-        ></div>
 
         <GrapesHeaderPanel
           v-if="headerComponent"
+          v-show="rightTab === 'content'"
           :component="headerComponent"
           class="grapes-pane"
         />
-        <GrapesFooterPanel v-if="footerComponent" class="grapes-pane" />
+        <GrapesFooterPanel
+          v-if="footerComponent"
+          v-show="rightTab === 'content'"
+          class="grapes-pane"
+        />
+
+        <div v-show="rightTab === 'styles'" ref="stylesRef" class="grapes-pane"></div>
+        <div v-show="rightTab === 'traits'" ref="traitsRef" class="grapes-pane"></div>
       </aside>
     </div>
   </div>

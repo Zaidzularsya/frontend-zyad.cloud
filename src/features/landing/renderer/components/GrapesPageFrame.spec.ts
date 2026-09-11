@@ -63,7 +63,7 @@ describe('GrapesPageFrame', () => {
   it('fills the tenant-nav sentinel with the live header (brand + nav + action)', () => {
     const wrapper = mount(GrapesPageFrame, {
       props: {
-        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"sticky":true,"variant":"glass","align":"center","showAction":true,"actionLabel":"Masuk","actionUrl":"/login"}' style="border:1px dashed red"><span>placeholder</span></div><p>body</p>`,
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"sticky":true,"variant":"glass","align":"center","showAction":true,"actionLabel":"Masuk","actionUrl":"/login"}' class="hdr-x" style="opacity:.9"><span>placeholder</span></div><p>body</p>`,
         css: '',
         chrome: {
           brand: { name: 'Acme', logoUrl: 'https://cdn.test/logo.png' },
@@ -88,9 +88,14 @@ describe('GrapesPageFrame', () => {
     expect(doc).toContain('target="_blank"')
     expect(doc).toContain('class="zyad-tenant-header__action"')
     expect(doc).toContain('>Masuk<')
-    // Placeholder + its inline style are replaced.
+    // Inner content (old placeholder markup) is replaced with the live header...
     expect(doc).not.toContain('placeholder')
-    expect(doc).not.toContain('dashed red')
+    // ...but a custom class/style the author set via the Style Manager on the
+    // sentinel div itself (e.g. for a transparent header overlapping a hero)
+    // survives the fill, only the consumed data-zyad-header attribute is gone.
+    expect(doc).toContain('class="hdr-x"')
+    expect(doc).toContain('style="opacity:.9"')
+    expect(doc).not.toContain('data-zyad-header')
     expect(doc).toContain('<p>body</p>')
   })
 
@@ -142,6 +147,19 @@ describe('GrapesPageFrame', () => {
     expect(doc).toContain('>Produk<')
     expect(doc).toContain('href="/fitur"')
     expect(doc).toContain('© 2026 Acme')
+  })
+
+  it('preserves a custom class/style on the tenant-footer sentinel', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: '<div data-zyad-slot="tenant-footer" class="ftr-x" style="background:#111"></div>',
+        css: '',
+        chrome: { footer: { brandName: 'Acme' } },
+      },
+    })
+    const doc = srcdocOf(wrapper)
+    expect(doc).toContain('class="ftr-x"')
+    expect(doc).toContain('style="background:#111"')
   })
 
   it('fills only the first tenant-nav sentinel and drops any extra duplicate', () => {
