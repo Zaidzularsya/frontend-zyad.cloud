@@ -67,6 +67,11 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 describe('GrapesEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // vi.clearAllMocks() resets call history but not a mockReturnValue set by
+    // an earlier test — reset the wrapper query to its harmless default so
+    // tests that don't care about it (e.g. the singleton-dedup ones) can't
+    // leak a stubbed find() into an unrelated test.
+    editorStub.getWrapper.mockReturnValue({ find: () => [] } as never)
     setActivePinia(createPinia())
     getDocument.mockResolvedValue({
       data: { landing_page_id: 'p1', project: {}, html: '', css: '', updated_at: '' },
@@ -102,6 +107,27 @@ describe('GrapesEditor', () => {
     mount(GrapesEditor, { props: { pageId: 'p1' } })
     await flush()
     expect(getDocument).toHaveBeenCalledWith('p1')
+  })
+
+  it('cleans up a tenant-nav duplicate already saved in the document on load, and autosaves the fix', async () => {
+    const remove1 = vi.fn()
+    const remove2 = vi.fn()
+    editorStub.getWrapper.mockReturnValue({
+      find: (selector: string) =>
+        selector === '[data-zyad-slot="tenant-nav"]'
+          ? [{ remove: remove1 }, { remove: remove2 }]
+          : [],
+    } as never)
+
+    mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+
+    // Only the extra (2nd) instance is removed — the first survives.
+    expect(remove1).not.toHaveBeenCalled()
+    expect(remove2).toHaveBeenCalledTimes(1)
+
+    const { useLandingDocumentStore } = await import('@/stores/landingDocument')
+    expect(useLandingDocumentStore().dirty).toBe(true)
   })
 
   it('destroys the editor on unmount', () => {

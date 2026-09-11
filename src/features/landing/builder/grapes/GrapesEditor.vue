@@ -262,6 +262,28 @@ onMounted(async () => {
     ed.loadProjectData(project)
   }
 
+  // A page saved before the component:add guard above existed (or from a
+  // starter/import) may already carry more than one tenant-nav/tenant-footer
+  // sentinel — self-heal it the moment the page is opened, not just at
+  // render time, so the extra copy is actually gone from the document (and
+  // autosaved) instead of lurking and re-appearing once the visible one is
+  // deleted.
+  function dedupeTenantSlot(slotName: string): boolean {
+    const matches = ed.getWrapper()?.find(`[data-zyad-slot="${slotName}"]`) ?? []
+    const extras = matches.slice(1)
+    extras.forEach((c) => (c as { remove?: () => void }).remove?.())
+    return extras.length > 0
+  }
+  const removedNavDup = dedupeTenantSlot('tenant-nav')
+  const removedFooterDup = dedupeTenantSlot('tenant-footer')
+  if (removedNavDup || removedFooterDup) {
+    store.applyEditorSnapshot({
+      project: ed.getProjectData() as Record<string, unknown>,
+      html: ed.getHtml(),
+      css: ed.getCss() ?? '',
+    })
+  }
+
   void wireAssetManager(ed)
   showStarterPicker.value = isDocEmpty()
 
@@ -735,7 +757,21 @@ defineExpose({ editor })
 /* ── GrapesJS chrome: canvas view ─────────────────────────────────────────── */
 .grapes-shell :deep(.gjs-cv-canvas) {
   background: #eef2f7;
-  padding: 20px;
+}
+/* .gjs-cv-canvas__frames is `position:absolute;top:0;left:0;width:100%;height:100%`
+   (grapesjs' own stylesheet) — a percentage-sized absolute child is sized
+   against the padding BOX (border edge to border edge), so padding on the
+   .gjs-cv-canvas parent above has no visual effect here. Inset the frames
+   container itself instead, with width/height reset to auto so the explicit
+   top/right/bottom/left actually govern its size (otherwise the still-active
+   width:100%/height:100% from the library wins the over-constrained case). */
+.grapes-shell :deep(.gjs-cv-canvas__frames) {
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  left: 20px;
+  width: auto;
+  height: auto;
 }
 .grapes-shell :deep(.gjs-frame-wrapper) {
   padding: 0;
