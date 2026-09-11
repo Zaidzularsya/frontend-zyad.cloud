@@ -16,6 +16,9 @@ describe('GrapesPageFrame', () => {
     const iframe = wrapper.get('iframe')
     const sandbox = iframe.attributes('sandbox') ?? ''
     expect(sandbox).toContain('allow-forms')
+    // Needed so contentDocument/scrollHeight is readable for auto-height; safe
+    // only because allow-scripts is absent (see file doc-comment).
+    expect(sandbox).toContain('allow-same-origin')
     expect(sandbox).not.toContain('allow-scripts')
 
     const doc = srcdocOf(wrapper)
@@ -139,6 +142,36 @@ describe('GrapesPageFrame', () => {
     expect(doc).toContain('>Produk<')
     expect(doc).toContain('href="/fitur"')
     expect(doc).toContain('© 2026 Acme')
+  })
+
+  it('fills only the first tenant-nav sentinel and drops any extra duplicate', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html:
+          '<div data-zyad-slot="tenant-nav"></div><main>x</main>' +
+          '<div data-zyad-slot="tenant-nav"></div>',
+        css: '',
+        chrome: { brand: { name: 'Acme' }, nav: [{ label: 'Harga', href: '/pricing' }] },
+      },
+    })
+    const doc = srcdocOf(wrapper)
+    expect(doc.match(/zyad-tenant-header /g)?.length).toBe(1)
+    expect(doc.match(/data-zyad-slot="tenant-nav"/g)?.length).toBe(1)
+  })
+
+  it('fills only the first tenant-footer sentinel and drops any extra duplicate', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html:
+          '<div data-zyad-slot="tenant-footer"></div><main>x</main>' +
+          '<div data-zyad-slot="tenant-footer"></div>',
+        css: '',
+        chrome: { footer: { brandName: 'Acme' } },
+      },
+    })
+    const doc = srcdocOf(wrapper)
+    expect(doc.match(/class="zyad-tenant-footer"/g)?.length).toBe(1)
+    expect(doc.match(/data-zyad-slot="tenant-footer"/g)?.length).toBe(1)
   })
 
   it('leaves the HTML untouched when there is no sentinel', () => {

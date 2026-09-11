@@ -10,6 +10,10 @@ import DOMPurify from 'dompurify'
  * global CSS (main.css reset + Tailwind Preflight) and no script execution even
  * if sanitisation is bypassed. The backend already sanitises on publish and on
  * draft-preview read; DOMPurify + the CSS scrub here are defense-in-depth.
+ * `allow-same-origin` IS granted (needed so `contentDocument`/scrollHeight can
+ * be read for auto-height, below) — this is safe only because `allow-scripts`
+ * is absent; the two together (not the case here) is what lets sandboxed
+ * content script its way out.
  *
  * Live tenant chrome: the editor drops sentinel `<div data-zyad-slot="tenant-nav">`
  * / `"tenant-footer"` blocks. Their innerHTML is (re)built here from the
@@ -213,6 +217,19 @@ function fillFooter(doc: Document, slot: Element, footer: NonNullable<GrapesChro
   slot.replaceChildren(wrap)
 }
 
+/**
+ * A tenant-chrome sentinel is meant to appear at most once per page (dropping
+ * "Header tenant" / "Footer tenant" twice is a builder mistake, guarded against
+ * in GrapesEditor.vue). Defensively, only the first match is filled here — any
+ * extra sentinel is dropped so an already-duplicated document self-heals
+ * instead of rendering the header/footer twice.
+ */
+function firstSlotDroppingRest(list: ArrayLike<Element>): Element | null {
+  const [first, ...rest] = Array.from(list)
+  rest.forEach((el) => el.remove())
+  return first ?? null
+}
+
 /** Sanitise, then hydrate the data-zyad-slot sentinels from live chrome data. */
 const bodyHtml = computed(() => {
   const clean = DOMPurify.sanitize(props.html || '', {
@@ -227,14 +244,16 @@ const bodyHtml = computed(() => {
 
   const parsed = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html')
   if (chrome.nav?.length || chrome.brand) {
-    parsed.body
-      .querySelectorAll('[data-zyad-slot="tenant-nav"]')
-      .forEach((slot) => fillHeader(parsed, slot, chrome.nav ?? [], chrome.brand ?? {}))
+    const slot = firstSlotDroppingRest(
+      parsed.body.querySelectorAll('[data-zyad-slot="tenant-nav"]'),
+    )
+    if (slot) fillHeader(parsed, slot, chrome.nav ?? [], chrome.brand ?? {})
   }
   if (chrome.footer) {
-    parsed.body
-      .querySelectorAll('[data-zyad-slot="tenant-footer"]')
-      .forEach((slot) => fillFooter(parsed, slot, chrome.footer!))
+    const slot = firstSlotDroppingRest(
+      parsed.body.querySelectorAll('[data-zyad-slot="tenant-footer"]'),
+    )
+    if (slot) fillFooter(parsed, slot, chrome.footer!)
   }
   return parsed.body.innerHTML
 })
@@ -332,7 +351,7 @@ watch(srcdoc, () => {
     class="grapes-page-frame"
     :title="title || 'Landing page'"
     :srcdoc="srcdoc"
-    sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+    sandbox="allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
     referrerpolicy="no-referrer"
     loading="eager"
     :style="{ height: frameHeight + 'px' }"

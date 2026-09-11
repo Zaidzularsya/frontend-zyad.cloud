@@ -94,4 +94,57 @@ describe('useLandingDocumentStore', () => {
       publishPage.mock.invocationCallOrder[0]!,
     )
   })
+
+  it('save() called while one is already in flight waits for BOTH to finish before resolving', async () => {
+    let resolveFirst!: (v: { data: { updated_at: string } }) => void
+    saveDocument.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+    )
+    saveDocument.mockResolvedValueOnce({ data: { updated_at: '2026-09-10T09:01:00Z' } })
+
+    const store = useLandingDocumentStore()
+    store.pageId = 'p1'
+    store.applyEditorSnapshot({ project: {}, html: '<body>1</body>', css: '' })
+    const firstSave = store.save() // network call in flight
+
+    // A second edit lands while the first save is still in flight.
+    store.applyEditorSnapshot({ project: {}, html: '<body>2</body>', css: '' })
+    const secondSave = store.save() // must not fire a second concurrent request
+
+    expect(saveDocument).toHaveBeenCalledTimes(1)
+
+    let secondSaveSettled = false
+    void secondSave.then(() => {
+      secondSaveSettled = true
+    })
+
+    resolveFirst({ data: { updated_at: '2026-09-10T09:00:30Z' } })
+    await firstSave
+    // The resave for the second edit is chained inside the same in-flight
+    // promise — it must have already fired (and the second `save()` caller
+    // must already be resolved) by the time the first one settles, not
+    // sometime later.
+    expect(saveDocument).toHaveBeenCalledTimes(2)
+    expect(saveDocument).toHaveBeenLastCalledWith('p1', {
+      project: {},
+      html: '<body>2</body>',
+      css: '',
+    })
+    await secondSave
+    expect(secondSaveSettled).toBe(true)
+    expect(store.dirty).toBe(false)
+    expect(store.lastSavedAt).toBe('2026-09-10T09:01:00Z')
+  })
+
+  it('publish() aborts (and never calls publishPage) if the flushed save failed', async () => {
+    saveDocument.mockRejectedValueOnce({ response: { data: { message: 'Gagal menyimpan.' } } })
+    const store = useLandingDocumentStore()
+    store.pageId = 'p1'
+    store.applyEditorSnapshot({ project: {}, html: '<body>bad</body>', css: '' })
+    await expect(store.publish()).rejects.toThrow('Gagal menyimpan.')
+    expect(publishPage).not.toHaveBeenCalled()
+  })
 })

@@ -37,7 +37,7 @@ export const useLandingDocumentStore = defineStore('landingDocument', () => {
   const lastSavedAt = ref<string | null>(null)
 
   let timer: ReturnType<typeof setTimeout> | null = null
-  let inFlight = false
+  let inFlightPromise: Promise<void> | null = null
   let pendingResave = false
 
   async function load(id: string) {
@@ -68,39 +68,68 @@ export const useLandingDocumentStore = defineStore('landingDocument', () => {
     timer = setTimeout(() => void save(), AUTOSAVE_DELAY_MS)
   }
 
-  async function save() {
+  /**
+   * Runs one save call, then — if another change came in while it was in
+   * flight — chains straight into a resave before resolving. This is what lets
+   * `save()` return a promise that only settles once the LATEST edits are
+   * actually persisted, instead of resolving the instant a call happens to
+   * land while a previous one is still in flight (which used to let
+   * `publish()` race ahead of an unsaved deletion — see landingDocument bug
+   * notes).
+   */
+  async function performSave(): Promise<void> {
+    saving.value = true
+    saveError.value = ''
+    const payload = { project: project.value, html: html.value, css: css.value }
+    let succeeded = false
+    try {
+      const res = await landingApi.saveDocument(pageId.value, payload)
+      lastSavedAt.value = res.data.updated_at || new Date().toISOString()
+      dirty.value = false
+      succeeded = true
+    } catch (error) {
+      saveError.value = apiMessage(error, 'Gagal menyimpan dokumen.')
+    } finally {
+      saving.value = false
+    }
+    // A resave was requested while this call was in flight: whatever arrived
+    // may not be what `payload` above actually sent (dirty was already true,
+    // so it just got cleared without the newer edit's content), so send it for
+    // real — unless this attempt itself failed, in which case don't compound
+    // errors; the next debounce/explicit save() call will retry.
+    if (pendingResave) {
+      pendingResave = false
+      if (succeeded) await performSave()
+    }
+  }
+
+  async function save(): Promise<void> {
     if (timer) {
       clearTimeout(timer)
       timer = null
     }
     if (!pageId.value || !dirty.value) return
-    if (inFlight) {
+    if (inFlightPromise) {
       pendingResave = true
-      return
+      return inFlightPromise
     }
-    inFlight = true
-    saving.value = true
-    saveError.value = ''
-    const payload = { project: project.value, html: html.value, css: css.value }
-    try {
-      const res = await landingApi.saveDocument(pageId.value, payload)
-      lastSavedAt.value = res.data.updated_at || new Date().toISOString()
-      dirty.value = false
-    } catch (error) {
-      saveError.value = apiMessage(error, 'Gagal menyimpan dokumen.')
-    } finally {
-      saving.value = false
-      inFlight = false
-      if (pendingResave) {
-        pendingResave = false
-        if (dirty.value) void save()
-      }
-    }
+    inFlightPromise = performSave().finally(() => {
+      inFlightPromise = null
+    })
+    return inFlightPromise
   }
 
-  /** Force any pending save, then publish. */
+  /**
+   * Flushes any pending/in-flight save (waiting for the full chain above, not
+   * just the call that happened to be in flight) and only then publishes. If
+   * that flush ends in an error, publish is aborted — publishing on top of a
+   * failed save would snapshot stale content.
+   */
   async function publish() {
     await save()
+    if (saveError.value) {
+      throw new Error(saveError.value)
+    }
     return landingApi.publishPage(pageId.value)
   }
 
@@ -119,7 +148,7 @@ export const useLandingDocumentStore = defineStore('landingDocument', () => {
     saveError.value = ''
     dirty.value = false
     lastSavedAt.value = null
-    inFlight = false
+    inFlightPromise = null
     pendingResave = false
   }
 
