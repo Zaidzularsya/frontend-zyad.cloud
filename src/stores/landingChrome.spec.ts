@@ -79,6 +79,52 @@ describe('useLandingChromeStore', () => {
     expect(store.canvasBranding).toMatchObject({ companyName: 'Acme', primary: '#111827' })
   })
 
+  it('load() also picks the footer menu independently of the header menu', async () => {
+    getMenus.mockResolvedValue({
+      data: [
+        { id: 'm-foot', location: 'footer', is_active: true },
+        { id: 'm-head', location: 'header', is_active: true },
+      ],
+    })
+    const store = useLandingChromeStore()
+    await store.load()
+    expect(store.headerMenu?.id).toBe('m-head')
+    expect(store.footerMenu?.id).toBe('m-foot')
+    expect(store.footerItems).toHaveLength(1)
+    expect(store.canvasFooterNav[0]).toMatchObject({ label: 'Pricing', href: '/pricing' })
+  })
+
+  it('addFooterNavItem() creates the footer menu (not the header one) when none exists', async () => {
+    getMenus.mockResolvedValue({ data: [] })
+    createMenu.mockResolvedValue({ data: { id: 'new-foot', location: 'footer', is_active: true } })
+    createMenuItem.mockResolvedValue({ data: navItem() })
+
+    const store = useLandingChromeStore()
+    await store.load()
+    expect(store.footerMenu).toBeNull()
+
+    await store.addFooterNavItem({
+      label: 'Privasi',
+      link_type: 'internal_page',
+      destination: 'privacy',
+      target: 'self',
+      is_enabled: true,
+      parent_id: null,
+    })
+
+    expect(createMenu).toHaveBeenCalledWith({
+      name: 'Footer Menu',
+      location: 'footer',
+      is_active: true,
+    })
+    expect(createMenuItem).toHaveBeenCalledWith(
+      'new-foot',
+      expect.objectContaining({ label: 'Privasi', sort_order: 10 }),
+    )
+    // The header menu stays untouched by a footer-only mutation.
+    expect(store.headerMenu).toBeNull()
+  })
+
   it('addNavItem() creates the header menu first when none exists', async () => {
     getMenus.mockResolvedValue({ data: [] })
     createMenu.mockResolvedValue({ data: { id: 'new-head', location: 'header', is_active: true } })

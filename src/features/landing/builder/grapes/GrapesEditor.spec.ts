@@ -184,4 +184,59 @@ describe('GrapesEditor', () => {
     await flush()
     expect(wrapper.find('.grapes-starter').exists()).toBe(false)
   })
+
+  function onHandler(event: string) {
+    const call = editorStub.on.mock.calls.find((c) => c[0] === event)
+    return call?.[1] as ((...args: unknown[]) => void) | undefined
+  }
+
+  it('removes a second "Header tenant" / "Footer tenant" the instant it is added, and warns', async () => {
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+
+    // Simulate the wrapper already containing one instance of the sentinel.
+    editorStub.getWrapper.mockReturnValue({ find: () => [{}, {}] } as never)
+    const onAdd = onHandler('component:add')!
+    const remove = vi.fn()
+    onAdd({ get: (k: string) => (k === 'type' ? 'zyad-tenant-header' : undefined), remove })
+
+    expect(remove).toHaveBeenCalledTimes(1)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Header tenant sudah ada di halaman ini')
+  })
+
+  it('does not remove the only instance of the header/footer component', async () => {
+    mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+
+    editorStub.getWrapper.mockReturnValue({ find: () => [{}] } as never)
+    const onAdd = onHandler('component:add')!
+    const remove = vi.fn()
+    onAdd({ get: (k: string) => (k === 'type' ? 'zyad-tenant-footer' : undefined), remove })
+
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('swaps the right pane to the header/footer panel on selection', async () => {
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+    const onSelect = onHandler('component:selected')!
+
+    onSelect({
+      get: (k: string) => (k === 'type' ? 'zyad-tenant-header' : undefined),
+      getAttributes: () => ({}),
+      addAttributes: vi.fn(),
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Action & Tampilan') // GrapesHeaderPanel-only section
+
+    onSelect({
+      get: (k: string) => (k === 'type' ? 'zyad-tenant-footer' : undefined),
+      getAttributes: () => ({}),
+      addAttributes: vi.fn(),
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).not.toContain('Action & Tampilan')
+    expect(wrapper.text()).toContain('Hapus block ini') // GrapesFooterPanel-only hint
+  })
 })

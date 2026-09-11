@@ -126,13 +126,13 @@ const footerBlock = `
   </footer>`
 
 // ── Tenant chrome (live) ───────────────────────────────────────────────────
-// The "Header tenant" block drops the `zyad-tenant-header` component
-// (grapes.header-component.ts): a locked component that renders a LIVE preview
-// (logo + nav + action) from the tenant menu + branding in the canvas, and
-// exports to `<div data-zyad-slot="tenant-nav" data-zyad-header='…'>`. The
-// footer sentinel's innerHTML is (re)built at render time by GrapesPageFrame /
-// document_ssr.go — only `data-zyad-slot` survives the backend HTML sanitiser.
-const tenantFooterBlock = `<div data-zyad-slot="tenant-footer" data-gjs-name="Footer tenant" data-gjs-editable="false" data-gjs-droppable="false" data-gjs-copyable="false"><span style="display:block;padding:14px 24px;border:1px dashed #c7d2fe;border-radius:8px;color:#64748b;font-size:13px;font-family:system-ui,sans-serif">Footer tenant — terisi otomatis dari menu footer &amp; brand saat halaman tayang</span></div>`
+// "Header tenant" / "Footer tenant" drop the `zyad-tenant-header` /
+// `zyad-tenant-footer` components (grapes.header-component.ts,
+// grapes.footer-component.ts): locked components that render a LIVE preview
+// from the tenant menu + branding in the canvas, and export to a
+// `data-zyad-slot` sentinel — the sentinel's innerHTML is (re)built at render
+// time by GrapesPageFrame.vue / document_ssr.go. Each is meant to appear at
+// most once per page (enforced in GrapesEditor.vue's `component:add` guard).
 
 export const GRAPES_BLOCKS: GrapesBlockDef[] = [
   // ── Tenant ───────────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ export const GRAPES_BLOCKS: GrapesBlockDef[] = [
     label: 'Footer tenant',
     category: 'Tenant',
     media: icon('call_to_action'),
-    content: tenantFooterBlock,
+    content: { type: 'zyad-tenant-footer' },
   },
 
   // ── Section ──────────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ export const GRAPES_BLOCKS: GrapesBlockDef[] = [
   },
   {
     id: 'sec-footer',
-    label: 'Footer',
+    label: 'Footer statis (manual)',
     category: 'Section',
     media: icon('call_to_action'),
     content: footerBlock,

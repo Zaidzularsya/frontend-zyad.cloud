@@ -12,19 +12,25 @@ import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
 import { GRAPES_STARTERS, type GrapesStarter } from './starter-templates'
 import { registerTenantHeader, TENANT_HEADER_TYPE } from './grapes.header-component'
+import { registerTenantFooter, TENANT_FOOTER_TYPE } from './grapes.footer-component'
 import GrapesHeaderPanel from './GrapesHeaderPanel.vue'
+import GrapesFooterPanel from './GrapesFooterPanel.vue'
 
 const props = defineProps<{ pageId: string }>()
 
 const store = useLandingDocumentStore()
 const chrome = useLandingChromeStore()
 
-// The selected `zyad-tenant-header` component (if any) → swaps the right pane
-// for GrapesHeaderPanel. Typed loosely: it's a GrapesJS component model.
-const headerComponent = shallowRef<{
+// The selected `zyad-tenant-header` / `zyad-tenant-footer` component (if any)
+// → swaps the right pane for GrapesHeaderPanel / GrapesFooterPanel. Typed
+// loosely: it's a GrapesJS component model.
+type TenantComponent = {
   getAttributes: () => Record<string, string>
   addAttributes: (attrs: Record<string, string>) => void
-} | null>(null)
+}
+const headerComponent = shallowRef<TenantComponent | null>(null)
+const footerComponent = shallowRef<TenantComponent | null>(null)
+const duplicateNotice = ref('')
 
 const canvasRef = ref<HTMLElement | null>(null)
 const blocksRef = ref<HTMLElement | null>(null)
@@ -57,6 +63,8 @@ const savedLabel = computed(() => {
   }
   return 'Tersimpan'
 })
+
+const tenantPanelActive = computed(() => !!headerComponent.value || !!footerComponent.value)
 
 function setDevice(name: string) {
   activeDevice.value = name
@@ -162,7 +170,8 @@ async function onPublish() {
     publishNotice.value = 'Halaman dipublish.'
   } catch (error) {
     publishNotice.value =
-      (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+      (error instanceof Error ? error.message : '') ||
       'Gagal publish.'
   } finally {
     publishing.value = false
@@ -192,10 +201,15 @@ onMounted(async () => {
   )
   editor.value = ed
 
-  // Live tenant header: the canvas preview reads menu + branding straight from
-  // the chrome store (kept fresh below via a watch).
+  // Live tenant header/footer: the canvas preview reads menu + branding
+  // straight from the chrome store (kept fresh below via a watch).
   registerTenantHeader(ed, () => ({
     nav: chrome.canvasNav,
+    brandName: chrome.canvasBranding.companyName,
+    logoUrl: chrome.canvasBranding.logoUrl,
+  }))
+  registerTenantFooter(ed, () => ({
+    nav: chrome.canvasFooterNav,
     brandName: chrome.canvasBranding.companyName,
     logoUrl: chrome.canvasBranding.logoUrl,
   }))
@@ -203,11 +217,39 @@ onMounted(async () => {
 
   ed.on('component:selected', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown } | undefined
-    headerComponent.value =
-      model?.get?.('type') === TENANT_HEADER_TYPE ? (component as never) : null
+    const type = model?.get?.('type')
+    headerComponent.value = type === TENANT_HEADER_TYPE ? (component as never) : null
+    footerComponent.value = type === TENANT_FOOTER_TYPE ? (component as never) : null
   })
   ed.on('component:deselected', () => {
     headerComponent.value = null
+    footerComponent.value = null
+  })
+
+  // "Header tenant" / "Footer tenant" are meant to appear at most once per
+  // page — dropping a second one from the palette (or a starter template that
+  // ships one already) would otherwise render two on the live page (both the
+  // SSR and client fill loops fill every sentinel they find). Remove the
+  // newly-added duplicate immediately and tell the author why.
+  ed.on('component:add', (component: unknown) => {
+    const model = component as { get?: (k: string) => unknown; remove?: () => void } | undefined
+    const type = model?.get?.('type')
+    const slotName =
+      type === TENANT_HEADER_TYPE
+        ? 'tenant-nav'
+        : type === TENANT_FOOTER_TYPE
+          ? 'tenant-footer'
+          : null
+    if (!slotName) return
+    const existing = ed.getWrapper()?.find(`[data-zyad-slot="${slotName}"]`) ?? []
+    if (existing.length > 1) {
+      model?.remove?.()
+      duplicateNotice.value =
+        type === TENANT_HEADER_TYPE
+          ? 'Header tenant sudah ada di halaman ini — hanya boleh satu.'
+          : 'Footer tenant sudah ada di halaman ini — hanya boleh satu.'
+      window.setTimeout(() => (duplicateNotice.value = ''), 4000)
+    }
   })
 
   await store.load(props.pageId)
@@ -239,17 +281,26 @@ onMounted(async () => {
   ed.on('style:update', onChange)
 })
 
+function rerenderTenantSlot(slotName: string) {
+  editor.value
+    ?.getWrapper()
+    ?.find(`[data-zyad-slot="${slotName}"]`)
+    .forEach((component) => {
+      ;(component as unknown as { view?: { render: () => void } }).view?.render()
+    })
+}
+
 /** Re-render every tenant-header preview when the tenant menu / branding changes. */
 watch(
   () => [chrome.canvasNav, chrome.canvasBranding],
-  () => {
-    editor.value
-      ?.getWrapper()
-      ?.find(`[data-zyad-slot="tenant-nav"]`)
-      .forEach((component) => {
-        ;(component as unknown as { view?: { render: () => void } }).view?.render()
-      })
-  },
+  () => rerenderTenantSlot('tenant-nav'),
+  { deep: true },
+)
+
+/** Re-render every tenant-footer preview when the tenant footer menu / branding changes. */
+watch(
+  () => [chrome.canvasFooterNav, chrome.canvasBranding],
+  () => rerenderTenantSlot('tenant-footer'),
   { deep: true },
 )
 
@@ -313,6 +364,7 @@ defineExpose({ editor })
       </div>
     </div>
     <p v-if="publishNotice" class="grapes-notice">{{ publishNotice }}</p>
+    <p v-if="duplicateNotice" class="grapes-notice is-error">{{ duplicateNotice }}</p>
     <p v-if="store.loadError" class="grapes-notice is-error">{{ store.loadError }}</p>
     <p v-if="assetError" class="grapes-notice is-error">{{ assetError }}</p>
 
@@ -363,9 +415,9 @@ defineExpose({ editor })
       <div ref="canvasRef" class="grapes-canvas"></div>
 
       <aside class="grapes-right">
-        <!-- GrapesJS style / trait managers stay mounted; just hidden while the
-             tenant-header panel is up so the editor keeps its append targets. -->
-        <div v-show="!headerComponent" class="grapes-tabs">
+        <!-- GrapesJS style / trait managers stay mounted; just hidden while a
+             tenant header/footer panel is up so the editor keeps its append targets. -->
+        <div v-show="!tenantPanelActive" class="grapes-tabs">
           <button
             type="button"
             :class="{ 'is-active': rightTab === 'styles' }"
@@ -382,12 +434,12 @@ defineExpose({ editor })
           </button>
         </div>
         <div
-          v-show="!headerComponent && rightTab === 'styles'"
+          v-show="!tenantPanelActive && rightTab === 'styles'"
           ref="stylesRef"
           class="grapes-pane"
         ></div>
         <div
-          v-show="!headerComponent && rightTab === 'traits'"
+          v-show="!tenantPanelActive && rightTab === 'traits'"
           ref="traitsRef"
           class="grapes-pane"
         ></div>
@@ -397,6 +449,7 @@ defineExpose({ editor })
           :component="headerComponent"
           class="grapes-pane"
         />
+        <GrapesFooterPanel v-if="footerComponent" class="grapes-pane" />
       </aside>
     </div>
   </div>
