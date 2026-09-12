@@ -256,8 +256,10 @@ async function loadLandingBindingData() {
     availableDomains.value = available.data
     domainBindings.value = bindings.data
     landingPages.value = pages.data
-  } catch {
-    // Non-fatal: the org-level domain table still works without binding data.
+  } catch (error) {
+    // The org-level domain table still works without binding data, but the
+    // "bind to page" column silently shows stale/empty state without this.
+    errorMessage.value = extractError(error)
   }
 }
 
