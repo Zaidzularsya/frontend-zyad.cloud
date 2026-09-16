@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { LifeBuoy } from 'lucide-vue-next'
+import { AlertCircle } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
-import BaseCard from '@/components/ui/BaseCard.vue'
 </script>
 
 <template>
@@ -11,15 +10,17 @@ import BaseCard from '@/components/ui/BaseCard.vue'
       description="Hubungi tim dukungan jika Anda mengalami masalah."
     />
 
-    <BaseCard>
-      <div class="flex items-center gap-3 mb-4">
-        <LifeBuoy class="size-5 text-gray-500" />
-        <h3 class="font-semibold">Riwayat Tiket</h3>
+    <div
+      class="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200 flex items-start gap-4"
+    >
+      <AlertCircle class="size-6 shrink-0 mt-0.5" />
+      <div>
+        <h3 class="font-bold text-lg mb-1">Belum tersedia</h3>
+        <p>
+          Modul Support &amp; Ticketing belum memiliki backend. Fitur pembuatan dan pelacakan tiket
+          di sini akan menyusul setelah kontrak API-nya siap.
+        </p>
       </div>
-      <p class="text-sm text-gray-500">Belum ada tiket support yang terbuka.</p>
-      <button class="mt-4 text-sm font-medium text-brand-600 hover:text-brand-500">
-        + Buat Tiket Baru
-      </button>
-    </BaseCard>
+    </div>
   </div>
 </template>

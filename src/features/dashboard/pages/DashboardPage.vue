@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CreditCard, FileClock, FileText, Sparkles } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
+import { ChevronRight, CreditCard, FileClock, FileText, Waypoints } from 'lucide-vue-next'
 
 import BaseCard from '@/components/ui/BaseCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -154,20 +155,20 @@ const statusTone: Record<string, string> = {
       </div>
     </BaseCard>
 
-    <BaseCard class="border-dashed">
-      <div class="flex items-center gap-3">
-        <span
-          class="grid size-9 place-items-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-800"
-        >
-          <Sparkles class="size-4" />
-        </span>
-        <div>
-          <p class="text-sm font-medium">CRM &amp; Pipeline Penjualan — Segera Hadir</p>
-          <p class="text-xs text-gray-500">
-            Modul CRM (kontak, pipeline, deal) belum tersedia di backend saat ini.
-          </p>
-        </div>
+    <RouterLink
+      :to="{ name: 'crm-deals' }"
+      class="flex items-center gap-3 rounded-xl border bg-white p-5 shadow-sm transition hover:border-brand-300 hover:bg-brand-50/50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
+    >
+      <span
+        class="grid size-9 place-items-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950"
+      >
+        <Waypoints class="size-4" />
+      </span>
+      <div class="flex-1">
+        <p class="text-sm font-medium">CRM &amp; Pipeline Penjualan</p>
+        <p class="text-xs text-gray-500">Kelola kontak, deal, dan pipeline penjualan Anda.</p>
       </div>
-    </BaseCard>
+      <ChevronRight class="size-4 text-gray-400" />
+    </RouterLink>
   </div>
 </template>
