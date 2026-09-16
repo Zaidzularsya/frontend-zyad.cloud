@@ -77,7 +77,7 @@ for (const label of templates) {
 
     await page.goto('/app/landing-pages/content')
     await page.waitForTimeout(1200)
-    await page.getByText(label, { exact: true }).click()
+    await page.locator('.grapes-starter').getByText(label, { exact: true }).click()
     await page.waitForTimeout(600)
 
     const frame = page.frameLocator('.gjs-frame')
@@ -92,7 +92,7 @@ for (const label of templates) {
   test(`starter "${label}" holds up on the Mobile device preset (375px)`, async ({ page }) => {
     await page.goto('/app/landing-pages/content')
     await page.waitForTimeout(1200)
-    await page.getByText(label, { exact: true }).click()
+    await page.locator('.grapes-starter').getByText(label, { exact: true }).click()
     await page.waitForTimeout(600)
 
     // Switch the canvas itself to the Mobile device (GRAPES_DEVICES: 375px):

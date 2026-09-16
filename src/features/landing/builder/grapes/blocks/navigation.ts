@@ -32,6 +32,13 @@ const breadcrumbBlock = `
 
 export const NAVIGATION_BLOCKS: GrapesBlockDef[] = [
   {
+    id: 'tenant-header',
+    label: 'Header tenant',
+    category: 'Navigation',
+    media: icon('menu'),
+    content: { type: 'zyad-tenant-header' },
+  },
+  {
     id: 'nav-announcement-bar',
     label: 'Announcement Bar',
     category: 'Navigation',
