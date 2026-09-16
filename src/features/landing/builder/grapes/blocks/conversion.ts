@@ -157,7 +157,8 @@ export const CONVERSION_BLOCKS: GrapesBlockDef[] = [
   },
   {
     id: 'tenant-pricing',
-    label: 'Pricing tenant',
+    label:
+      'Pricing tenant<br><span style="font-weight:400;font-size:10px;color:#94a3b8">Paket harga live (kelola di panel Konten)</span>',
     category: 'Conversion',
     media: icon('price_change'),
     content: { type: 'zyad-pricing-plans' },

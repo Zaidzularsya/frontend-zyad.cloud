@@ -297,15 +297,17 @@ async function saveSettings() {
         >
           <h2 class="font-black text-gray-900 dark:text-white">Footer content</h2>
           <p class="mt-1 text-sm text-gray-500">
-            Copyright, trust badge, secondary CTA, dan newsletter yang tampil di footer page ini.
-            Navigasi header dikelola dari panel <strong>Header &amp; Brand</strong> di menu
+            Copyright, trust badge, secondary CTA, dan newsletter di bawah ini melengkapi block
+            <strong>Footer tenant</strong> — footer situs sendiri (link, brand) diatur dengan drag
+            block <strong>Footer tenant</strong> dari palette kategori Footer di menu
             <RouterLink
               :to="{ name: `${props.parentRouteName}-content` }"
               class="text-brand-600 underline"
             >
               Content
             </RouterLink>
-            (klik "Header" di palette).
+            . Navigasi header diatur dengan cara sama lewat block <strong>Header tenant</strong>
+            (palette kategori Navigation).
           </p>
           <div class="mt-4 space-y-4">
             <label class="block text-sm font-medium">

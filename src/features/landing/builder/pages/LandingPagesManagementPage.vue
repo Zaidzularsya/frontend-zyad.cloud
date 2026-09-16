@@ -5,15 +5,14 @@ import {
   Archive,
   ArrowUpDown,
   ArrowLeft,
-  ArrowRight,
   CheckCircle2,
+  ChevronDown,
   Copy,
   Edit3,
   Eye,
   FileText,
   Globe2,
   Layers3,
-  Loader2,
   Plus,
   RefreshCw,
   Search,
@@ -52,7 +51,6 @@ const route = useRoute()
 const router = useRouter()
 
 type SortOption = 'newest' | 'recently_updated' | 'title_asc' | 'status'
-type CreatePageMode = 'catalog' | 'customize' | 'custom'
 type ManageTab = 'details' | 'seo'
 type PageFormState = {
   name: string
@@ -74,29 +72,8 @@ type SeoFormState = {
   og_image_asset_id: string
 }
 
-// Read-only preview of what landingApi.createPageFromTemplate() will copy —
-// content/style editing happens after creation via the Content menu's
-// schema-driven form, not before creation.
-type SectionDraft = {
-  key: string
-  type: string
-  name: string
-  sort_order: number
-}
-
-const templateThumbnailUrls = [
-  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
-]
-
 const pages = ref<LandingPage[]>([])
-const templatePages = ref<LandingPage[]>([])
 const loading = ref(false)
-const templateCatalogLoading = ref(false)
 const saving = ref(false)
 const actionBusy = ref('')
 const errorMessage = ref('')
@@ -111,11 +88,6 @@ const perPage = 10
 
 const pagePanelOpen = ref(false)
 const seoPanelOpen = ref(false)
-const createPageMode = ref<CreatePageMode>('catalog')
-const selectedTemplatePage = ref<LandingPage | null>(null)
-const templateSearch = ref('')
-const templateTypeFilter = ref<'all' | PageType>('all')
-const sectionDrafts = ref<SectionDraft[]>([])
 const pagePanelRef = ref<HTMLElement | null>(null)
 const seoPanelRef = ref<HTMLElement | null>(null)
 const editingPageId = ref<string | null>(null)
@@ -197,29 +169,6 @@ const formPanelOpen = computed(
 const managedPage = computed(
   () => pages.value.find((page) => page.id === managedPageId.value) ?? null,
 )
-const templateCatalog = computed(() => {
-  const keyword = templateSearch.value.trim().toLowerCase()
-  return templatePages.value.filter((template) => {
-    const matchesType =
-      templateTypeFilter.value === 'all' || template.page_type === templateTypeFilter.value
-    if (!matchesType) return false
-    if (!keyword) return true
-    return [template.name, template.title, template.slug, template.page_type]
-      .join(' ')
-      .toLowerCase()
-      .includes(keyword)
-  })
-})
-
-const templateTypeOptions = computed(() => {
-  const values = Array.from(new Set(templatePages.value.map((template) => template.page_type)))
-  return values.map((value) => ({
-    value,
-    label: humanize(value),
-    count: templatePages.value.filter((template) => template.page_type === value).length,
-  }))
-})
-
 const filteredPages = computed(() => {
   const keyword = search.value.trim().toLowerCase()
 
@@ -287,7 +236,6 @@ watch(totalPages, (nextTotalPages) => {
 
 onMounted(async () => {
   await loadPages()
-  await applyTemplateFromRoute()
 })
 
 function dateValue(value?: string | null) {
@@ -336,44 +284,6 @@ function formatDate(value?: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
-}
-
-function templateThumbnail(template: LandingPage, index: number) {
-  const imageFromSettings = template.settings?.thumbnail_url
-  if (typeof imageFromSettings === 'string' && imageFromSettings.trim()) return imageFromSettings
-  return templateThumbnailUrls[index % templateThumbnailUrls.length]
-}
-
-function templateDescription(template: LandingPage) {
-  const metaDescription = template.seo?.meta_description
-  if (typeof metaDescription === 'string' && metaDescription.trim()) return metaDescription
-  return template.name || template.title || 'Template landing page siap pakai.'
-}
-
-function templateIndustry(template: LandingPage) {
-  const templateSettings = template.settings?.template
-  if (
-    typeof templateSettings === 'object' &&
-    templateSettings &&
-    'industry' in templateSettings &&
-    typeof templateSettings.industry === 'string'
-  ) {
-    return templateSettings.industry
-  }
-  return humanize(template.page_type)
-}
-
-function templateAudience(template: LandingPage) {
-  const templateSettings = template.settings?.template
-  if (
-    typeof templateSettings === 'object' &&
-    templateSettings &&
-    'audience' in templateSettings &&
-    typeof templateSettings.audience === 'string'
-  ) {
-    return templateSettings.audience
-  }
-  return 'Business team'
 }
 
 function seoScore(page: LandingPage) {
@@ -435,11 +345,6 @@ function changePage(nextPage: number) {
 function resetPageForm() {
   editingPageId.value = null
   slugTouched.value = false
-  createPageMode.value = 'catalog'
-  selectedTemplatePage.value = null
-  templateSearch.value = ''
-  templateTypeFilter.value = 'all'
-  sectionDrafts.value = []
   pageForm.name = ''
   pageForm.title = ''
   pageForm.slug = ''
@@ -509,13 +414,7 @@ function openCreatePanel() {
   resetPageForm()
   seoPanelOpen.value = false
   pagePanelOpen.value = true
-  void loadTemplateCatalog()
   void revealPanel('page')
-}
-
-function showTemplateCatalog() {
-  createPageMode.value = 'catalog'
-  void loadTemplateCatalog()
 }
 
 function openSeoPanel(page: LandingPage) {
@@ -571,33 +470,6 @@ async function loadPages() {
   }
 }
 
-async function loadTemplateCatalog() {
-  if (templateCatalogLoading.value) return
-  templateCatalogLoading.value = true
-  errorMessage.value = ''
-  try {
-    const response = await landingApi.getTemplatePages({ per_page: 100 })
-    templatePages.value = response.data
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal memuat katalog template.')
-  } finally {
-    templateCatalogLoading.value = false
-  }
-}
-
-function previewTemplate(template: LandingPage) {
-  const resolved = router.resolve({
-    name: 'landing-preview',
-    params: { slug: template.slug },
-    query: {
-      mode: 'template',
-      pageId: template.id,
-      returnTo: route.fullPath,
-    },
-  })
-  window.open(resolved.href, '_blank', 'noopener,noreferrer')
-}
-
 function previewDraft(page: LandingPage) {
   const resolved = router.resolve({
     name: 'landing-preview',
@@ -609,48 +481,6 @@ function previewDraft(page: LandingPage) {
     },
   })
   window.open(resolved.href, '_blank', 'noopener,noreferrer')
-}
-
-async function useTemplate(template: LandingPage) {
-  selectedTemplatePage.value = template
-  createPageMode.value = 'customize'
-  slugTouched.value = false
-  pageForm.name = `${template.name} Draft`
-  pageForm.title = template.title || template.name
-  pageForm.slug = ''
-  pageForm.page_type = template.page_type
-  pageForm.visibility = 'public'
-  pageForm.locale = template.locale || 'id-ID'
-  pageForm.timezone = template.timezone || 'Asia/Jakarta'
-  pageForm.is_homepage = false
-
-  templateCatalogLoading.value = true
-  errorMessage.value = ''
-  try {
-    const response = await landingApi.getSections(template.id)
-    sectionDrafts.value = response.data.map((section, index) => ({
-      key: section.key,
-      type: section.type,
-      name: section.name,
-      sort_order: section.sort_order || (index + 1) * 10,
-    }))
-  } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal memuat preview section template.')
-  } finally {
-    templateCatalogLoading.value = false
-  }
-}
-
-async function applyTemplateFromRoute() {
-  const templateSlug = typeof route.query.template === 'string' ? route.query.template : ''
-  if (!templateSlug) return
-
-  pagePanelOpen.value = true
-  await loadTemplateCatalog()
-  const template = templatePages.value.find((item) => item.slug === templateSlug)
-  if (template) await useTemplate(template)
-  await router.replace({ path: route.path, query: {} })
-  await revealPanel('page')
 }
 
 async function savePage() {
@@ -674,29 +504,19 @@ async function savePage() {
     if (editingPageId.value) {
       await landingApi.updatePage(editingPageId.value, payload)
       showNotice('Landing page berhasil diperbarui.')
-    } else if (createPageMode.value === 'customize' && selectedTemplatePage.value) {
-      // Single call: backend copies sections, SEO, and (optionally) branding
-      // override from the template page in one transaction-scoped operation.
-      await landingApi.createPageFromTemplate({
-        template_page_id: selectedTemplatePage.value.id,
-        name: payload.name,
-        title: payload.title,
-        slug: payload.slug,
-        visibility: payload.visibility,
-        locale: payload.locale,
-        timezone: payload.timezone,
-        include_branding: true,
-      })
-      showNotice('Draft berhasil dibuat dari template.')
+      pagePanelOpen.value = false
+      await loadPages()
     } else {
-      // New pages are authored with the GrapesJS visual builder; the legacy
-      // section builder stays available only for pages created before the pivot.
-      await landingApi.createPage({ ...payload, builder: 'grapesjs' })
-      showNotice('Landing page custom berhasil dibuat.')
+      // New pages always start on the GrapesJS visual builder. Its own
+      // starter picker (Kosong/SaaS/Company/Pricing/Portfolio/Event) opens
+      // automatically for an empty document, so pick a starting point there
+      // instead of browsing a separate template catalog here.
+      const created = await landingApi.createPage({ ...payload, builder: 'grapesjs' })
+      showNotice('Landing page berhasil dibuat.')
+      pagePanelOpen.value = false
+      await loadPages()
+      goToContent(created.data)
     }
-
-    pagePanelOpen.value = false
-    await loadPages()
   } catch (error) {
     errorMessage.value = getApiMessage(error, 'Gagal menyimpan landing page.')
   } finally {
@@ -1431,230 +1251,8 @@ async function runPageAction(
       </div>
     </BaseCard>
 
-    <section
-      v-if="pagePanelOpen && !editingPageId && createPageMode === 'catalog'"
-      ref="pagePanelRef"
-      class="overflow-hidden rounded-[1.75rem] border bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950"
-    >
-      <div class="border-b bg-gray-950 px-5 py-6 text-white sm:px-7 lg:px-8">
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div class="max-w-3xl">
-            <p
-              class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-200"
-            >
-              <Sparkles class="size-4" />
-              Template catalog
-            </p>
-            <h2 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-              Choose a landing page template
-            </h2>
-            <p class="mt-3 max-w-2xl text-sm leading-6 text-gray-300">
-              Browse visual templates, preview the full page, then use one as the base for your
-              draft. The content form appears only after a template is selected.
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <BaseButton type="button" variant="secondary" @click="createPageMode = 'custom'">
-              <Plus class="size-4" />
-              Blank page
-            </BaseButton>
-            <BaseButton type="button" variant="outline" @click="pagePanelOpen = false">
-              Close
-            </BaseButton>
-          </div>
-        </div>
-
-        <div class="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <label
-            class="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3"
-          >
-            <Search class="size-5 text-gray-300" />
-            <input
-              v-model="templateSearch"
-              type="search"
-              placeholder="Search templates, industry, slug, or page type..."
-              class="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-            />
-          </label>
-          <select
-            v-model="templateTypeFilter"
-            class="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white outline-none"
-          >
-            <option value="all" class="text-gray-900">All page types</option>
-            <option
-              v-for="option in templateTypeOptions"
-              :key="option.value"
-              :value="option.value"
-              class="text-gray-900"
-            >
-              {{ option.label }} ({{ option.count }})
-            </option>
-          </select>
-        </div>
-      </div>
-
-      <div class="space-y-6 bg-gray-50 p-5 dark:bg-gray-950 sm:p-7 lg:p-8">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {{ templateCatalog.length }} templates available
-            </h3>
-            <p class="text-sm text-gray-500">
-              Inspired by visual asset galleries: thumbnail first, actions appear naturally on
-              hover.
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
-              :class="
-                templateTypeFilter === 'all'
-                  ? 'bg-gray-950 text-white dark:bg-white dark:text-gray-950'
-                  : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:text-gray-950 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-800'
-              "
-              @click="templateTypeFilter = 'all'"
-            >
-              All
-            </button>
-            <button
-              v-for="option in templateTypeOptions.slice(0, 6)"
-              :key="option.value"
-              type="button"
-              class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
-              :class="
-                templateTypeFilter === option.value
-                  ? 'bg-gray-950 text-white dark:bg-white dark:text-gray-950'
-                  : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:text-gray-950 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-800'
-              "
-              @click="templateTypeFilter = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="templateCatalogLoading" class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <div
-            v-for="index in 8"
-            :key="index"
-            class="h-80 animate-pulse rounded-3xl bg-white ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
-          ></div>
-        </div>
-
-        <div
-          v-else-if="templateCatalog.length > 0"
-          class="columns-1 gap-5 md:columns-2 xl:columns-4"
-        >
-          <article
-            v-for="(template, index) in templateCatalog"
-            :key="template.id"
-            class="group mb-5 break-inside-avoid overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-200 transition duration-300 hover:-translate-y-1 hover:shadow-2xl hover:ring-gray-300 dark:bg-gray-900 dark:ring-gray-800 dark:hover:ring-gray-700"
-          >
-            <div
-              class="relative overflow-hidden"
-              :class="
-                index % 5 === 0 ? 'aspect-[4/5]' : index % 3 === 0 ? 'aspect-[1/1]' : 'aspect-[4/3]'
-              "
-            >
-              <img
-                :src="templateThumbnail(template, index)"
-                :alt="template.name"
-                class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                loading="lazy"
-              />
-              <div
-                class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-90"
-              ></div>
-              <div class="absolute left-4 right-4 top-4 flex items-center justify-between gap-2">
-                <span
-                  class="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase text-gray-950"
-                >
-                  {{ templateIndustry(template) }}
-                </span>
-                <span
-                  class="rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-bold uppercase text-white backdrop-blur"
-                >
-                  {{ humanize(template.page_type) }}
-                </span>
-              </div>
-              <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
-                <h4 class="line-clamp-2 text-lg font-black leading-tight">
-                  {{ template.title || template.name }}
-                </h4>
-                <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-white/75">
-                  {{ templateDescription(template) }}
-                </p>
-              </div>
-              <div
-                class="absolute inset-x-4 bottom-4 flex translate-y-4 gap-2 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"
-              >
-                <BaseButton
-                  type="button"
-                  variant="secondary"
-                  class="flex-1"
-                  @click="previewTemplate(template)"
-                >
-                  <Eye class="size-4" />
-                  Preview
-                </BaseButton>
-                <BaseButton type="button" class="flex-1" @click="useTemplate(template)">
-                  Use
-                  <ArrowRight class="size-4" />
-                </BaseButton>
-              </div>
-            </div>
-            <div class="space-y-3 p-4">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <h4 class="font-bold text-gray-900 dark:text-gray-100">{{ template.name }}</h4>
-                  <p class="mt-1 text-xs text-gray-500">/{{ template.slug }}</p>
-                </div>
-                <span
-                  class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                >
-                  Ready
-                </span>
-              </div>
-              <p class="line-clamp-2 text-xs leading-relaxed text-gray-500">
-                For {{ templateAudience(template) }}
-              </p>
-            </div>
-          </article>
-        </div>
-
-        <div
-          v-else
-          class="rounded-3xl border border-dashed bg-white p-10 text-center dark:border-gray-800 dark:bg-gray-900"
-        >
-          <div
-            class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800"
-          >
-            <Search class="size-6 text-gray-500" />
-          </div>
-          <h3 class="mt-4 text-lg font-bold text-gray-900 dark:text-gray-100">
-            No templates found for this workspace
-          </h3>
-          <p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-gray-500">
-            Template catalog reads from `landing_pages` where `is_template=true`. If seed already
-            exists on the platform organization, refresh after the backend update is deployed.
-          </p>
-          <div class="mt-5 flex flex-wrap justify-center gap-2">
-            <BaseButton type="button" variant="secondary" @click="loadTemplateCatalog">
-              <RefreshCw class="size-4" />
-              Reload catalog
-            </BaseButton>
-            <BaseButton type="button" @click="createPageMode = 'custom'">
-              <Plus class="size-4" />
-              Start blank page
-            </BaseButton>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <BaseCard
-      v-if="pagePanelOpen && (editingPageId || createPageMode !== 'catalog')"
+      v-if="pagePanelOpen"
       ref="pagePanelRef"
       class="border-brand-100 !p-5 dark:border-brand-900"
     >
@@ -1667,8 +1265,9 @@ async function runPageAction(
             <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {{ editingPageId ? 'Update landing page details' : 'Create a new landing page' }}
             </h2>
-            <p class="mt-1 text-sm text-gray-500">
-              Form ini tampil inline agar konteks list, status, dan section tetap terlihat.
+            <p v-if="!editingPageId" class="mt-1 text-sm text-gray-500">
+              Halaman baru langsung dibuka di visual builder (Content) — pilih starter (Kosong,
+              SaaS, Company profile, dll) di sana.
             </p>
           </div>
           <BaseButton type="button" variant="secondary" @click="pagePanelOpen = false">
@@ -1676,246 +1275,7 @@ async function runPageAction(
           </BaseButton>
         </div>
 
-        <section v-if="!editingPageId" class="space-y-4">
-          <div>
-            <h3 class="font-semibold text-gray-900 dark:text-gray-100">Start from</h3>
-            <p class="text-sm text-gray-500">
-              Pilih template dari katalog seed, preview di tab baru, lalu isi basic info untuk
-              membuat draft — section, SEO, dan branding template disalin sekaligus.
-            </p>
-          </div>
-
-          <div class="grid gap-3 md:grid-cols-2">
-            <button
-              type="button"
-              class="rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50/50 dark:border-gray-800 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
-              :class="
-                createPageMode === 'catalog' || createPageMode === 'customize'
-                  ? 'border-brand-500 bg-brand-50 shadow-sm dark:border-brand-700 dark:bg-brand-950/40'
-                  : ''
-              "
-              @click="showTemplateCatalog"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    Template catalog
-                  </p>
-                  <p class="mt-1 text-sm text-gray-500">
-                    Gunakan template dari database landing page sebagai starting point tenant.
-                  </p>
-                </div>
-                <span
-                  class="rounded-full px-2.5 py-1 text-xs font-semibold text-brand-700 bg-brand-100 dark:bg-brand-950 dark:text-brand-300"
-                >
-                  Recommended
-                </span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              class="rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-gray-900/60"
-              :class="
-                createPageMode === 'custom'
-                  ? 'border-gray-400 bg-gray-100 shadow-sm dark:border-gray-600 dark:bg-gray-900'
-                  : ''
-              "
-              @click="createPageMode = 'custom'"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Blank page</p>
-                  <p class="mt-1 text-sm text-gray-500">
-                    Mulai dari page kosong, cocok kalau struktur dan kontennya ingin disusun manual.
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          <div
-            v-if="createPageMode === 'catalog'"
-            class="space-y-4 rounded-2xl border bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
-          >
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">
-                  Template gallery
-                </p>
-                <h4 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Pilih template landing page
-                </h4>
-              </div>
-              <div
-                class="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 dark:border-gray-800 dark:bg-gray-900"
-              >
-                <Search class="size-4 text-gray-400" />
-                <input
-                  v-model="templateSearch"
-                  type="search"
-                  placeholder="Cari nama, slug, atau layout..."
-                  class="w-full min-w-56 bg-transparent text-sm outline-none"
-                />
-              </div>
-            </div>
-
-            <div
-              v-if="templateCatalogLoading"
-              class="rounded-2xl border border-dashed bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900"
-            >
-              <Loader2 class="mx-auto mb-3 size-6 animate-spin text-brand-500" />
-              Memuat katalog template...
-            </div>
-
-            <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <article
-                v-for="(template, index) in templateCatalog"
-                :key="template.id"
-                class="group overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-brand-300 hover:shadow-xl dark:border-gray-800 dark:bg-gray-900"
-              >
-                <div class="relative aspect-[16/10] overflow-hidden">
-                  <img
-                    :src="templateThumbnail(template, index)"
-                    :alt="template.name"
-                    class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <div
-                    class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"
-                  ></div>
-                  <div class="absolute left-4 right-4 top-4 flex items-center justify-between">
-                    <span
-                      class="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase text-gray-900"
-                    >
-                      {{ humanize(template.page_type) }}
-                    </span>
-                    <span
-                      class="rounded-full bg-emerald-400/90 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-950"
-                    >
-                      Template
-                    </span>
-                  </div>
-                  <div class="absolute bottom-4 left-4 right-4 text-white">
-                    <h4 class="line-clamp-2 text-lg font-black leading-tight">
-                      {{ template.title || template.name }}
-                    </h4>
-                    <p class="mt-1 line-clamp-2 text-xs text-white/75">
-                      {{ templateDescription(template) }}
-                    </p>
-                  </div>
-                </div>
-                <div class="space-y-4 p-4">
-                  <div>
-                    <h4 class="font-semibold text-gray-900 dark:text-gray-100">
-                      {{ template.name }}
-                    </h4>
-                    <p class="mt-1 text-xs text-gray-500">/{{ template.slug }}</p>
-                  </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <BaseButton
-                      type="button"
-                      variant="secondary"
-                      @click="previewTemplate(template)"
-                    >
-                      <Eye class="size-4" />
-                      Preview
-                    </BaseButton>
-                    <BaseButton type="button" @click="useTemplate(template)">
-                      <Sparkles class="size-4" />
-                      Use this
-                    </BaseButton>
-                  </div>
-                </div>
-              </article>
-            </div>
-
-            <div
-              v-if="!templateCatalogLoading && templateCatalog.length === 0"
-              class="rounded-2xl border border-dashed bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900"
-            >
-              Template belum tersedia. Pastikan seed `landing_pages.is_template=true` sudah masuk.
-            </div>
-          </div>
-
-          <div
-            v-else-if="createPageMode === 'customize'"
-            class="space-y-4 rounded-2xl border bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
-          >
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">
-                  Customize template
-                </p>
-                <h4 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {{ selectedTemplatePage?.name }}
-                </h4>
-                <p class="text-sm text-gray-500">
-                  Isi basic info di bawah lalu buat draft. Section, SEO, dan branding template ini
-                  akan disalin sekaligus — kamu bisa edit content tiap section (termasuk rich text)
-                  setelah draft dibuat, dari tab Sections.
-                </p>
-              </div>
-              <BaseButton type="button" variant="secondary" @click="createPageMode = 'catalog'">
-                Back to catalog
-              </BaseButton>
-            </div>
-
-            <div class="space-y-2">
-              <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Sections yang akan disalin ({{ sectionDrafts.length }})
-              </p>
-              <ul class="space-y-1.5">
-                <li
-                  v-for="(section, index) in sectionDrafts"
-                  :key="`${section.key}-${index}`"
-                  class="flex items-center justify-between rounded-xl border bg-white px-4 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <span class="font-medium text-gray-900 dark:text-gray-100">{{
-                    section.name
-                  }}</span>
-                  <span
-                    class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                  >
-                    {{ section.type }}
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            <div
-              v-if="sectionDrafts.length === 0"
-              class="rounded-xl border border-dashed bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900"
-            >
-              Template ini belum punya mapping section.
-            </div>
-          </div>
-
-          <div
-            v-else
-            class="rounded-2xl border bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300"
-          >
-            Blank page akan dimulai tanpa blueprint. Kamu tetap bisa atur title, slug, type, dan
-            publish settings dari panel ini.
-          </div>
-        </section>
-
         <section class="space-y-3">
-          <div>
-            <h3 class="font-semibold text-gray-900 dark:text-gray-100">Basic Info</h3>
-            <p class="text-sm text-gray-500">Nama internal, title publik, dan slug URL.</p>
-          </div>
-          <label class="block text-sm font-medium">
-            Internal name
-            <input
-              v-model="pageForm.name"
-              class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-              placeholder="Company profile main page"
-            />
-            <span v-if="formErrors.name" class="mt-1 block text-xs text-red-600">{{
-              formErrors.name
-            }}</span>
-          </label>
           <label class="block text-sm font-medium">
             Page title
             <input
@@ -1927,21 +1287,6 @@ async function runPageAction(
               formErrors.title
             }}</span>
           </label>
-          <label class="block text-sm font-medium">
-            Slug
-            <input
-              v-model="pageForm.slug"
-              class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-              placeholder="company-profile"
-              @input="slugTouched = true"
-            />
-            <span v-if="formErrors.slug" class="mt-1 block text-xs text-red-600">{{
-              formErrors.slug
-            }}</span>
-          </label>
-        </section>
-
-        <section class="grid gap-3 sm:grid-cols-2">
           <label class="block text-sm font-medium">
             Layout / type
             <select
@@ -1957,42 +1302,82 @@ async function runPageAction(
               </option>
             </select>
           </label>
-          <label class="block text-sm font-medium">
-            Visibility
-            <select
-              v-model="pageForm.visibility"
-              class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-            >
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-              <option value="password_protected">Password protected</option>
-            </select>
-          </label>
-          <label class="block text-sm font-medium">
-            Locale
-            <input
-              v-model="pageForm.locale"
-              class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-            />
-          </label>
-          <label class="block text-sm font-medium">
-            Timezone
-            <input
-              v-model="pageForm.timezone"
-              class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-            />
-          </label>
         </section>
 
-        <label class="flex items-start gap-3 rounded-xl border p-3 text-sm dark:border-gray-800">
-          <input v-model="pageForm.is_homepage" type="checkbox" class="mt-1" />
-          <span>
-            <span class="block font-medium">Set as homepage</span>
-            <span class="text-gray-500"
-              >Backend tetap menyimpan halaman baru sebagai draft sampai dipublish.</span
+        <details
+          class="group rounded-xl border p-3 dark:border-gray-800"
+          :open="Boolean(editingPageId)"
+        >
+          <summary
+            class="flex cursor-pointer select-none items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300"
+          >
+            Advanced
+            <ChevronDown class="size-4 text-gray-400 transition-transform group-open:rotate-180" />
+          </summary>
+          <div class="mt-3 space-y-3">
+            <label class="block text-sm font-medium">
+              Internal name
+              <input
+                v-model="pageForm.name"
+                class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                placeholder="Company profile main page"
+              />
+              <span v-if="formErrors.name" class="mt-1 block text-xs text-red-600">{{
+                formErrors.name
+              }}</span>
+            </label>
+            <label class="block text-sm font-medium">
+              Slug
+              <input
+                v-model="pageForm.slug"
+                class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                placeholder="company-profile"
+                @input="slugTouched = true"
+              />
+              <span v-if="formErrors.slug" class="mt-1 block text-xs text-red-600">{{
+                formErrors.slug
+              }}</span>
+            </label>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block text-sm font-medium">
+                Visibility
+                <select
+                  v-model="pageForm.visibility"
+                  class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                >
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                  <option value="password_protected">Password protected</option>
+                </select>
+              </label>
+              <label class="block text-sm font-medium">
+                Locale
+                <input
+                  v-model="pageForm.locale"
+                  class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                />
+              </label>
+              <label class="block text-sm font-medium">
+                Timezone
+                <input
+                  v-model="pageForm.timezone"
+                  class="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                />
+              </label>
+            </div>
+            <label
+              class="flex items-start gap-3 rounded-xl border p-3 text-sm dark:border-gray-800"
             >
-          </span>
-        </label>
+              <input v-model="pageForm.is_homepage" type="checkbox" class="mt-1" />
+              <span>
+                <span class="block font-medium">Set as homepage</span>
+                <span class="text-gray-500"
+                  >Backend tetap menyimpan halaman baru sebagai draft sampai dipublish.</span
+                >
+              </span>
+            </label>
+          </div>
+        </details>
 
         <div class="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
           <BaseButton type="button" variant="secondary" @click="pagePanelOpen = false">

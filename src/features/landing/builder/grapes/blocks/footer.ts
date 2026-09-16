@@ -91,7 +91,8 @@ const legalLinksBlock = `
 export const FOOTER_BLOCKS: GrapesBlockDef[] = [
   {
     id: 'tenant-footer',
-    label: 'Footer tenant',
+    label:
+      'Footer tenant<br><span style="font-weight:400;font-size:10px;color:#94a3b8">Footer situs (satu per halaman)</span>',
     category: 'Footer',
     media: icon('call_to_action'),
     content: { type: 'zyad-tenant-footer' },

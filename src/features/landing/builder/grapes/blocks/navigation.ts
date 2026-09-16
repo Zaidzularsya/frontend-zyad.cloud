@@ -33,7 +33,8 @@ const breadcrumbBlock = `
 export const NAVIGATION_BLOCKS: GrapesBlockDef[] = [
   {
     id: 'tenant-header',
-    label: 'Header tenant',
+    label:
+      'Header tenant<br><span style="font-weight:400;font-size:10px;color:#94a3b8">Header &amp; navigasi situs (satu per halaman)</span>',
     category: 'Navigation',
     media: icon('menu'),
     content: { type: 'zyad-tenant-header' },

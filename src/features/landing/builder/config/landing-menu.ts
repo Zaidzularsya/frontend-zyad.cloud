@@ -76,27 +76,27 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
     key: 'content',
     routeNameSuffix: 'content',
     label: 'Content',
-    description: 'Susun section (hero, pricing, FAQ, CTA, dll), urutan, dan isi konten tiap page.',
+    description:
+      'Susun section (hero, pricing, FAQ, CTA, dll) di visual builder GrapesJS — termasuk header & footer situs, drag block "Header tenant" / "Footer tenant" dari palette Navigation/Footer.',
     icon: Layers3,
     tone: 'cyan',
     stats: [
       { label: 'Editor', value: 'Visual canvas' },
-      { label: 'Blok', value: '15' },
+      { label: 'Kategori blok', value: '8' },
       { label: 'Simpan', value: 'Autosave' },
     ],
     sections: [
       {
         title: 'Palette blok',
         items: [
-          'Hero',
-          'Problem',
-          'Benefits',
-          'Solution',
-          'Features',
-          'FAQ',
-          'Pricing',
-          'CTA',
-          'Footer',
+          'Navigation (Header tenant)',
+          'Introduction',
+          'Product & Service',
+          'Trust & Social Proof',
+          'Conversion (Pricing tenant)',
+          'Information & Content',
+          'Ecosystem',
+          'Footer (Footer tenant)',
         ],
       },
       {
@@ -165,7 +165,8 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
     key: 'settings',
     routeNameSuffix: 'settings',
     label: 'Settings',
-    description: 'Atur publish rules, footer content, domain binding, dan preferensi halaman.',
+    description:
+      'Atur publish rules, footer content pelengkap (copyright, trust badge), domain binding, dan preferensi halaman. Header & footer situs sendiri diatur dari Content — block "Header tenant" / "Footer tenant".',
     icon: SlidersHorizontal,
     tone: 'slate',
     stats: [
