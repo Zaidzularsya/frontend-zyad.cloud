@@ -663,12 +663,13 @@ onMounted(refreshData)
                     </select>
                     <button
                       type="button"
-                      class="shrink-0 rounded-lg border p-1.5 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                      title="Bind to page"
+                      class="flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                      title="Klik untuk menyimpan binding domain ke page ini"
                       :disabled="!pendingBindPageId[domain.id] || bindingBusyId === domain.id"
                       @click="bindDomainToPage(domain)"
                     >
                       <Layout class="h-3.5 w-3.5" />
+                      Bind
                     </button>
                   </div>
                 </td>
