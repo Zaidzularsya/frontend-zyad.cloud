@@ -408,6 +408,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/finance/pages/FixedAssetDetailPage.vue'),
         meta: { title: 'Detail Aset Tetap', permissions: ['platform.finance.asset.read'] },
       },
+      {
+        path: 'finance/tax-transactions',
+        name: 'platform-finance-tax-transactions',
+        component: () => import('@/features/finance/pages/TaxTransactionsPage.vue'),
+        meta: { title: 'Transaksi Pajak', permissions: ['platform.finance.tax.read'] },
+      },
+      {
+        path: 'finance/reports/tax-summary',
+        name: 'platform-finance-tax-summary',
+        component: () => import('@/features/finance/pages/TaxSummaryReportPage.vue'),
+        meta: { title: 'Ringkasan Pajak', permissions: ['platform.finance.tax.read'] },
+      },
     ],
   },
   {

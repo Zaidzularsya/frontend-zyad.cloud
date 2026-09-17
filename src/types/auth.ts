@@ -122,6 +122,8 @@ export type Permission =
   | 'platform.finance.arap.manage'
   | 'platform.finance.asset.read'
   | 'platform.finance.asset.manage'
+  | 'platform.finance.tax.read'
+  | 'platform.finance.tax.manage'
 
 export interface AuthUser {
   id: string

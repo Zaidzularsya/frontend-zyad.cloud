@@ -5,6 +5,8 @@ import {
   CalendarClock,
   LayoutDashboard,
   Landmark,
+  Percent,
+  Receipt,
   Scale,
   TrendingDown,
   TrendingUp,
@@ -81,6 +83,18 @@ export function buildFinanceMenuItems(): MenuChildItem[] {
       route: 'platform-finance-fixed-assets',
       icon: Landmark,
       permission: 'platform.finance.asset.read',
+    },
+    {
+      label: 'Transaksi Pajak',
+      route: 'platform-finance-tax-transactions',
+      icon: Receipt,
+      permission: 'platform.finance.tax.read',
+    },
+    {
+      label: 'Ringkasan Pajak',
+      route: 'platform-finance-tax-summary',
+      icon: Percent,
+      permission: 'platform.finance.tax.read',
     },
     {
       label: 'Trial Balance',
