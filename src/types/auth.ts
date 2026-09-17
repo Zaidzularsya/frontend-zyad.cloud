@@ -111,6 +111,11 @@ export type Permission =
   | 'platform.organization.manage'
   | 'storage.object.read'
   | 'storage.object.manage'
+  | 'platform.finance.coa.read'
+  | 'platform.finance.coa.manage'
+  | 'platform.finance.journal.read'
+  | 'platform.finance.journal.manage'
+  | 'platform.finance.reports.view'
 
 export interface AuthUser {
   id: string

@@ -318,6 +318,48 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/platform/pages/StorageQuotaManagementPage.vue'),
         meta: { title: 'Storage Quota', permissions: ['platform.organization.manage'] },
       },
+      {
+        path: 'finance',
+        name: 'platform-finance-dashboard',
+        component: () => import('@/features/finance/pages/FinanceDashboardPage.vue'),
+        meta: { title: 'Finance Dashboard', permissions: ['platform.finance.reports.view'] },
+      },
+      {
+        path: 'finance/accounts',
+        name: 'platform-finance-accounts',
+        component: () => import('@/features/finance/pages/ChartOfAccountsPage.vue'),
+        meta: { title: 'Chart of Accounts', permissions: ['platform.finance.coa.read'] },
+      },
+      {
+        path: 'finance/fiscal-periods',
+        name: 'platform-finance-fiscal-periods',
+        component: () => import('@/features/finance/pages/FiscalPeriodsPage.vue'),
+        meta: { title: 'Tahun & Periode Buku', permissions: ['platform.finance.coa.read'] },
+      },
+      {
+        path: 'finance/journal-entries',
+        name: 'platform-finance-journal',
+        component: () => import('@/features/finance/pages/JournalEntryPage.vue'),
+        meta: { title: 'Jurnal Entry', permissions: ['platform.finance.journal.read'] },
+      },
+      {
+        path: 'finance/trial-balance',
+        name: 'platform-finance-trial-balance',
+        component: () => import('@/features/finance/pages/TrialBalancePage.vue'),
+        meta: { title: 'Trial Balance', permissions: ['platform.finance.reports.view'] },
+      },
+      {
+        path: 'finance/reports/profit-loss',
+        name: 'platform-finance-profit-loss',
+        component: () => import('@/features/finance/pages/ProfitLossReportPage.vue'),
+        meta: { title: 'Laporan Laba Rugi', permissions: ['platform.finance.reports.view'] },
+      },
+      {
+        path: 'finance/reports/balance-sheet',
+        name: 'platform-finance-balance-sheet',
+        component: () => import('@/features/finance/pages/BalanceSheetReportPage.vue'),
+        meta: { title: 'Neraca', permissions: ['platform.finance.reports.view'] },
+      },
     ],
   },
   {

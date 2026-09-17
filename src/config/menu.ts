@@ -3,6 +3,7 @@ import {
   Bell,
   Brush,
   Building2,
+  Calculator,
   CreditCard,
   FileClock,
   FileText,
@@ -17,6 +18,7 @@ import {
   Waypoints,
 } from 'lucide-vue-next'
 
+import { buildFinanceMenuItems } from '@/features/finance/config/finance-menu'
 import { buildLandingManagementMenuItems } from '@/features/landing/builder/config/landing-menu'
 import type { Permission } from '@/types/auth'
 
@@ -90,6 +92,18 @@ export const platformMenuGroups: MenuGroup[] = [
     items: [
       { label: 'Customers', route: 'platform-customers', icon: Users },
       { label: 'Leads', route: 'platform-leads', icon: Magnet },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      {
+        label: 'Finance',
+        route: 'platform-finance-dashboard',
+        icon: Calculator,
+        description: 'Pembukuan double-entry PT Zyad Technovation.',
+        children: buildFinanceMenuItems(),
+      },
     ],
   },
 ]
