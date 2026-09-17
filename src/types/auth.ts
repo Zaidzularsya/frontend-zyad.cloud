@@ -118,6 +118,8 @@ export type Permission =
   | 'platform.finance.reports.view'
   | 'platform.finance.cashbank.read'
   | 'platform.finance.cashbank.manage'
+  | 'platform.finance.arap.read'
+  | 'platform.finance.arap.manage'
 
 export interface AuthUser {
   id: string

@@ -5,7 +5,9 @@ import {
   CalendarClock,
   LayoutDashboard,
   Scale,
+  TrendingDown,
   TrendingUp,
+  Users,
   Wallet,
 } from 'lucide-vue-next'
 
@@ -54,6 +56,24 @@ export function buildFinanceMenuItems(): MenuChildItem[] {
       route: 'platform-finance-bank-reconciliation',
       icon: Wallet,
       permission: 'platform.finance.cashbank.read',
+    },
+    {
+      label: 'Mitra Bisnis',
+      route: 'platform-finance-business-partners',
+      icon: Users,
+      permission: 'platform.finance.arap.read',
+    },
+    {
+      label: 'Piutang Usaha',
+      route: 'platform-finance-receivables',
+      icon: TrendingUp,
+      permission: 'platform.finance.arap.read',
+    },
+    {
+      label: 'Utang Usaha',
+      route: 'platform-finance-payables',
+      icon: TrendingDown,
+      permission: 'platform.finance.arap.read',
     },
     {
       label: 'Trial Balance',

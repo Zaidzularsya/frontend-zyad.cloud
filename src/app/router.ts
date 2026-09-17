@@ -378,6 +378,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/finance/pages/BankReconciliationPage.vue'),
         meta: { title: 'Rekonsiliasi Bank', permissions: ['platform.finance.cashbank.read'] },
       },
+      {
+        path: 'finance/business-partners',
+        name: 'platform-finance-business-partners',
+        component: () => import('@/features/finance/pages/BusinessPartnersPage.vue'),
+        meta: { title: 'Mitra Bisnis', permissions: ['platform.finance.arap.read'] },
+      },
+      {
+        path: 'finance/receivables',
+        name: 'platform-finance-receivables',
+        component: () => import('@/features/finance/pages/ReceivablesPage.vue'),
+        meta: { title: 'Piutang Usaha', permissions: ['platform.finance.arap.read'] },
+      },
+      {
+        path: 'finance/payables',
+        name: 'platform-finance-payables',
+        component: () => import('@/features/finance/pages/PayablesPage.vue'),
+        meta: { title: 'Utang Usaha', permissions: ['platform.finance.arap.read'] },
+      },
     ],
   },
   {
