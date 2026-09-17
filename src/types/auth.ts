@@ -108,6 +108,9 @@ export type Permission =
   | 'integration.connect'
   | 'integration.view_secret'
   | 'integration.update_secret'
+  | 'platform.organization.manage'
+  | 'storage.object.read'
+  | 'storage.object.manage'
 
 export interface AuthUser {
   id: string
