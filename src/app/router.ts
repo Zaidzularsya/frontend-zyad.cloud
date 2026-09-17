@@ -396,6 +396,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/finance/pages/PayablesPage.vue'),
         meta: { title: 'Utang Usaha', permissions: ['platform.finance.arap.read'] },
       },
+      {
+        path: 'finance/fixed-assets',
+        name: 'platform-finance-fixed-assets',
+        component: () => import('@/features/finance/pages/FixedAssetsPage.vue'),
+        meta: { title: 'Aset Tetap', permissions: ['platform.finance.asset.read'] },
+      },
+      {
+        path: 'finance/fixed-assets/:id',
+        name: 'platform-finance-fixed-asset-detail',
+        component: () => import('@/features/finance/pages/FixedAssetDetailPage.vue'),
+        meta: { title: 'Detail Aset Tetap', permissions: ['platform.finance.asset.read'] },
+      },
     ],
   },
   {

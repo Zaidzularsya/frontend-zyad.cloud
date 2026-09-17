@@ -4,6 +4,7 @@ import {
   Calculator,
   CalendarClock,
   LayoutDashboard,
+  Landmark,
   Scale,
   TrendingDown,
   TrendingUp,
@@ -74,6 +75,12 @@ export function buildFinanceMenuItems(): MenuChildItem[] {
       route: 'platform-finance-payables',
       icon: TrendingDown,
       permission: 'platform.finance.arap.read',
+    },
+    {
+      label: 'Aset Tetap',
+      route: 'platform-finance-fixed-assets',
+      icon: Landmark,
+      permission: 'platform.finance.asset.read',
     },
     {
       label: 'Trial Balance',
