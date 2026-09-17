@@ -7,6 +7,7 @@ import {
   FileClock,
   FileText,
   Globe,
+  HardDrive,
   LayoutDashboard,
   LifeBuoy,
   Magnet,
@@ -75,6 +76,13 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: FileClock,
         permission: 'audit.read',
       },
+      {
+        label: 'Storage Quota',
+        route: 'platform-storage',
+        icon: HardDrive,
+        description: 'Atur batas kapasitas storage per tenant.',
+        permission: 'platform.organization.manage',
+      },
     ],
   },
   {
@@ -133,6 +141,17 @@ export const customerMenuGroups: MenuGroup[] = [
     items: [
       { label: 'Plan & Billing', route: 'billing', icon: CreditCard },
       { label: 'Support Tickets', route: 'ticketing', icon: LifeBuoy },
+    ],
+  },
+  {
+    label: 'Storage',
+    items: [
+      {
+        label: 'Files',
+        route: 'storage',
+        icon: HardDrive,
+        permission: 'storage.object.read',
+      },
     ],
   },
 ]

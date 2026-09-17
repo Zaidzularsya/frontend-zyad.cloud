@@ -211,6 +211,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Support & Ticketing' },
       },
       {
+        path: 'storage',
+        name: 'storage',
+        component: () => import('@/features/storage/pages/StorageManagementPage.vue'),
+        meta: { title: 'Storage', permissions: ['storage.object.read'] },
+      },
+      {
         path: 'forbidden',
         name: 'forbidden',
         component: () => import('@/views/ForbiddenPage.vue'),
@@ -287,6 +293,12 @@ const routes: RouteRecordRaw[] = [
         name: 'platform-audit-logs',
         component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
         meta: { title: 'Audit Logs', permissions: ['audit.read'] },
+      },
+      {
+        path: 'storage',
+        name: 'platform-storage',
+        component: () => import('@/features/platform/pages/StorageQuotaManagementPage.vue'),
+        meta: { title: 'Storage Quota', permissions: ['platform.organization.manage'] },
       },
     ],
   },
