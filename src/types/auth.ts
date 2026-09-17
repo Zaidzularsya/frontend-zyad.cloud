@@ -116,6 +116,8 @@ export type Permission =
   | 'platform.finance.journal.read'
   | 'platform.finance.journal.manage'
   | 'platform.finance.reports.view'
+  | 'platform.finance.cashbank.read'
+  | 'platform.finance.cashbank.manage'
 
 export interface AuthUser {
   id: string

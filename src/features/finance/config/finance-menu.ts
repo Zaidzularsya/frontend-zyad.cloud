@@ -1,10 +1,12 @@
 import {
+  ArrowLeftRight,
   BookOpen,
   Calculator,
   CalendarClock,
   LayoutDashboard,
   Scale,
   TrendingUp,
+  Wallet,
 } from 'lucide-vue-next'
 
 import type { MenuChildItem } from '@/config/menu'
@@ -34,6 +36,24 @@ export function buildFinanceMenuItems(): MenuChildItem[] {
       route: 'platform-finance-journal',
       icon: Calculator,
       permission: 'platform.finance.journal.read',
+    },
+    {
+      label: 'Akun Kas & Bank',
+      route: 'platform-finance-cash-bank-accounts',
+      icon: Wallet,
+      permission: 'platform.finance.cashbank.read',
+    },
+    {
+      label: 'Transaksi Kas & Bank',
+      route: 'platform-finance-cash-transactions',
+      icon: ArrowLeftRight,
+      permission: 'platform.finance.cashbank.read',
+    },
+    {
+      label: 'Rekonsiliasi Bank',
+      route: 'platform-finance-bank-reconciliation',
+      icon: Wallet,
+      permission: 'platform.finance.cashbank.read',
     },
     {
       label: 'Trial Balance',

@@ -360,6 +360,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/finance/pages/BalanceSheetReportPage.vue'),
         meta: { title: 'Neraca', permissions: ['platform.finance.reports.view'] },
       },
+      {
+        path: 'finance/cash-bank-accounts',
+        name: 'platform-finance-cash-bank-accounts',
+        component: () => import('@/features/finance/pages/CashBankAccountsPage.vue'),
+        meta: { title: 'Akun Kas & Bank', permissions: ['platform.finance.cashbank.read'] },
+      },
+      {
+        path: 'finance/cash-transactions',
+        name: 'platform-finance-cash-transactions',
+        component: () => import('@/features/finance/pages/CashTransactionsPage.vue'),
+        meta: { title: 'Transaksi Kas & Bank', permissions: ['platform.finance.cashbank.read'] },
+      },
+      {
+        path: 'finance/bank-reconciliation',
+        name: 'platform-finance-bank-reconciliation',
+        component: () => import('@/features/finance/pages/BankReconciliationPage.vue'),
+        meta: { title: 'Rekonsiliasi Bank', permissions: ['platform.finance.cashbank.read'] },
+      },
     ],
   },
   {
