@@ -48,7 +48,7 @@ async function submit() {
   try {
     await createMutation.mutateAsync({
       tax_type_id: form.tax_type_id,
-      rate_percent: form.rate_percent,
+      rate_percent: String(form.rate_percent),
       effective_date: form.effective_date,
       end_date: form.end_date || undefined,
       notes: form.notes || undefined,

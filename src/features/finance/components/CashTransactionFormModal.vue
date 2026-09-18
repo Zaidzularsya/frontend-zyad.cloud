@@ -59,7 +59,7 @@ async function submit() {
       cash_bank_account_id: form.cash_bank_account_id,
       transaction_date: form.transaction_date,
       transaction_type: form.transaction_type,
-      amount: form.amount,
+      amount: String(form.amount),
       contra_account_id: form.transaction_type !== 'transfer' ? form.contra_account_id : undefined,
       counter_cash_bank_account_id:
         form.transaction_type === 'transfer' ? form.counter_cash_bank_account_id : undefined,

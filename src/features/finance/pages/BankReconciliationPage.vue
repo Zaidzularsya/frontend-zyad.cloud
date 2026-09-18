@@ -37,7 +37,7 @@ async function submit() {
     await createMutation.mutateAsync({
       cash_bank_account_id: selectedAccountId.value,
       statement_date: form.statement_date,
-      statement_ending_balance: form.statement_ending_balance,
+      statement_ending_balance: String(form.statement_ending_balance),
     })
     form.statement_ending_balance = ''
   } catch (error) {

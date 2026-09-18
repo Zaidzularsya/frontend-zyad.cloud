@@ -50,7 +50,7 @@ async function submit() {
       partner_id: props.transaction.partner_id,
       ar_ap_transaction_id: props.transaction.id,
       payment_date: form.payment_date,
-      amount: form.amount,
+      amount: String(form.amount),
       cash_bank_account_id: form.cash_bank_account_id,
       notes: form.notes || undefined,
     })

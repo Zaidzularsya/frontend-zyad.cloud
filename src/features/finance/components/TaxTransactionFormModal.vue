@@ -57,7 +57,7 @@ async function submit() {
       tax_type_id: form.tax_type_id,
       transaction_date: form.transaction_date,
       reference_number: form.reference_number || undefined,
-      amount: form.amount,
+      amount: String(form.amount),
       direction: form.direction,
       tax_account_id: form.tax_account_id,
       contra_account_id: form.contra_account_id,

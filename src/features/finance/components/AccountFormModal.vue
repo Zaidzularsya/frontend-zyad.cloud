@@ -76,7 +76,7 @@ async function submit() {
           account_name: form.account_name,
           account_category_id: form.account_category_id || undefined,
           is_active: form.is_active,
-          opening_balance: form.opening_balance,
+          opening_balance: String(form.opening_balance),
           opening_balance_date: form.opening_balance_date || null,
           description: form.description,
         },
@@ -88,7 +88,7 @@ async function submit() {
         account_category_id: form.account_category_id || undefined,
         is_header: form.is_header,
         normal_balance: form.normal_balance,
-        opening_balance: form.opening_balance,
+        opening_balance: String(form.opening_balance),
         opening_balance_date: form.opening_balance_date || null,
         description: form.description,
       })

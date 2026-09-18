@@ -78,8 +78,8 @@ async function submit() {
         .filter((line) => line.account_id && (Number(line.debit) || Number(line.credit)))
         .map((line) => ({
           account_id: line.account_id,
-          debit: line.debit || '0',
-          credit: line.credit || '0',
+          debit: String(line.debit || '0'),
+          credit: String(line.credit || '0'),
           description: line.description || undefined,
         })),
     })

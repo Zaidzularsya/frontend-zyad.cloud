@@ -67,7 +67,7 @@ async function submit() {
       transaction_date: form.transaction_date,
       due_date: form.due_date,
       reference_number: form.reference_number || undefined,
-      amount: form.amount,
+      amount: String(form.amount),
       contra_account_id: form.contra_account_id,
       description: form.description || undefined,
     })
