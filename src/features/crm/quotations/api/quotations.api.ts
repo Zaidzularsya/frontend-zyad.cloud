@@ -53,7 +53,7 @@ export interface QuotationPayload {
   deal_id?: string
   contact_id?: string
   company_id?: string
-  quotation_number: string
+  quotation_number?: string
   valid_until?: string
   currency?: string
   notes?: string
