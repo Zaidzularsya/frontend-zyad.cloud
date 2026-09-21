@@ -291,12 +291,7 @@ const routes: RouteRecordRaw[] = [
           permissions: ['platform.product.plan.read'],
         },
       },
-      {
-        path: 'leads',
-        name: 'platform-leads',
-        component: () => import('@/features/platform/pages/LeadManagementPage.vue'),
-        meta: { title: 'Lead Management' },
-      },
+      ...buildCrmRoutes('crm', 'platform-crm'),
       {
         path: 'notifications',
         name: 'platform-notifications',
