@@ -93,7 +93,7 @@ const previewTotal = computed(() => {
 })
 
 function openCreateModal() {
-  form.quotation_number = `Q-${Date.now()}`
+  form.quotation_number = ''
   form.notes = ''
   items.value = [{ description: '', quantity: '1', unit_price: '0', discount_percent: '0' }]
   errorMessage.value = ''
@@ -111,7 +111,7 @@ function removeItem(index: number) {
 async function submitForm() {
   errorMessage.value = ''
   const payload: QuotationPayload = {
-    quotation_number: form.quotation_number,
+    quotation_number: form.quotation_number || undefined,
     notes: form.notes,
     items: items.value,
   }
@@ -229,7 +229,8 @@ async function submitForm() {
         <TextField
           v-model="form.quotation_number"
           name="quotation_number"
-          label="Nomor Quotation"
+          label="Nomor Quotation (opsional)"
+          placeholder="Kosongkan untuk nomor otomatis"
         />
 
         <div class="space-y-2">

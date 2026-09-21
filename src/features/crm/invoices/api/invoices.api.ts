@@ -38,7 +38,7 @@ export interface InvoicePayload {
   deal_id?: string
   contact_id?: string
   company_id?: string
-  invoice_number: string
+  invoice_number?: string
   issue_date?: string
   due_date?: string
   currency?: string
