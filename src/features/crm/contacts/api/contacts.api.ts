@@ -41,6 +41,7 @@ export interface ContactPayload {
   source?: string
   owner_user_id?: string
   lifecycle_stage?: ContactLifecycleStage
+  is_customer?: boolean
 }
 
 export const contactsApi = {
