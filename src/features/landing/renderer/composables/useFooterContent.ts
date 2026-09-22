@@ -4,7 +4,7 @@ import type { FooterContent } from '../../shared/types/landing.types'
 /**
  * Menyusun `FooterContent` (FTR-FE-010) dari payload mentah
  * `/public/landing/resolve` — brand dari Branding, kolom link dari menu
- * `location=footer`, sisanya dari `Page.Settings` + `CTAs`.
+ * `location=footer`, sisanya dari `Page.Settings`.
  *
  * Diekstrak dari `DynamicLandingPage.vue` (FTR-FE-011) supaya logic ini
  * reusable untuk preview/testing tanpa perlu mount seluruh halaman publik.
@@ -50,15 +50,12 @@ export function useFooterContent(result: RawRecord, fallbackTitle: string): Foot
     }))
     .filter((badge) => badge.image_url || badge.label)
 
-  const secondaryCtaTrackingKey = pickString(
-    rawSettings,
-    'secondary_cta_tracking_key',
-    'SecondaryCTATrackingKey',
-  )
-  const rawCTAs = pickArray(result, 'CTAs', 'ctas')
-  const secondaryCta = secondaryCtaTrackingKey
-    ? resolveSecondaryCta(rawCTAs, secondaryCtaTrackingKey)
-    : undefined
+  const secondaryCtaLabel = pickString(rawSettings, 'secondary_cta_label', 'SecondaryCTALabel')
+  const secondaryCtaUrl = pickString(rawSettings, 'secondary_cta_url', 'SecondaryCTAURL')
+  const secondaryCta =
+    secondaryCtaLabel && secondaryCtaUrl
+      ? { label: secondaryCtaLabel, url: secondaryCtaUrl }
+      : undefined
 
   const newsletterFormId = pickString(rawSettings, 'newsletter_form_id', 'NewsletterFormID')
 
@@ -74,17 +71,6 @@ export function useFooterContent(result: RawRecord, fallbackTitle: string): Foot
     socialLinks: branding.social_links.length > 0 ? branding.social_links : undefined,
     contact: Object.keys(branding.contact ?? {}).length > 0 ? branding.contact : undefined,
   }
-}
-
-function resolveSecondaryCta(rawCTAs: RawRecord[], trackingKey: string) {
-  const match = rawCTAs.find(
-    (cta) => pickString(cta, 'tracking_key', 'TrackingKey') === trackingKey,
-  )
-  if (!match) return undefined
-  const label = pickString(match, 'label', 'Label')
-  const destination = pickString(match, 'destination', 'Destination')
-  if (!label || !destination) return undefined
-  return { label, url: destination }
 }
 
 function normalizeMenus(rawMenus: RawRecord[]): RawMenu[] {

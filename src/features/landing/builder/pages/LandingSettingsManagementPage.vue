@@ -6,12 +6,9 @@ import { RouterLink } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import LandingPagePicker from '@/features/landing/builder/components/LandingPagePicker.vue'
-import ReusableCtaManager from '@/features/landing/builder/components/ReusableCtaManager.vue'
-import MediaLibraryManager from '@/features/landing/builder/components/MediaLibraryManager.vue'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
-  CallToAction,
   LandingDomainBinding,
   LandingForm,
   LandingPage,
@@ -36,7 +33,6 @@ const props = withDefaults(
 const { pages, selectedPageId, loadPages } = usePageSelection()
 const selectedPage = ref<LandingPage | null>(null)
 const pageBindings = ref<LandingDomainBinding[]>([])
-const ctas = ref<CallToAction[]>([])
 const forms = ref<LandingForm[]>([])
 
 const loading = ref(false)
@@ -45,11 +41,11 @@ const errorMessage = ref('')
 const notice = ref('')
 
 const settingsForm = reactive({
-  publish_require_approval: false,
   lead_notification_emails: [] as string[],
   footer_copyright_text: '',
   trust_badges: [] as Array<{ image_url: string; label: string }>,
-  secondary_cta_tracking_key: '',
+  secondary_cta_label: '',
+  secondary_cta_url: '',
   newsletter_form_id: '',
 })
 const newEmail = ref('')
@@ -78,19 +74,16 @@ async function loadPageData(pageId: string) {
   loading.value = true
   errorMessage.value = ''
   try {
-    const [pageResponse, bindingsResponse, ctaResponse, formResponse] = await Promise.all([
+    const [pageResponse, bindingsResponse, formResponse] = await Promise.all([
       landingApi.getPage(pageId),
       landingApi.getDomainBindings(pageId),
-      landingApi.getCTAs({ per_page: 100 }),
       landingApi.getForms(pageId),
     ])
     selectedPage.value = pageResponse.data
     pageBindings.value = bindingsResponse.data
-    ctas.value = ctaResponse.data
     forms.value = formResponse.data
 
     const settings = (pageResponse.data.settings ?? {}) as Record<string, unknown>
-    settingsForm.publish_require_approval = Boolean(settings.publish_require_approval)
     settingsForm.lead_notification_emails = Array.isArray(settings.lead_notification_emails)
       ? (settings.lead_notification_emails as unknown[]).map(String)
       : []
@@ -101,7 +94,8 @@ async function loadPageData(pageId: string) {
           label: badge.label ?? '',
         }))
       : []
-    settingsForm.secondary_cta_tracking_key = String(settings.secondary_cta_tracking_key ?? '')
+    settingsForm.secondary_cta_label = String(settings.secondary_cta_label ?? '')
+    settingsForm.secondary_cta_url = String(settings.secondary_cta_url ?? '')
     settingsForm.newsletter_form_id = String(settings.newsletter_form_id ?? '')
   } catch (error) {
     errorMessage.value = getApiMessage(error, 'Gagal memuat settings landing page.')
@@ -159,11 +153,11 @@ async function saveSettings() {
     await landingApi.updatePage(selectedPageId.value, {
       settings: {
         ...existingSettings,
-        publish_require_approval: settingsForm.publish_require_approval,
         lead_notification_emails: settingsForm.lead_notification_emails,
         footer_copyright_text: settingsForm.footer_copyright_text.trim(),
         trust_badges: settingsForm.trust_badges.filter((badge) => badge.image_url || badge.label),
-        secondary_cta_tracking_key: settingsForm.secondary_cta_tracking_key,
+        secondary_cta_label: settingsForm.secondary_cta_label.trim(),
+        secondary_cta_url: settingsForm.secondary_cta_url.trim(),
         newsletter_form_id: settingsForm.newsletter_form_id,
       },
     })
@@ -212,24 +206,9 @@ async function saveSettings() {
       {{ errorMessage }}
     </div>
 
-    <section
-      class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
-    >
-      <ReusableCtaManager />
-    </section>
-
-    <section
-      class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
-    >
-      <MediaLibraryManager />
-    </section>
-
     <div class="rounded-2xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
       <LandingPagePicker v-model="selectedPageId" :pages="pages" />
-      <p class="mt-2 text-xs text-gray-500">
-        Settings di bawah berlaku per landing page. Reusable CTA &amp; Media library di atas berlaku
-        untuk seluruh tenant.
-      </p>
+      <p class="mt-2 text-xs text-gray-500">Settings di bawah berlaku per landing page.</p>
     </div>
 
     <div v-if="loading" class="grid min-h-[200px] place-items-center rounded-3xl border">
@@ -238,26 +217,6 @@ async function saveSettings() {
 
     <template v-else-if="selectedPageId">
       <div class="grid gap-6 xl:grid-cols-2">
-        <section
-          class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
-        >
-          <h2 class="font-black text-gray-900 dark:text-white">Publish rules</h2>
-          <p class="mt-1 text-sm text-gray-500">
-            Kontrol tambahan sebelum publish page ini dijalankan.
-          </p>
-          <label
-            class="mt-4 flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3 text-sm dark:bg-gray-900"
-          >
-            <input v-model="settingsForm.publish_require_approval" type="checkbox" />
-            <span>
-              <span class="font-semibold text-gray-900 dark:text-white">Require approval</span>
-              <span class="block text-xs text-gray-500">
-                Tandai page ini butuh review manual sebelum publish (informational flag).
-              </span>
-            </span>
-          </label>
-        </section>
-
         <section
           class="rounded-3xl border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
         >
@@ -357,18 +316,24 @@ async function saveSettings() {
               </div>
             </div>
 
-            <label class="block text-sm font-medium">
-              Secondary CTA
-              <select
-                v-model="settingsForm.secondary_cta_tracking_key"
-                class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
-              >
-                <option value="">None</option>
-                <option v-for="cta in ctas" :key="cta.id" :value="cta.tracking_key">
-                  {{ cta.label }} ({{ cta.tracking_key }})
-                </option>
-              </select>
-            </label>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block text-sm font-medium">
+                Secondary CTA label
+                <input
+                  v-model="settingsForm.secondary_cta_label"
+                  placeholder="Hubungi kami"
+                  class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                />
+              </label>
+              <label class="block text-sm font-medium">
+                Secondary CTA URL
+                <input
+                  v-model="settingsForm.secondary_cta_url"
+                  placeholder="https://wa.me/..."
+                  class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-950"
+                />
+              </label>
+            </div>
 
             <label class="block text-sm font-medium">
               Newsletter form
