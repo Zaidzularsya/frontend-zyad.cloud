@@ -37,6 +37,10 @@ export interface TenantHeaderPresentation {
   showAction: boolean
   actionLabel: string
   actionUrl: string
+  /** Slide the header out of view on scroll-down, back in on scroll-up.
+   * Only animated on the public render (parent-level, real scroll listener) —
+   * the canvas preview shows the header statically regardless of this flag. */
+  hideOnScroll: boolean
 }
 
 export const DEFAULT_HEADER_PRESENTATION: TenantHeaderPresentation = {
@@ -48,6 +52,7 @@ export const DEFAULT_HEADER_PRESENTATION: TenantHeaderPresentation = {
   showAction: true,
   actionLabel: 'Masuk',
   actionUrl: '/login',
+  hideOnScroll: false,
 }
 
 const POSITIONS = ['static', 'sticky', 'fixed'] as const
@@ -108,6 +113,7 @@ export function parseHeaderPresentation(raw: unknown): TenantHeaderPresentation 
     showAction: typeof p.showAction === 'boolean' ? p.showAction : d.showAction,
     actionLabel: typeof p.actionLabel === 'string' ? p.actionLabel : d.actionLabel,
     actionUrl: typeof p.actionUrl === 'string' ? p.actionUrl : d.actionUrl,
+    hideOnScroll: typeof p.hideOnScroll === 'boolean' ? p.hideOnScroll : d.hideOnScroll,
   }
 }
 

@@ -429,6 +429,14 @@ async function submitItem() {
             <option v-for="o in positionOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
+        <label class="hp-check">
+          <input
+            type="checkbox"
+            :checked="pres.hideOnScroll"
+            @change="setPres('hideOnScroll', ($event.target as HTMLInputElement).checked)"
+          />
+          Sembunyi saat scroll ke bawah, muncul lagi saat scroll ke atas
+        </label>
       </div>
     </details>
   </div>
