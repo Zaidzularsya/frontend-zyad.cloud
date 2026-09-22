@@ -322,8 +322,8 @@ async function submit() {
 }
 .hp-input:focus {
   outline: none;
-  border-color: #465fff;
-  box-shadow: 0 0 0 3px rgba(70, 95, 255, 0.12);
+  border-color: #0369a1;
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12);
 }
 .hp-check {
   display: flex;
@@ -345,7 +345,7 @@ async function submit() {
   padding: 8px 12px;
   border: 0;
   border-radius: 8px;
-  background: #465fff;
+  background: #0369a1;
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -436,7 +436,7 @@ async function submit() {
 }
 .hp-item-actions button:hover:not(:disabled) {
   background: #f1f5f9;
-  color: #465fff;
+  color: #0369a1;
 }
 .hp-item-actions button:disabled {
   opacity: 0.4;

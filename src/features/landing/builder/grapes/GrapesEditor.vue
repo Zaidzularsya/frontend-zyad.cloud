@@ -547,18 +547,18 @@ defineExpose({ editor })
      stays untouched. */
   --gjs-primary-color: #ffffff;
   --gjs-secondary-color: #475569;
-  --gjs-tertiary-color: #465fff;
-  --gjs-quaternary-color: #3641f5;
+  --gjs-tertiary-color: #0369a1;
+  --gjs-quaternary-color: #075985;
   --gjs-font-color: #475569;
   --gjs-font-color-active: #0f172a;
   --gjs-main-dark-color: #e2e8f0;
   --gjs-secondary-dark-color: #f1f5f9;
   --gjs-main-light-color: #f8fafc;
   --gjs-secondary-light-color: #64748b;
-  --gjs-color-highlight: #465fff;
+  --gjs-color-highlight: #0369a1;
   --gjs-light-border: #e2e8f0;
   --gjs-arrow-color: #94a3b8;
-  --gjs-placeholder-background-color: #465fff;
+  --gjs-placeholder-background-color: #0369a1;
   --gjs-main-font: 'Inter', 'Segoe UI', sans-serif;
   --gjs-font-size: 12px;
   /* We host our own panels/top-bar outside the GrapesJS container, so it must
@@ -627,8 +627,8 @@ defineExpose({ editor })
   color: #0f172a;
 }
 .grapes-dev-btn.is-active {
-  background: #eef4ff;
-  color: #465fff;
+  background: #f0f9ff;
+  color: #0369a1;
 }
 .grapes-actions {
   align-items: center;
@@ -654,7 +654,7 @@ defineExpose({ editor })
   padding: 0 14px;
   border: 0;
   border-radius: 8px;
-  background: #465fff;
+  background: #0369a1;
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -664,7 +664,7 @@ defineExpose({ editor })
     opacity 0.12s ease;
 }
 .grapes-publish:hover:not(:disabled) {
-  background: #3641f5;
+  background: #075985;
 }
 .grapes-publish:disabled {
   opacity: 0.6;
@@ -677,8 +677,8 @@ defineExpose({ editor })
 .grapes-notice {
   margin: 0;
   padding: 8px 14px;
-  background: #eef4ff;
-  color: #3641f5;
+  background: #f0f9ff;
+  color: #075985;
   font-size: 12px;
   border-bottom: 1px solid #dbe4ff;
 }
@@ -749,9 +749,9 @@ defineExpose({ editor })
     box-shadow 0.12s ease;
 }
 .grapes-starter-option:hover {
-  border-color: #465fff;
+  border-color: #0369a1;
   background: #f5f7ff;
-  box-shadow: 0 2px 10px rgba(70, 95, 255, 0.12);
+  box-shadow: 0 2px 10px rgba(3, 105, 161, 0.12);
 }
 .grapes-starter-name {
   font-size: 13px;
@@ -809,8 +809,8 @@ defineExpose({ editor })
   color: #0f172a;
 }
 .grapes-tabs button.is-active {
-  color: #465fff;
-  box-shadow: inset 0 -2px 0 #465fff;
+  color: #0369a1;
+  box-shadow: inset 0 -2px 0 #0369a1;
 }
 .grapes-pane {
   flex: 1;
@@ -878,10 +878,10 @@ defineExpose({ editor })
     color 0.12s ease;
 }
 .grapes-shell :deep(.gjs-block:hover) {
-  border-color: #465fff;
+  border-color: #0369a1;
   background: #f5f7ff;
   color: #1e293b;
-  box-shadow: 0 2px 8px rgba(70, 95, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.12);
 }
 .grapes-shell :deep(.gjs-block__media) {
   margin-bottom: 6px;
@@ -896,7 +896,7 @@ defineExpose({ editor })
   font-size: 22px;
 }
 .grapes-shell :deep(.gjs-block:hover .gjs-block__media) {
-  color: #465fff;
+  color: #0369a1;
 }
 .grapes-shell :deep(.gjs-block-label) {
   font-size: 11px;
@@ -933,8 +933,8 @@ defineExpose({ editor })
   background: #ffffff;
 }
 .grapes-shell :deep(.gjs-field:focus-within) {
-  border-color: #465fff;
-  box-shadow: 0 0 0 3px rgba(70, 95, 255, 0.12);
+  border-color: #0369a1;
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12);
 }
 /* Unit picker + every native <select> / <option> inside the panels: GrapesJS
    leaves these on its dark theme, so pin them to the light palette. */
@@ -983,11 +983,11 @@ defineExpose({ editor })
 
 /* ── GrapesJS chrome: canvas overlays ────────────────────────────────────── */
 .grapes-shell :deep(.gjs-toolbar) {
-  background: #465fff;
+  background: #0369a1;
   border-radius: 8px;
 }
 .grapes-shell :deep(.gjs-badge) {
-  background: #465fff;
+  background: #0369a1;
   border-radius: 4px;
   font-weight: 600;
 }
@@ -995,7 +995,7 @@ defineExpose({ editor })
   border-radius: 4px;
 }
 .grapes-shell :deep(.gjs-resizer-h) {
-  border-color: #465fff;
+  border-color: #0369a1;
   background: #ffffff;
 }
 </style>
