@@ -646,14 +646,25 @@ async function runPageAction(
               <ArrowLeft class="size-3.5" />
               Back to pages
             </button>
-            <p
-              class="text-xs font-black uppercase tracking-wide text-brand-600 dark:text-brand-400"
-            >
-              Kelola landing page
-            </p>
-            <h2 class="mt-2 text-3xl font-black tracking-tight text-gray-900 dark:text-white">
-              {{ displayTitle(managedPage) }}
-            </h2>
+            <div class="flex items-center gap-2">
+              <span class="size-1.5 rounded-full bg-brand-500"></span>
+              <p
+                class="text-xs font-black uppercase tracking-wide text-brand-600 dark:text-brand-400"
+              >
+                Kelola landing page
+              </p>
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-3">
+              <h2 class="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
+                {{ displayTitle(managedPage) }}
+              </h2>
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-bold ring-1"
+                :class="statusBadgeClass(managedPage.status)"
+              >
+                {{ humanize(managedPage.status) }}
+              </span>
+            </div>
             <p class="mt-2 break-all text-sm text-gray-500 dark:text-gray-400">
               /{{ managedPage.slug }}
             </p>
@@ -915,17 +926,20 @@ async function runPageAction(
     </section>
 
     <div v-if="!formPanelOpen" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-      <BaseCard class="!p-4">
+      <div
+        class="relative overflow-hidden rounded-2xl bg-[linear-gradient(100deg,#0EA5E9_0%,#2DD4BF_100%)] p-4 text-white shadow-sm"
+      >
+        <span class="absolute -right-3 -top-3 size-3 rounded-full bg-white/40"></span>
         <div class="flex items-center gap-3">
-          <span class="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+          <span class="grid size-11 place-items-center rounded-xl bg-white/15">
             <FileText class="size-5" />
           </span>
           <div>
-            <p class="text-sm text-gray-500">Total pages</p>
-            <p class="text-2xl font-bold">{{ stats.total }}</p>
+            <p class="text-sm text-white/80">Total pages</p>
+            <p class="text-3xl font-black tracking-tight">{{ stats.total }}</p>
           </div>
         </div>
-      </BaseCard>
+      </div>
       <BaseCard class="!p-4">
         <div class="flex items-center gap-3">
           <span class="grid size-11 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -933,7 +947,7 @@ async function runPageAction(
           </span>
           <div>
             <p class="text-sm text-gray-500">Published</p>
-            <p class="text-2xl font-bold">{{ stats.published }}</p>
+            <p class="text-3xl font-black tracking-tight">{{ stats.published }}</p>
           </div>
         </div>
       </BaseCard>
@@ -944,7 +958,7 @@ async function runPageAction(
           </span>
           <div>
             <p class="text-sm text-gray-500">Draft</p>
-            <p class="text-2xl font-bold">{{ stats.draft }}</p>
+            <p class="text-3xl font-black tracking-tight">{{ stats.draft }}</p>
           </div>
         </div>
       </BaseCard>
@@ -955,7 +969,7 @@ async function runPageAction(
           </span>
           <div>
             <p class="text-sm text-gray-500">Archived</p>
-            <p class="text-2xl font-bold">{{ stats.archived }}</p>
+            <p class="text-3xl font-black tracking-tight">{{ stats.archived }}</p>
           </div>
         </div>
       </BaseCard>
@@ -966,7 +980,7 @@ async function runPageAction(
           </span>
           <div>
             <p class="text-sm text-gray-500">Updated 7 hari</p>
-            <p class="text-2xl font-bold">{{ stats.recentlyUpdated }}</p>
+            <p class="text-3xl font-black tracking-tight">{{ stats.recentlyUpdated }}</p>
           </div>
         </div>
       </BaseCard>
