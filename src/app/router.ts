@@ -121,20 +121,19 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Landing Page Management' },
       },
       {
-        // Menu "Footer" dibubarkan (link footer pindah ke Navigation, field
-        // footer pindah ke Settings) — redirect supaya bookmark lama tidak 404.
+        // Menu "Footer" dan "Settings" dibubarkan — header/footer situs
+        // sekarang diatur dari Content (block "Header tenant"/"Footer
+        // tenant"). Redirect supaya bookmark lama tidak 404.
         path: 'landing-pages/footer',
-        redirect: { name: 'landing-pages-settings' },
+        redirect: { name: 'landing-pages-content' },
       },
       {
-        // "Navigation" & "Brand & Theme" dilipat ke builder Content (panel
-        // Header & Brand); CTA/Media library pindah ke Settings.
         path: 'landing-pages/navigation',
         redirect: { name: 'landing-pages-content' },
       },
       {
         path: 'landing-pages/brand-theme',
-        redirect: { name: 'landing-pages-settings' },
+        redirect: { name: 'landing-pages-content' },
       },
       ...buildLandingManagementRoutes('landing-pages'),
       {
@@ -253,7 +252,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'landing-pages/footer',
-        redirect: { name: 'platform-landing-pages-settings' },
+        redirect: { name: 'platform-landing-pages-content' },
       },
       {
         path: 'landing-pages/navigation',
@@ -261,7 +260,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'landing-pages/brand-theme',
-        redirect: { name: 'platform-landing-pages-settings' },
+        redirect: { name: 'platform-landing-pages-content' },
       },
       ...buildLandingManagementRoutes('platform-landing-pages'),
       {
