@@ -16,12 +16,14 @@ describe('parseHeaderPresentation', () => {
 
   it('parses a JSON string and clamps enums', () => {
     const p = parseHeaderPresentation(
-      '{"sticky":false,"variant":"weird","align":"center","showAction":false,"actionLabel":"Go","actionUrl":"/go"}',
+      '{"position":"fixed","variant":"weird","layout":"spread","groupAlign":"center","container":false,"showAction":false,"actionLabel":"Go","actionUrl":"/go"}',
     )
     expect(p).toEqual({
-      sticky: false,
+      position: 'fixed',
       variant: 'solid', // "weird" clamped
-      align: 'center',
+      layout: 'spread',
+      groupAlign: 'center',
+      container: false,
       showAction: false,
       actionLabel: 'Go',
       actionUrl: '/go',
@@ -31,8 +33,26 @@ describe('parseHeaderPresentation', () => {
   it('keeps defaults for keys absent from a partial object', () => {
     const p = parseHeaderPresentation({ variant: 'glass' })
     expect(p.variant).toBe('glass')
-    expect(p.sticky).toBe(DEFAULT_HEADER_PRESENTATION.sticky)
+    expect(p.position).toBe(DEFAULT_HEADER_PRESENTATION.position)
+    expect(p.layout).toBe(DEFAULT_HEADER_PRESENTATION.layout)
+    expect(p.container).toBe(DEFAULT_HEADER_PRESENTATION.container)
     expect(p.actionLabel).toBe(DEFAULT_HEADER_PRESENTATION.actionLabel)
+  })
+
+  it('migrates legacy sticky/align presentations into position/layout/groupAlign, defaulting container to true', () => {
+    const p = parseHeaderPresentation(
+      '{"sticky":false,"variant":"glass","align":"center","showAction":true,"actionLabel":"Masuk","actionUrl":"/login"}',
+    )
+    expect(p.position).toBe('static')
+    expect(p.layout).toBe('grouped')
+    expect(p.groupAlign).toBe('center')
+    expect(p.container).toBe(true)
+  })
+
+  it('migrates legacy sticky:true to position:sticky', () => {
+    const p = parseHeaderPresentation('{"sticky":true,"align":"right"}')
+    expect(p.position).toBe('sticky')
+    expect(p.groupAlign).toBe('right')
   })
 })
 
@@ -76,5 +96,34 @@ describe('buildHeaderPreview', () => {
     )
     expect(html).toContain('Belum ada item navigasi')
     expect(html).not.toContain('Masuk')
+  })
+
+  it('applies fixed position styling', () => {
+    const html = buildHeaderPreview(data, { ...DEFAULT_HEADER_PRESENTATION, position: 'fixed' })
+    expect(html).toContain('position:fixed')
+  })
+
+  it('groups nav+action to the right for layout:split', () => {
+    const html = buildHeaderPreview(data, { ...DEFAULT_HEADER_PRESENTATION, layout: 'split' })
+    expect(html).toContain('margin-left:auto')
+  })
+
+  it('centers nav and lets it grow for layout:spread, ignoring container', () => {
+    const html = buildHeaderPreview(data, {
+      ...DEFAULT_HEADER_PRESENTATION,
+      layout: 'spread',
+      container: true,
+    })
+    expect(html).toContain('flex:1;justify-content:center')
+    expect(html).not.toContain('max-width:1120px')
+  })
+
+  it('applies max-width when container is active for a non-spread layout', () => {
+    const html = buildHeaderPreview(data, {
+      ...DEFAULT_HEADER_PRESENTATION,
+      layout: 'grouped',
+      container: true,
+    })
+    expect(html).toContain('max-width:1120px')
   })
 })
