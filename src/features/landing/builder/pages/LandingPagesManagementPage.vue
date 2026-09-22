@@ -635,24 +635,28 @@ async function runPageAction(
       id="landing-page-manager"
       class="overflow-hidden rounded-[1.75rem] border bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950"
     >
-      <div class="border-b bg-gray-950 px-5 py-6 text-white sm:px-7">
+      <div class="border-b bg-gray-50 px-5 py-6 dark:border-gray-800 dark:bg-gray-900 sm:px-7">
         <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div class="max-w-3xl">
             <button
               type="button"
-              class="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80 transition hover:bg-white/15"
+              class="mb-5 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-700"
               @click="closeManagePage"
             >
               <ArrowLeft class="size-3.5" />
               Back to pages
             </button>
-            <p class="text-xs font-black uppercase tracking-wide text-brand-200">
+            <p
+              class="text-xs font-black uppercase tracking-wide text-brand-600 dark:text-brand-400"
+            >
               Kelola landing page
             </p>
-            <h2 class="mt-2 text-3xl font-black tracking-tight">
+            <h2 class="mt-2 text-3xl font-black tracking-tight text-gray-900 dark:text-white">
               {{ displayTitle(managedPage) }}
             </h2>
-            <p class="mt-2 break-all text-sm text-white/60">/{{ managedPage.slug }}</p>
+            <p class="mt-2 break-all text-sm text-gray-500 dark:text-gray-400">
+              /{{ managedPage.slug }}
+            </p>
           </div>
           <div class="flex flex-wrap gap-2">
             <BaseButton type="button" variant="secondary" @click="previewDraft(managedPage)">
@@ -687,8 +691,8 @@ async function runPageAction(
             class="rounded-2xl border px-4 py-3 text-left transition"
             :class="
               manageTab === tab.value
-                ? 'border-white bg-white text-gray-950 shadow-lg'
-                : 'border-white/10 bg-white/5 text-white hover:bg-white/10'
+                ? 'border-brand-500 bg-white text-gray-900 shadow-sm dark:border-brand-400 dark:bg-gray-800 dark:text-white'
+                : 'border-gray-200 bg-white/60 text-gray-600 hover:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300 dark:hover:bg-gray-800'
             "
             @click="manageTab = tab.value"
           >

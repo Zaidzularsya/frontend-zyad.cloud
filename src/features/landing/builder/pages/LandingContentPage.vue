@@ -41,14 +41,6 @@ const builder = computed(() => currentPage.value?.builder ?? null)
 
   <!-- GrapesJS pages + the loading / empty states. -->
   <div v-else class="flex flex-col gap-4">
-    <div
-      class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
-    >
-      <div class="min-w-[220px] flex-1">
-        <LandingPagePicker v-model="selectedPageId" :pages="pages" />
-      </div>
-    </div>
-
     <p v-if="errorMessage" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
       {{ errorMessage }}
     </p>
@@ -58,19 +50,25 @@ const builder = computed(() => currentPage.value?.builder ?? null)
       class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800"
       style="height: calc(100vh - 240px); min-height: 520px"
     >
-      <GrapesEditor :key="selectedPageId" :page-id="selectedPageId" />
+      <GrapesEditor :key="selectedPageId" :page-id="selectedPageId">
+        <template #topbar-left>
+          <LandingPagePicker v-model="selectedPageId" :pages="pages" compact />
+        </template>
+      </GrapesEditor>
     </div>
-    <p
-      v-else-if="!pages.length"
-      class="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700"
+    <div
+      v-else-if="pages.length"
+      class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
     >
-      Belum ada landing page. Buat halaman baru di menu Pages terlebih dahulu.
-    </p>
+      <div class="min-w-[220px] flex-1">
+        <LandingPagePicker v-model="selectedPageId" :pages="pages" />
+      </div>
+    </div>
     <p
       v-else
       class="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700"
     >
-      Pilih landing page untuk mulai menyunting.
+      Belum ada landing page. Buat halaman baru di menu Pages terlebih dahulu.
     </p>
   </div>
 </template>
