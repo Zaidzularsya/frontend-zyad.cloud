@@ -60,7 +60,17 @@ const variantOpts = [
   { value: 'transparent', label: 'Transparan' },
   { value: 'glass', label: 'Glass (blur)' },
 ]
-const alignOpts = [
+const positionOpts = [
+  { value: 'static', label: 'Static (mengikuti alur halaman)' },
+  { value: 'sticky', label: 'Sticky (menempel saat scroll)' },
+  { value: 'fixed', label: 'Fixed (melayang, menyatu dengan hero)' },
+]
+const layoutOpts = [
+  { value: 'grouped', label: 'Grouped (brand+menu+action jadi satu grup)' },
+  { value: 'split', label: 'Split (brand kiri, menu+action kanan)' },
+  { value: 'spread', label: 'Spread (brand–menu–action, full lebar)' },
+]
+const groupAlignOpts = [
   { value: 'left', label: 'Kiri' },
   { value: 'center', label: 'Tengah' },
   { value: 'right', label: 'Kanan' },
@@ -380,22 +390,46 @@ async function submitItem() {
           </select>
         </label>
         <label class="hp-label">
-          Posisi konten
+          Layout
           <select
-            :value="pres.align"
+            :value="pres.layout"
             class="hp-input"
-            @change="setPres('align', ($event.target as HTMLSelectElement).value as never)"
+            @change="setPres('layout', ($event.target as HTMLSelectElement).value as never)"
           >
-            <option v-for="o in alignOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in layoutOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
-        <label class="hp-check">
+        <label v-if="pres.layout === 'grouped'" class="hp-label">
+          Posisi grup
+          <select
+            :value="pres.groupAlign"
+            class="hp-input"
+            @change="setPres('groupAlign', ($event.target as HTMLSelectElement).value as never)"
+          >
+            <option v-for="o in groupAlignOpts" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
+          </select>
+        </label>
+        <label class="hp-check" :class="{ 'hp-check--disabled': pres.layout === 'spread' }">
           <input
             type="checkbox"
-            :checked="pres.sticky"
-            @change="setPres('sticky', ($event.target as HTMLInputElement).checked)"
+            :checked="pres.container"
+            :disabled="pres.layout === 'spread'"
+            @change="setPres('container', ($event.target as HTMLInputElement).checked)"
           />
-          Sticky (menempel saat scroll)
+          Batasi lebar (container)
+        </label>
+        <p v-if="pres.layout === 'spread'" class="hp-hint">Spread selalu full-lebar.</p>
+        <label class="hp-label">
+          Posisi
+          <select
+            :value="pres.position"
+            class="hp-input"
+            @change="setPres('position', ($event.target as HTMLSelectElement).value as never)"
+          >
+            <option v-for="o in positionOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
         </label>
       </div>
     </details>
@@ -486,6 +520,9 @@ async function submitItem() {
   gap: 8px;
   font-size: 12px;
   color: #475569;
+}
+.hp-check--disabled {
+  opacity: 0.5;
 }
 .hp-hint {
   margin: 0;

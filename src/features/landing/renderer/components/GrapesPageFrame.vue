@@ -54,37 +54,68 @@ export interface GrapesChrome {
 }
 
 interface HeaderPresentation {
-  sticky: boolean
+  position: 'static' | 'sticky' | 'fixed'
   variant: 'solid' | 'transparent' | 'glass'
-  align: 'left' | 'center' | 'right'
+  layout: 'grouped' | 'split' | 'spread'
+  groupAlign: 'left' | 'center' | 'right'
+  container: boolean
   showAction: boolean
   actionLabel: string
   actionUrl: string
 }
 
+// Mirrors grapes.header-component.ts parseHeaderPresentation() — see that
+// file's doc comment for why the migration below exists. Keep both in sync.
 function readHeaderPresentation(slot: Element): HeaderPresentation {
   const d: HeaderPresentation = {
-    sticky: true,
+    position: 'sticky',
     variant: 'solid',
-    align: 'left',
+    layout: 'grouped',
+    groupAlign: 'left',
+    container: true,
     showAction: true,
     actionLabel: 'Masuk',
     actionUrl: '/login',
   }
-  let p: Partial<HeaderPresentation> = {}
+  let p: Record<string, unknown> = {}
   try {
-    p = JSON.parse(slot.getAttribute('data-zyad-header') || '{}') as Partial<HeaderPresentation>
+    p = JSON.parse(slot.getAttribute('data-zyad-header') || '{}') as Record<string, unknown>
   } catch {
     p = {}
   }
+
+  const legacyAlign = typeof p.align === 'string' ? p.align : undefined
+  const legacySticky = typeof p.sticky === 'boolean' ? p.sticky : undefined
+
+  const position: HeaderPresentation['position'] =
+    typeof p.position === 'string' && ['static', 'sticky', 'fixed'].includes(p.position)
+      ? (p.position as HeaderPresentation['position'])
+      : legacySticky !== undefined
+        ? legacySticky
+          ? 'sticky'
+          : 'static'
+        : d.position
+
+  const layout: HeaderPresentation['layout'] =
+    typeof p.layout === 'string' && ['grouped', 'split', 'spread'].includes(p.layout)
+      ? (p.layout as HeaderPresentation['layout'])
+      : 'grouped'
+
+  const groupAlign: HeaderPresentation['groupAlign'] =
+    typeof p.groupAlign === 'string' && ['left', 'center', 'right'].includes(p.groupAlign)
+      ? (p.groupAlign as HeaderPresentation['groupAlign'])
+      : legacyAlign && ['left', 'center', 'right'].includes(legacyAlign)
+        ? (legacyAlign as HeaderPresentation['groupAlign'])
+        : d.groupAlign
+
   return {
-    sticky: typeof p.sticky === 'boolean' ? p.sticky : d.sticky,
+    position,
     variant: ['solid', 'transparent', 'glass'].includes(p.variant as string)
       ? (p.variant as HeaderPresentation['variant'])
       : d.variant,
-    align: ['left', 'center', 'right'].includes(p.align as string)
-      ? (p.align as HeaderPresentation['align'])
-      : d.align,
+    layout,
+    groupAlign,
+    container: typeof p.container === 'boolean' ? p.container : d.container,
     showAction: typeof p.showAction === 'boolean' ? p.showAction : d.showAction,
     actionLabel: typeof p.actionLabel === 'string' ? p.actionLabel : d.actionLabel,
     actionUrl: typeof p.actionUrl === 'string' ? p.actionUrl : d.actionUrl,
@@ -144,8 +175,22 @@ function fillHeader(
   const p = readHeaderPresentation(slot)
 
   const bar = doc.createElement('div')
-  bar.className = `zyad-tenant-header zyad-tenant-header--${p.variant} zyad-tenant-header--${p.align}`
-  if (p.sticky) bar.classList.add('zyad-tenant-header--sticky')
+  const containerActive = p.layout !== 'spread' && p.container
+  bar.className = [
+    'zyad-tenant-header',
+    `zyad-tenant-header--${p.variant}`,
+    `zyad-tenant-header--${p.layout}`,
+    p.layout === 'grouped' ? `zyad-tenant-header--group-${p.groupAlign}` : '',
+    p.position === 'sticky' ? 'zyad-tenant-header--sticky' : '',
+    p.position === 'fixed' ? 'zyad-tenant-header--fixed' : '',
+    containerActive ? 'zyad-tenant-header--container' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const inner = doc.createElement('div')
+  inner.className = 'zyad-tenant-header__inner'
+  bar.appendChild(inner)
 
   const brandEl = doc.createElement('a')
   brandEl.className = 'zyad-tenant-header__brand'
@@ -161,19 +206,19 @@ function fillHeader(
     span.textContent = brand.name
     brandEl.appendChild(span)
   }
-  bar.appendChild(brandEl)
+  inner.appendChild(brandEl)
 
   const navEl = doc.createElement('nav')
   navEl.className = 'zyad-tenant-header__nav'
   appendLinks(doc, navEl, nav)
-  bar.appendChild(navEl)
+  inner.appendChild(navEl)
 
   if (p.showAction && (p.actionLabel || p.actionUrl)) {
     const action = doc.createElement('a')
     action.className = 'zyad-tenant-header__action'
     action.setAttribute('href', safeHref(p.actionUrl))
     action.textContent = p.actionLabel || 'Masuk'
-    bar.appendChild(action)
+    inner.appendChild(action)
   }
 
   // Only the consumed presentation attribute is removed — any class/style the
@@ -353,20 +398,25 @@ const bodyHtml = computed(() => {
 })
 
 const CHROME_CSS = `
-.zyad-tenant-header{display:flex;align-items:center;gap:24px;padding:14px 24px;font-family:'Inter','Segoe UI',system-ui,sans-serif}
+.zyad-tenant-header{padding:14px 24px;font-family:'Inter','Segoe UI',system-ui,sans-serif}
 .zyad-tenant-header--solid{background:#fff;border-bottom:1px solid #e5e7eb}
 .zyad-tenant-header--glass{background:rgba(255,255,255,.72);backdrop-filter:blur(8px);border-bottom:1px solid #e5e7eb}
 .zyad-tenant-header--transparent{background:transparent}
 .zyad-tenant-header--sticky{position:sticky;top:0;z-index:50}
-.zyad-tenant-header--left{justify-content:space-between}
-.zyad-tenant-header--center{justify-content:center}
-.zyad-tenant-header--right{justify-content:flex-end}
-.zyad-tenant-header__brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#0f172a;text-decoration:none;font-size:16px}
+.zyad-tenant-header--fixed{position:fixed;top:0;left:0;right:0;z-index:50}
+.zyad-tenant-header__inner{display:flex;align-items:center;gap:24px;width:100%}
+.zyad-tenant-header--container .zyad-tenant-header__inner{max-width:1120px;margin:0 auto}
+.zyad-tenant-header--group-left .zyad-tenant-header__inner{justify-content:flex-start}
+.zyad-tenant-header--group-center .zyad-tenant-header__inner{justify-content:center}
+.zyad-tenant-header--group-right .zyad-tenant-header__inner{justify-content:flex-end}
+.zyad-tenant-header--split .zyad-tenant-header__nav{margin-left:auto}
+.zyad-tenant-header--spread .zyad-tenant-header__nav{flex:1;justify-content:center}
+.zyad-tenant-header__brand{display:flex;flex:0 0 auto;align-items:center;gap:8px;font-weight:700;color:#0f172a;text-decoration:none;font-size:16px}
 .zyad-tenant-header__brand img{height:28px;width:auto;display:block}
 .zyad-tenant-header__nav{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .zyad-tenant-header__nav a{color:#475569;text-decoration:none;font-size:14px;font-weight:500}
 .zyad-tenant-header__nav a:hover{color:#465fff}
-.zyad-tenant-header__action{display:inline-block;padding:9px 18px;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
+.zyad-tenant-header__action{display:inline-block;flex:0 0 auto;padding:9px 18px;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
 .zyad-tenant-footer{padding:48px 24px;background:#0f172a;color:#cbd5e1;font-size:14px}
 .zyad-tenant-footer__top{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between}
 .zyad-tenant-footer__brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:16px}

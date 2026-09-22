@@ -60,26 +60,21 @@ describe('useFooterContent', () => {
     expect(result.trustBadges).toEqual([{ image_url: '/badge.png', label: 'ISO 27001' }])
   })
 
-  it('resolves secondaryCta by matching secondary_cta_tracking_key against CTAs', () => {
+  it('resolves secondaryCta straight from secondary_cta_label/secondary_cta_url', () => {
     const result = useFooterContent(
       {
-        Page: { Settings: { secondary_cta_tracking_key: 'footer-cta' } },
-        CTAs: [
-          { tracking_key: 'other-cta', label: 'Other', destination: '/other' },
-          { tracking_key: 'footer-cta', label: 'Talk to Sales', destination: '/contact' },
-        ],
+        Page: {
+          Settings: { secondary_cta_label: 'Talk to Sales', secondary_cta_url: '/contact' },
+        },
       },
       'Fallback',
     )
     expect(result.secondaryCta).toEqual({ label: 'Talk to Sales', url: '/contact' })
   })
 
-  it('leaves secondaryCta undefined when tracking key has no matching CTA', () => {
+  it('leaves secondaryCta undefined when only one of label/url is set', () => {
     const result = useFooterContent(
-      {
-        Page: { Settings: { secondary_cta_tracking_key: 'missing-cta' } },
-        CTAs: [{ tracking_key: 'other-cta', label: 'Other', destination: '/other' }],
-      },
+      { Page: { Settings: { secondary_cta_label: 'Talk to Sales' } } },
       'Fallback',
     )
     expect(result.secondaryCta).toBeUndefined()
@@ -96,8 +91,13 @@ describe('useFooterContent', () => {
   it('accepts PascalCase (Go-style) keys as a fallback', () => {
     const result = useFooterContent(
       {
-        Page: { Settings: { SecondaryCTATrackingKey: 'footer-cta', NewsletterFormID: 'form-9' } },
-        CTAs: [{ TrackingKey: 'footer-cta', Label: 'Talk to Sales', Destination: '/contact' }],
+        Page: {
+          Settings: {
+            SecondaryCTALabel: 'Talk to Sales',
+            SecondaryCTAURL: '/contact',
+            NewsletterFormID: 'form-9',
+          },
+        },
       },
       'Fallback',
     )
