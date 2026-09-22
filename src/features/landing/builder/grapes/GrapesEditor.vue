@@ -391,18 +391,21 @@ defineExpose({ editor })
 <template>
   <div class="grapes-shell">
     <div class="grapes-topbar">
-      <div class="grapes-devices">
-        <button
-          v-for="d in GRAPES_DEVICES"
-          :key="d.id"
-          type="button"
-          class="grapes-dev-btn"
-          :class="{ 'is-active': activeDevice === d.name }"
-          :title="d.name"
-          @click="setDevice(d.name)"
-        >
-          <component :is="DEVICE_ICONS[d.name as keyof typeof DEVICE_ICONS]" class="size-4" />
-        </button>
+      <div class="grapes-topbar-left">
+        <slot name="topbar-left" />
+        <div class="grapes-devices">
+          <button
+            v-for="d in GRAPES_DEVICES"
+            :key="d.id"
+            type="button"
+            class="grapes-dev-btn"
+            :class="{ 'is-active': activeDevice === d.name }"
+            :title="d.name"
+            @click="setDevice(d.name)"
+          >
+            <component :is="DEVICE_ICONS[d.name as keyof typeof DEVICE_ICONS]" class="size-4" />
+          </button>
+        </div>
       </div>
       <div class="grapes-actions">
         <button type="button" class="grapes-icon-btn" title="Urungkan" @click="undo">
@@ -584,6 +587,13 @@ defineExpose({ editor })
   padding: 8px 14px;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
+}
+.grapes-topbar-left {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
 }
 .grapes-devices,
 .grapes-actions {
