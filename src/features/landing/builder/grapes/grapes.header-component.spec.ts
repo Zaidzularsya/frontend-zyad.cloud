@@ -27,6 +27,7 @@ describe('parseHeaderPresentation', () => {
       showAction: false,
       actionLabel: 'Go',
       actionUrl: '/go',
+      hideOnScroll: false,
     })
   })
 
@@ -53,6 +54,11 @@ describe('parseHeaderPresentation', () => {
     const p = parseHeaderPresentation('{"sticky":true,"align":"right"}')
     expect(p.position).toBe('sticky')
     expect(p.groupAlign).toBe('right')
+  })
+
+  it('parses hideOnScroll, defaulting to false', () => {
+    expect(parseHeaderPresentation('{"hideOnScroll":true}').hideOnScroll).toBe(true)
+    expect(parseHeaderPresentation('{}').hideOnScroll).toBe(false)
   })
 })
 

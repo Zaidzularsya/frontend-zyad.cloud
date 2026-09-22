@@ -60,7 +60,7 @@ describe('GrapesPageFrame', () => {
     expect(wrapper.get('iframe').classes()).toContain('grapes-page-frame')
   })
 
-  it('fills the tenant-nav sentinel with the live header (brand + nav + action)', () => {
+  it('renders the tenant-nav sentinel as a real header in the parent, outside the iframe, and strips it from the srcdoc', () => {
     const wrapper = mount(GrapesPageFrame, {
       props: {
         html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"position":"sticky","variant":"glass","layout":"grouped","groupAlign":"center","container":true,"showAction":true,"actionLabel":"Masuk","actionUrl":"/login"}' class="hdr-x" style="opacity:.9"><span>placeholder</span></div><p>body</p>`,
@@ -75,30 +75,29 @@ describe('GrapesPageFrame', () => {
       },
     })
 
+    const header = wrapper.get('header.zyad-tenant-header')
+    expect(header.classes()).toContain('zyad-tenant-header--glass')
+    expect(header.classes()).toContain('zyad-tenant-header--grouped')
+    expect(header.classes()).toContain('zyad-tenant-header--group-center')
+    expect(header.classes()).toContain('zyad-tenant-header--sticky')
+    expect(header.classes()).toContain('zyad-tenant-header--container')
+    expect(header.get('.zyad-tenant-header__brand img').attributes('src')).toBe(
+      'https://cdn.test/logo.png',
+    )
+    expect(header.text()).toContain('Acme')
+    const links = header.findAll('.zyad-tenant-header__nav a')
+    expect(links[0]!.attributes('href')).toBe('/pricing')
+    expect(links[0]!.text()).toBe('Harga')
+    expect(links[1]!.attributes('href')).toBe('https://blog.test')
+    expect(links[1]!.attributes('target')).toBe('_blank')
+    expect(header.get('.zyad-tenant-header__action').text()).toBe('Masuk')
+
+    // Stripped from what goes into the iframe, not filled there anymore —
+    // sticky/fixed have no effect inside the auto-height, non-scrolling iframe.
     const doc = srcdocOf(wrapper)
-    expect(doc).toContain('zyad-tenant-header--glass')
-    expect(doc).toContain('zyad-tenant-header--grouped')
-    expect(doc).toContain('zyad-tenant-header--group-center')
-    expect(doc).toContain('zyad-tenant-header--sticky')
-    expect(doc).toContain('zyad-tenant-header--container')
-    expect(doc).toContain('class="zyad-tenant-header__inner"')
-    expect(doc).toContain('class="zyad-tenant-header__brand"')
-    expect(doc).toContain('src="https://cdn.test/logo.png"')
-    expect(doc).toContain('>Acme<')
-    expect(doc).toContain('href="/pricing"')
-    expect(doc).toContain('>Harga<')
-    expect(doc).toContain('href="https://blog.test"')
-    expect(doc).toContain('target="_blank"')
-    expect(doc).toContain('class="zyad-tenant-header__action"')
-    expect(doc).toContain('>Masuk<')
-    // Inner content (old placeholder markup) is replaced with the live header...
+    expect(doc).not.toContain('zyad-tenant-header')
+    expect(doc).not.toContain('data-zyad-slot="tenant-nav"')
     expect(doc).not.toContain('placeholder')
-    // ...but a custom class/style the author set via the Style Manager on the
-    // sentinel div itself (e.g. for a transparent header overlapping a hero)
-    // survives the fill, only the consumed data-zyad-header attribute is gone.
-    expect(doc).toContain('class="hdr-x"')
-    expect(doc).toContain('style="opacity:.9"')
-    expect(doc).not.toContain('data-zyad-header')
     expect(doc).toContain('<p>body</p>')
   })
 
@@ -110,11 +109,14 @@ describe('GrapesPageFrame', () => {
         chrome: { brand: { name: 'Acme' }, nav: [] },
       },
     })
-    const doc = srcdocOf(wrapper)
-    expect(doc).toContain(
-      'class="zyad-tenant-header zyad-tenant-header--transparent zyad-tenant-header--grouped zyad-tenant-header--group-left"',
-    )
-    expect(doc).not.toContain('class="zyad-tenant-header__action"')
+    const header = wrapper.get('header.zyad-tenant-header')
+    expect(header.classes()).toContain('zyad-tenant-header--transparent')
+    expect(header.classes()).toContain('zyad-tenant-header--grouped')
+    expect(header.classes()).toContain('zyad-tenant-header--group-left')
+    expect(header.classes()).not.toContain('zyad-tenant-header--sticky')
+    expect(header.classes()).not.toContain('zyad-tenant-header--fixed')
+    expect(header.classes()).not.toContain('zyad-tenant-header--container')
+    expect(header.find('.zyad-tenant-header__action').exists()).toBe(false)
   })
 
   it('drops unsafe hrefs in chrome links', () => {
@@ -125,9 +127,8 @@ describe('GrapesPageFrame', () => {
         chrome: { nav: [{ label: 'Evil', href: ['java', 'script:alert(1)'].join('') }] },
       },
     })
-    const doc = srcdocOf(wrapper)
-    expect(doc).not.toContain('javascript:')
-    expect(doc).toContain('href="#"')
+    const link = wrapper.get('.zyad-tenant-header__nav a')
+    expect(link.attributes('href')).toBe('#')
   })
 
   it('fills the tenant-footer sentinel with brand + columns', () => {
@@ -165,7 +166,7 @@ describe('GrapesPageFrame', () => {
     expect(doc).toContain('style="background:#111"')
   })
 
-  it('fills only the first tenant-nav sentinel and drops any extra duplicate', () => {
+  it('renders only one header for duplicate tenant-nav sentinels and drops both from the srcdoc', () => {
     const wrapper = mount(GrapesPageFrame, {
       props: {
         html:
@@ -175,9 +176,9 @@ describe('GrapesPageFrame', () => {
         chrome: { brand: { name: 'Acme' }, nav: [{ label: 'Harga', href: '/pricing' }] },
       },
     })
+    expect(wrapper.findAll('header.zyad-tenant-header')).toHaveLength(1)
     const doc = srcdocOf(wrapper)
-    expect(doc.match(/zyad-tenant-header /g)?.length).toBe(1)
-    expect(doc.match(/data-zyad-slot="tenant-nav"/g)?.length).toBe(1)
+    expect(doc).not.toContain('data-zyad-slot="tenant-nav"')
   })
 
   it('fills only the first tenant-footer sentinel and drops any extra duplicate', () => {
@@ -263,5 +264,51 @@ describe('GrapesPageFrame', () => {
     expect(doc).toContain('<h1>Judul</h1>')
     expect(doc).not.toContain('class="zyad-tenant-nav"')
     expect(doc).not.toContain('<nav')
+  })
+
+  it('hides the header on scroll-down and shows it again on scroll-up when hideOnScroll is on', async () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"hideOnScroll":true}'></div>`,
+        css: '',
+        chrome: { brand: { name: 'Acme' }, nav: [] },
+      },
+      attachTo: document.body,
+    })
+
+    const header = () => wrapper.get('header.zyad-tenant-header')
+    expect(header().classes()).not.toContain('zyad-tenant-header--hidden')
+
+    Object.defineProperty(window, 'scrollY', { value: 200, configurable: true })
+    window.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(header().classes()).toContain('zyad-tenant-header--hidden')
+
+    Object.defineProperty(window, 'scrollY', { value: 20, configurable: true })
+    window.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(header().classes()).not.toContain('zyad-tenant-header--hidden')
+
+    wrapper.unmount()
+  })
+
+  it('never animates hide-on-scroll when the flag is off', async () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"hideOnScroll":false}'></div>`,
+        css: '',
+        chrome: { brand: { name: 'Acme' }, nav: [] },
+      },
+      attachTo: document.body,
+    })
+
+    Object.defineProperty(window, 'scrollY', { value: 500, configurable: true })
+    window.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('header.zyad-tenant-header').classes()).not.toContain(
+      'zyad-tenant-header--hidden',
+    )
+
+    wrapper.unmount()
   })
 })
