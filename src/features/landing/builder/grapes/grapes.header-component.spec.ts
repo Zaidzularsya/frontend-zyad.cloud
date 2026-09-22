@@ -108,14 +108,14 @@ describe('buildHeaderPreview', () => {
     expect(html).toContain('margin-left:auto')
   })
 
-  it('centers nav and lets it grow for layout:spread, ignoring container', () => {
+  it('centers nav and lets it grow for layout:spread, still respecting container', () => {
     const html = buildHeaderPreview(data, {
       ...DEFAULT_HEADER_PRESENTATION,
       layout: 'spread',
       container: true,
     })
     expect(html).toContain('flex:1;justify-content:center')
-    expect(html).not.toContain('max-width:1120px')
+    expect(html).toContain('max-width:1120px')
   })
 
   it('applies max-width when container is active for a non-spread layout', () => {
@@ -125,5 +125,14 @@ describe('buildHeaderPreview', () => {
       container: true,
     })
     expect(html).toContain('max-width:1120px')
+  })
+
+  it('omits max-width when container is off, regardless of layout', () => {
+    const html = buildHeaderPreview(data, {
+      ...DEFAULT_HEADER_PRESENTATION,
+      layout: 'spread',
+      container: false,
+    })
+    expect(html).not.toContain('max-width:1120px')
   })
 })

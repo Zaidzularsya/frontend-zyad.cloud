@@ -68,7 +68,7 @@ const positionOpts = [
 const layoutOpts = [
   { value: 'grouped', label: 'Grouped (brand+menu+action jadi satu grup)' },
   { value: 'split', label: 'Split (brand kiri, menu+action kanan)' },
-  { value: 'spread', label: 'Spread (brand–menu–action, full lebar)' },
+  { value: 'spread', label: 'Spread (brand–menu–action, 3 zona)' },
 ]
 const groupAlignOpts = [
   { value: 'left', label: 'Kiri' },
@@ -411,16 +411,14 @@ async function submitItem() {
             </option>
           </select>
         </label>
-        <label class="hp-check" :class="{ 'hp-check--disabled': pres.layout === 'spread' }">
+        <label class="hp-check">
           <input
             type="checkbox"
             :checked="pres.container"
-            :disabled="pres.layout === 'spread'"
             @change="setPres('container', ($event.target as HTMLInputElement).checked)"
           />
           Batasi lebar (container)
         </label>
-        <p v-if="pres.layout === 'spread'" class="hp-hint">Spread selalu full-lebar.</p>
         <label class="hp-label">
           Posisi
           <select
@@ -520,9 +518,6 @@ async function submitItem() {
   gap: 8px;
   font-size: 12px;
   color: #475569;
-}
-.hp-check--disabled {
-  opacity: 0.5;
 }
 .hp-hint {
   margin: 0;
