@@ -179,7 +179,7 @@ export function buildHeaderPreview(data: TenantHeaderData, p: TenantHeaderPresen
           ? 'flex-end'
           : 'flex-start'
       : 'flex-start'
-  const containerActive = p.layout !== 'spread' && p.container
+  const containerActive = p.container
   const innerStyle = `display:flex;align-items:center;gap:24px;width:100%;justify-content:${innerJustify}${
     containerActive ? ';max-width:1120px;margin:0 auto' : ''
   }`

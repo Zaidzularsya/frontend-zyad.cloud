@@ -175,7 +175,7 @@ function fillHeader(
   const p = readHeaderPresentation(slot)
 
   const bar = doc.createElement('div')
-  const containerActive = p.layout !== 'spread' && p.container
+  const containerActive = p.container
   bar.className = [
     'zyad-tenant-header',
     `zyad-tenant-header--${p.variant}`,

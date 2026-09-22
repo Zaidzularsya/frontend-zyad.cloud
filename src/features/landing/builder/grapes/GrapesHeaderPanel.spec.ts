@@ -58,7 +58,7 @@ describe('GrapesHeaderPanel', () => {
     expect(written.position).toBe('fixed')
   })
 
-  it('hides the container checkbox toggle effect when layout is spread', async () => {
+  it('keeps the container checkbox enabled and functional when layout is spread', async () => {
     const component = fakeComponent()
     const wrapper = mount(GrapesHeaderPanel, { props: { component } })
 
@@ -67,9 +67,15 @@ describe('GrapesHeaderPanel', () => {
       .find((s) => s.element.parentElement?.textContent?.includes('Layout'))
     await layoutSelect!.setValue('spread')
 
+    const containerCheckbox = wrapper
+      .findAll('input[type="checkbox"]')
+      .find((c) => c.element.parentElement?.textContent?.includes('Batasi lebar'))
+    expect((containerCheckbox!.element as HTMLInputElement).disabled).toBe(false)
+    await containerCheckbox!.setValue(false)
+
     const written = JSON.parse(component.getAttributes()['data-zyad-header']!)
     expect(written.layout).toBe('spread')
-    expect(wrapper.text()).toContain('Spread selalu full-lebar')
+    expect(written.container).toBe(false)
   })
 
   it('hides the action label / url inputs when the action is off', async () => {
