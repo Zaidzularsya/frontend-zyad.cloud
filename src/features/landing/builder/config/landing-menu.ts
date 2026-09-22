@@ -6,7 +6,6 @@ import {
   Folders,
   Globe2,
   Layers3,
-  SlidersHorizontal,
   Sparkles,
   SquareMenu,
   Waypoints,
@@ -161,34 +160,6 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
       },
     ],
   },
-  {
-    key: 'settings',
-    routeNameSuffix: 'settings',
-    label: 'Settings',
-    description:
-      'Atur publish rules, footer content pelengkap (copyright, trust badge), domain binding, dan preferensi halaman. Header & footer situs sendiri diatur dari Content — block "Header tenant" / "Footer tenant".',
-    icon: SlidersHorizontal,
-    tone: 'slate',
-    stats: [
-      { label: 'System controls', value: '6' },
-      { label: 'Visibility rules', value: '3' },
-      { label: 'Integrations', value: 'Optional' },
-    ],
-    sections: [
-      {
-        title: 'System preferences',
-        items: ['Default locale', 'Timezone', 'Publish rules'],
-      },
-      {
-        title: 'Access control',
-        items: ['Workspace access', 'Role scope', 'Approval flow'],
-      },
-      {
-        title: 'Operational settings',
-        items: ['Domain binding', 'SEO defaults', 'Lead routing', 'Analytics hooks'],
-      },
-    ],
-  },
 ]
 
 const toneRoute = {
@@ -232,9 +203,7 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
             ? () => import('../pages/LandingTemplatesManagementPage.vue')
             : page.key === 'domains'
               ? () => import('@/features/domains/pages/DomainManagementPage.vue')
-              : page.key === 'settings'
-                ? () => import('../pages/LandingSettingsManagementPage.vue')
-                : () => import('../pages/LandingMenuDetailPage.vue'),
+              : () => import('../pages/LandingMenuDetailPage.vue'),
     props:
       page.key === 'pages'
         ? {
@@ -270,19 +239,11 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                   mode: isPlatformRoute ? 'platform' : 'workspace',
                   parentRouteName: routePrefix,
                 }
-              : page.key === 'settings'
-                ? {
-                    title: isPlatformRoute ? 'Platform Landing Settings' : 'Landing Settings',
-                    description:
-                      'Atur publish rules, footer content, domain binding, dan preferensi page lain per landing page.',
-                    mode: isPlatformRoute ? 'platform' : 'workspace',
-                    parentRouteName: routePrefix,
-                  }
-                : {
-                    definition: page,
-                    parentRouteName: routePrefix,
-                    parentLabel: 'Landing Page',
-                  },
+              : {
+                  definition: page,
+                  parentRouteName: routePrefix,
+                  parentLabel: 'Landing Page',
+                },
     meta: { title: page.label },
   }))
 }
