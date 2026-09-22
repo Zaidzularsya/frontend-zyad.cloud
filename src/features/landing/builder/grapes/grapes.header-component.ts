@@ -41,6 +41,10 @@ export interface TenantHeaderPresentation {
    * Only animated on the public render (parent-level, real scroll listener) —
    * the canvas preview shows the header statically regardless of this flag. */
   hideOnScroll: boolean
+  /** CSS color for the brand text/logo alt text. */
+  brandColor: string
+  /** CSS color for the nav link text. */
+  navColor: string
 }
 
 export const DEFAULT_HEADER_PRESENTATION: TenantHeaderPresentation = {
@@ -53,12 +57,27 @@ export const DEFAULT_HEADER_PRESENTATION: TenantHeaderPresentation = {
   actionLabel: 'Masuk',
   actionUrl: '/login',
   hideOnScroll: false,
+  brandColor: '#0f172a',
+  navColor: '#475569',
 }
 
 const POSITIONS = ['static', 'sticky', 'fixed'] as const
 const VARIANTS = ['solid', 'transparent', 'glass'] as const
 const LAYOUTS = ['grouped', 'split', 'spread'] as const
 const GROUP_ALIGNS = ['left', 'center', 'right'] as const
+
+// Accepts hex (#0f172a / #fff), rgb(a)()/hsl(a)(), or a bare CSS color
+// keyword (e.g. "white", "currentColor") — rejects anything else (no `;`,
+// `url(`, etc.) so a stored value can never break out of the single CSS
+// property it's substituted into. Keep in sync with GrapesPageFrame.vue's
+// `safeColor` and document_ssr.go's `safeSSRColor`.
+const SAFE_COLOR_RE = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,24}|(?:rgb|rgba|hsl|hsla)\([\d.,%\s/]+\))$/
+
+export function safeHeaderColor(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback
+  const v = raw.trim()
+  return v && SAFE_COLOR_RE.test(v) ? v : fallback
+}
 
 export function parseHeaderPresentation(raw: unknown): TenantHeaderPresentation {
   const d = DEFAULT_HEADER_PRESENTATION
@@ -114,6 +133,8 @@ export function parseHeaderPresentation(raw: unknown): TenantHeaderPresentation 
     actionLabel: typeof p.actionLabel === 'string' ? p.actionLabel : d.actionLabel,
     actionUrl: typeof p.actionUrl === 'string' ? p.actionUrl : d.actionUrl,
     hideOnScroll: typeof p.hideOnScroll === 'boolean' ? p.hideOnScroll : d.hideOnScroll,
+    brandColor: safeHeaderColor(p.brandColor, d.brandColor),
+    navColor: safeHeaderColor(p.navColor, d.navColor),
   }
 }
 
@@ -154,13 +175,13 @@ export function buildHeaderPreview(data: TenantHeaderData, p: TenantHeaderPresen
   const logo = data.logoUrl
     ? `<img src="${esc(data.logoUrl)}" alt="${esc(data.brandName)}" style="height:28px;width:auto;display:block">`
     : ''
-  const brand = `<a href="/" style="display:flex;flex:0 0 auto;align-items:center;gap:8px;font-weight:700;color:#0f172a;text-decoration:none;font-size:16px">${logo}<span>${esc(data.brandName || 'Brand')}</span></a>`
+  const brand = `<a href="/" style="display:flex;flex:0 0 auto;align-items:center;gap:8px;font-weight:700;color:${p.brandColor};text-decoration:none;font-size:16px">${logo}<span>${esc(data.brandName || 'Brand')}</span></a>`
 
   const links = data.nav.length
     ? data.nav
         .map(
           (item) =>
-            `<a href="${esc(safeHeaderHref(item.href))}" style="color:#475569;text-decoration:none;font-size:14px;font-weight:500">${esc(item.label)}</a>`,
+            `<a href="${esc(safeHeaderHref(item.href))}" style="color:${p.navColor};text-decoration:none;font-size:14px;font-weight:500">${esc(item.label)}</a>`,
         )
         .join('')
     : `<span style="color:#94a3b8;font-size:13px;font-style:italic">Belum ada item navigasi</span>`

@@ -67,6 +67,20 @@ interface HeaderPresentation {
   actionLabel: string
   actionUrl: string
   hideOnScroll: boolean
+  brandColor: string
+  navColor: string
+}
+
+// Accepts hex/rgb(a)()/hsl(a)()/bare CSS color keywords — rejects anything
+// else so a stored value can never break out of the single CSS custom
+// property it's substituted into. Mirrors grapes.header-component.ts's
+// `safeHeaderColor` and document_ssr.go's `safeSSRColor`. Keep in sync.
+const SAFE_COLOR_RE = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,24}|(?:rgb|rgba|hsl|hsla)\([\d.,%\s/]+\))$/
+
+function safeColor(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback
+  const v = raw.trim()
+  return v && SAFE_COLOR_RE.test(v) ? v : fallback
 }
 
 // Mirrors grapes.header-component.ts parseHeaderPresentation() — see that
@@ -82,6 +96,8 @@ function readHeaderPresentation(slot: Element): HeaderPresentation {
     actionLabel: 'Masuk',
     actionUrl: '/login',
     hideOnScroll: false,
+    brandColor: '#0f172a',
+    navColor: '#475569',
   }
   let p: Record<string, unknown> = {}
   try {
@@ -126,6 +142,8 @@ function readHeaderPresentation(slot: Element): HeaderPresentation {
     actionLabel: typeof p.actionLabel === 'string' ? p.actionLabel : d.actionLabel,
     actionUrl: typeof p.actionUrl === 'string' ? p.actionUrl : d.actionUrl,
     hideOnScroll: typeof p.hideOnScroll === 'boolean' ? p.hideOnScroll : d.hideOnScroll,
+    brandColor: safeColor(p.brandColor, d.brandColor),
+    navColor: safeColor(p.navColor, d.navColor),
   }
 }
 
@@ -373,6 +391,19 @@ function headerLinkTarget(link: GrapesChromeLink): '_blank' | undefined {
   return link.target === 'new_tab' || link.target === '_blank' ? '_blank' : undefined
 }
 
+// CSS custom properties, not a direct inline `color`, so the shared
+// .zyad-tenant-header__nav a rule (and its :hover) still apply — Vue's style
+// binding sets one property's value directly, it can't inject other
+// declarations even if the stored string were malformed.
+const headerStyleVars = computed(() => {
+  const p = headerPresentation.value
+  if (!p) return {}
+  return {
+    '--zyad-header-brand-color': p.brandColor,
+    '--zyad-header-nav-color': p.navColor,
+  }
+})
+
 const CHROME_CSS = `
 .zyad-tenant-footer{padding:48px 24px;background:#0f172a;color:#cbd5e1;font-size:14px}
 .zyad-tenant-footer__top{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between}
@@ -473,7 +504,12 @@ watch(srcdoc, () => {
 </script>
 
 <template>
-  <header v-if="headerPresentation" class="zyad-tenant-header" :class="headerClasses">
+  <header
+    v-if="headerPresentation"
+    class="zyad-tenant-header"
+    :class="headerClasses"
+    :style="headerStyleVars"
+  >
     <div class="zyad-tenant-header__inner">
       <a class="zyad-tenant-header__brand" href="/">
         <img
@@ -592,7 +628,7 @@ watch(srcdoc, () => {
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--zyad-header-brand-color, #0f172a);
   text-decoration: none;
   font-size: 16px;
 }
@@ -608,7 +644,7 @@ watch(srcdoc, () => {
   flex-wrap: wrap;
 }
 .zyad-tenant-header__nav a {
-  color: #475569;
+  color: var(--zyad-header-nav-color, #475569);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;

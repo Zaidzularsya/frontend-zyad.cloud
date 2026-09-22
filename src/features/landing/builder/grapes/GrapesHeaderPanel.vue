@@ -389,6 +389,42 @@ async function submitItem() {
             <option v-for="o in variantOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
+        <div class="hp-color-row">
+          <label class="hp-label">
+            Warna teks brand
+            <span class="hp-color-field">
+              <input
+                type="color"
+                class="hp-color"
+                :value="pres.brandColor"
+                @input="setPres('brandColor', ($event.target as HTMLInputElement).value)"
+              />
+              <input
+                type="text"
+                class="hp-input"
+                :value="pres.brandColor"
+                @change="setPres('brandColor', ($event.target as HTMLInputElement).value)"
+              />
+            </span>
+          </label>
+          <label class="hp-label">
+            Warna teks navigasi
+            <span class="hp-color-field">
+              <input
+                type="color"
+                class="hp-color"
+                :value="pres.navColor"
+                @input="setPres('navColor', ($event.target as HTMLInputElement).value)"
+              />
+              <input
+                type="text"
+                class="hp-input"
+                :value="pres.navColor"
+                @change="setPres('navColor', ($event.target as HTMLInputElement).value)"
+              />
+            </span>
+          </label>
+        </div>
         <label class="hp-label">
           Layout
           <select
@@ -526,6 +562,32 @@ async function submitItem() {
   gap: 8px;
   font-size: 12px;
   color: #475569;
+}
+.hp-color-row {
+  display: flex;
+  gap: 10px;
+}
+.hp-color-row .hp-label {
+  flex: 1;
+  min-width: 0;
+}
+.hp-color-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hp-color {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+.hp-color-field .hp-input {
+  min-width: 0;
 }
 .hp-hint {
   margin: 0;

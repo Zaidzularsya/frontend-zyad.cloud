@@ -4,6 +4,7 @@ import {
   DEFAULT_HEADER_PRESENTATION,
   buildHeaderPreview,
   parseHeaderPresentation,
+  safeHeaderColor,
   safeHeaderHref,
 } from './grapes.header-component'
 
@@ -28,6 +29,8 @@ describe('parseHeaderPresentation', () => {
       actionLabel: 'Go',
       actionUrl: '/go',
       hideOnScroll: false,
+      brandColor: '#0f172a',
+      navColor: '#475569',
     })
   })
 
@@ -59,6 +62,32 @@ describe('parseHeaderPresentation', () => {
   it('parses hideOnScroll, defaulting to false', () => {
     expect(parseHeaderPresentation('{"hideOnScroll":true}').hideOnScroll).toBe(true)
     expect(parseHeaderPresentation('{}').hideOnScroll).toBe(false)
+  })
+
+  it('parses valid brandColor/navColor and falls back to defaults for unsafe values', () => {
+    expect(parseHeaderPresentation('{"brandColor":"#fff","navColor":"rgb(0,0,0)"}')).toMatchObject({
+      brandColor: '#fff',
+      navColor: 'rgb(0,0,0)',
+    })
+    expect(
+      parseHeaderPresentation('{"brandColor":"red;background:url(x)","navColor":"javascript:1"}'),
+    ).toMatchObject({
+      brandColor: DEFAULT_HEADER_PRESENTATION.brandColor,
+      navColor: DEFAULT_HEADER_PRESENTATION.navColor,
+    })
+  })
+})
+
+describe('safeHeaderColor', () => {
+  it('accepts hex, rgb(a), hsl(a), and named colors', () => {
+    for (const v of ['#fff', '#0f172a', 'rgb(10, 20, 30)', 'hsla(200, 50%, 50%, .5)', 'white']) {
+      expect(safeHeaderColor(v, '#000')).toBe(v)
+    }
+  })
+  it('rejects anything that could break out of a CSS declaration', () => {
+    for (const v of ['red; background:url(x)', 'expression(alert(1))', '', 42, null]) {
+      expect(safeHeaderColor(v, '#000')).toBe('#000')
+    }
   })
 })
 
@@ -140,5 +169,15 @@ describe('buildHeaderPreview', () => {
       container: false,
     })
     expect(html).not.toContain('max-width:1120px')
+  })
+
+  it('applies brandColor and navColor to the brand and nav link text', () => {
+    const html = buildHeaderPreview(data, {
+      ...DEFAULT_HEADER_PRESENTATION,
+      brandColor: '#ffffff',
+      navColor: '#e2e8f0',
+    })
+    expect(html).toContain('color:#ffffff')
+    expect(html).toContain('color:#e2e8f0')
   })
 })

@@ -119,6 +119,32 @@ describe('GrapesPageFrame', () => {
     expect(header.find('.zyad-tenant-header__action').exists()).toBe(false)
   })
 
+  it('applies brandColor/navColor as CSS custom properties on the header, falling back to defaults for unsafe values', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"brandColor":"#ffffff","navColor":"rgba(255,255,255,.8)"}'></div>`,
+        css: '',
+        chrome: { brand: { name: 'Acme' }, nav: [] },
+      },
+    })
+    const header = wrapper.get('header.zyad-tenant-header')
+    expect(header.attributes('style')).toContain('--zyad-header-brand-color: #ffffff')
+    expect(header.attributes('style')).toContain('--zyad-header-nav-color: rgba(255,255,255,.8)')
+  })
+
+  it('falls back to default colors when brandColor/navColor cannot be a safe CSS value', () => {
+    const wrapper = mount(GrapesPageFrame, {
+      props: {
+        html: `<div data-zyad-slot="tenant-nav" data-zyad-header='{"brandColor":"red;background:url(x)","navColor":"javascript:1"}'></div>`,
+        css: '',
+        chrome: { brand: { name: 'Acme' }, nav: [] },
+      },
+    })
+    const header = wrapper.get('header.zyad-tenant-header')
+    expect(header.attributes('style')).toContain('--zyad-header-brand-color: #0f172a')
+    expect(header.attributes('style')).toContain('--zyad-header-nav-color: #475569')
+  })
+
   it('drops unsafe hrefs in chrome links', () => {
     const wrapper = mount(GrapesPageFrame, {
       props: {
