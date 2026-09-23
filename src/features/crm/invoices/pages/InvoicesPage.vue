@@ -88,7 +88,7 @@ const items = ref<LineItemInput[]>([
 ])
 
 function openCreateModal() {
-  form.invoice_number = `INV-${Date.now()}`
+  form.invoice_number = ''
   form.quotation_id = ''
   sourceMode.value = 'manual'
   items.value = [{ description: '', quantity: '1', unit_price: '0', discount_percent: '0' }]
@@ -107,7 +107,7 @@ function removeItem(index: number) {
 async function submitForm() {
   errorMessage.value = ''
   const payload: InvoicePayload = {
-    invoice_number: form.invoice_number,
+    invoice_number: form.invoice_number || undefined,
   }
   if (sourceMode.value === 'quotation') {
     payload.quotation_id = form.quotation_id
@@ -228,7 +228,12 @@ async function submitForm() {
 
     <BaseModal :open="isModalOpen" title="Invoice Baru" @close="isModalOpen = false">
       <form class="space-y-4" @submit.prevent="submitForm">
-        <TextField v-model="form.invoice_number" name="invoice_number" label="Nomor Invoice" />
+        <TextField
+          v-model="form.invoice_number"
+          name="invoice_number"
+          label="Nomor Invoice (opsional)"
+          placeholder="Kosongkan untuk nomor otomatis"
+        />
 
         <div class="flex gap-2">
           <button

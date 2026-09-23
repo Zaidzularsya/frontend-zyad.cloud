@@ -177,11 +177,21 @@ const workspaceSummary = computed(() => {
   const sslActive = workspaceDomains.value.filter((item) => item.ssl_status === 'active')
   const primary = workspaceDomains.value.find((item) => item.is_primary)
   return [
-    { label: 'Total domains', value: String(workspaceDomains.value.length), icon: Globe2 },
-    { label: 'Active domains', value: String(active.length), icon: CheckCircle2 },
-    { label: 'Pending verification', value: String(pending.length), icon: RefreshCw },
-    { label: 'SSL active', value: String(sslActive.length), icon: ShieldCheck },
-    { label: 'Primary domain', value: primary?.canonical_host ?? '-', icon: Star },
+    {
+      label: 'Total domains',
+      value: String(workspaceDomains.value.length),
+      icon: Globe2,
+      numeric: true,
+    },
+    { label: 'Active domains', value: String(active.length), icon: CheckCircle2, numeric: true },
+    {
+      label: 'Pending verification',
+      value: String(pending.length),
+      icon: RefreshCw,
+      numeric: true,
+    },
+    { label: 'SSL active', value: String(sslActive.length), icon: ShieldCheck, numeric: true },
+    { label: 'Primary domain', value: primary?.canonical_host ?? '-', icon: Star, numeric: false },
   ]
 })
 
@@ -192,10 +202,20 @@ const platformSummary = computed(() => {
   )
   const primary = platformDomains.value.filter((item) => item.is_primary)
   return [
-    { label: 'Total domains', value: String(platformDomains.value.length), icon: Globe2 },
-    { label: 'Active domains', value: String(active.length), icon: CheckCircle2 },
-    { label: 'Pending verification', value: String(pending.length), icon: RefreshCw },
-    { label: 'Primary domains', value: String(primary.length), icon: Star },
+    {
+      label: 'Total domains',
+      value: String(platformDomains.value.length),
+      icon: Globe2,
+      numeric: true,
+    },
+    { label: 'Active domains', value: String(active.length), icon: CheckCircle2, numeric: true },
+    {
+      label: 'Pending verification',
+      value: String(pending.length),
+      icon: RefreshCw,
+      numeric: true,
+    },
+    { label: 'Primary domains', value: String(primary.length), icon: Star, numeric: true },
   ]
 })
 
@@ -486,19 +506,42 @@ onMounted(refreshData)
     </div>
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      <BaseCard
-        v-for="item in isPlatform ? platformSummary : workspaceSummary"
+      <template
+        v-for="(item, index) in isPlatform ? platformSummary : workspaceSummary"
         :key="item.label"
-        class="space-y-3"
       >
-        <component :is="item.icon" class="h-5 w-5 text-brand-500" />
-        <div>
-          <p class="text-xs font-medium uppercase text-gray-500">{{ item.label }}</p>
-          <p class="mt-1 truncate text-xl font-semibold text-gray-900 dark:text-white">
-            {{ item.value }}
-          </p>
+        <div
+          v-if="index === 0"
+          class="relative overflow-hidden rounded-2xl bg-[linear-gradient(100deg,#0EA5E9_0%,#2DD4BF_100%)] p-4 text-white shadow-sm"
+        >
+          <span class="absolute -right-3 -top-3 size-3 rounded-full bg-white/40"></span>
+          <div class="flex items-center gap-3">
+            <span class="grid size-11 place-items-center rounded-xl bg-white/15">
+              <component :is="item.icon" class="size-5" />
+            </span>
+            <div>
+              <p class="text-sm text-white/80">{{ item.label }}</p>
+              <p class="text-3xl font-black tracking-tight">{{ item.value }}</p>
+            </div>
+          </div>
         </div>
-      </BaseCard>
+        <BaseCard v-else class="!p-4">
+          <div class="flex items-center gap-3">
+            <span class="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+              <component :is="item.icon" class="size-5" />
+            </span>
+            <div class="min-w-0">
+              <p class="text-sm text-gray-500">{{ item.label }}</p>
+              <p
+                class="truncate text-gray-900 dark:text-white"
+                :class="item.numeric ? 'text-3xl font-black tracking-tight' : 'text-lg font-bold'"
+              >
+                {{ item.value }}
+              </p>
+            </div>
+          </div>
+        </BaseCard>
+      </template>
     </div>
 
     <BaseCard class="space-y-4">

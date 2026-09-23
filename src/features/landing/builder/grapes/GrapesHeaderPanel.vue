@@ -60,7 +60,17 @@ const variantOpts = [
   { value: 'transparent', label: 'Transparan' },
   { value: 'glass', label: 'Glass (blur)' },
 ]
-const alignOpts = [
+const positionOpts = [
+  { value: 'static', label: 'Static (mengikuti alur halaman)' },
+  { value: 'sticky', label: 'Sticky (menempel saat scroll)' },
+  { value: 'fixed', label: 'Fixed (melayang, menyatu dengan hero)' },
+]
+const layoutOpts = [
+  { value: 'grouped', label: 'Grouped (brand+menu+action jadi satu grup)' },
+  { value: 'split', label: 'Split (brand kiri, menu+action kanan)' },
+  { value: 'spread', label: 'Spread (brand–menu–action, 3 zona)' },
+]
+const groupAlignOpts = [
   { value: 'left', label: 'Kiri' },
   { value: 'center', label: 'Tengah' },
   { value: 'right', label: 'Kanan' },
@@ -379,23 +389,89 @@ async function submitItem() {
             <option v-for="o in variantOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
+        <div class="hp-color-row">
+          <label class="hp-label">
+            Warna teks brand
+            <span class="hp-color-field">
+              <input
+                type="color"
+                class="hp-color"
+                :value="pres.brandColor"
+                @input="setPres('brandColor', ($event.target as HTMLInputElement).value)"
+              />
+              <input
+                type="text"
+                class="hp-input"
+                :value="pres.brandColor"
+                @change="setPres('brandColor', ($event.target as HTMLInputElement).value)"
+              />
+            </span>
+          </label>
+          <label class="hp-label">
+            Warna teks navigasi
+            <span class="hp-color-field">
+              <input
+                type="color"
+                class="hp-color"
+                :value="pres.navColor"
+                @input="setPres('navColor', ($event.target as HTMLInputElement).value)"
+              />
+              <input
+                type="text"
+                class="hp-input"
+                :value="pres.navColor"
+                @change="setPres('navColor', ($event.target as HTMLInputElement).value)"
+              />
+            </span>
+          </label>
+        </div>
         <label class="hp-label">
-          Posisi konten
+          Layout
           <select
-            :value="pres.align"
+            :value="pres.layout"
             class="hp-input"
-            @change="setPres('align', ($event.target as HTMLSelectElement).value as never)"
+            @change="setPres('layout', ($event.target as HTMLSelectElement).value as never)"
           >
-            <option v-for="o in alignOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in layoutOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+        <label v-if="pres.layout === 'grouped'" class="hp-label">
+          Posisi grup
+          <select
+            :value="pres.groupAlign"
+            class="hp-input"
+            @change="setPres('groupAlign', ($event.target as HTMLSelectElement).value as never)"
+          >
+            <option v-for="o in groupAlignOpts" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
           </select>
         </label>
         <label class="hp-check">
           <input
             type="checkbox"
-            :checked="pres.sticky"
-            @change="setPres('sticky', ($event.target as HTMLInputElement).checked)"
+            :checked="pres.container"
+            @change="setPres('container', ($event.target as HTMLInputElement).checked)"
           />
-          Sticky (menempel saat scroll)
+          Batasi lebar (container)
+        </label>
+        <label class="hp-label">
+          Posisi
+          <select
+            :value="pres.position"
+            class="hp-input"
+            @change="setPres('position', ($event.target as HTMLSelectElement).value as never)"
+          >
+            <option v-for="o in positionOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+        <label class="hp-check">
+          <input
+            type="checkbox"
+            :checked="pres.hideOnScroll"
+            @change="setPres('hideOnScroll', ($event.target as HTMLInputElement).checked)"
+          />
+          Sembunyi saat scroll ke bawah, muncul lagi saat scroll ke atas
         </label>
       </div>
     </details>
@@ -477,8 +553,8 @@ async function submitItem() {
 }
 .hp-input:focus {
   outline: none;
-  border-color: #465fff;
-  box-shadow: 0 0 0 3px rgba(70, 95, 255, 0.12);
+  border-color: #0369a1;
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12);
 }
 .hp-check {
   display: flex;
@@ -486,6 +562,32 @@ async function submitItem() {
   gap: 8px;
   font-size: 12px;
   color: #475569;
+}
+.hp-color-row {
+  display: flex;
+  gap: 10px;
+}
+.hp-color-row .hp-label {
+  flex: 1;
+  min-width: 0;
+}
+.hp-color-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hp-color {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+.hp-color-field .hp-input {
+  min-width: 0;
 }
 .hp-hint {
   margin: 0;
@@ -500,7 +602,7 @@ async function submitItem() {
   padding: 8px 12px;
   border: 0;
   border-radius: 8px;
-  background: #465fff;
+  background: #0369a1;
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -576,7 +678,7 @@ async function submitItem() {
 }
 .hp-item-actions button:hover:not(:disabled) {
   background: #f1f5f9;
-  color: #465fff;
+  color: #0369a1;
 }
 .hp-item-actions button:disabled {
   opacity: 0.4;

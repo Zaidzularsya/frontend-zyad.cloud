@@ -72,22 +72,29 @@ test('renders a grapesjs page inside a script-less iframe', async ({ page }) => 
   // CSS from the document blob is applied inside the frame.
   await expect(inner.locator('h1.hero-title')).toHaveCSS('color', 'rgb(10, 20, 30)')
 
-  // The tenant-header sentinel is filled live from the resolve payload:
-  // brand + nav + action.
-  await expect(inner.locator('.zyad-tenant-header__brand')).toContainText('Demo Co')
-  const tenantLink = inner.locator('nav.zyad-tenant-header__nav a')
+  // The tenant-header sentinel is stripped from the iframe entirely — the
+  // header is rendered as a real element in the parent document instead, so
+  // position:sticky/fixed and the hide-on-scroll listener actually work
+  // (the iframe is auto-height and never scrolls internally; see
+  // GrapesPageFrame.vue's doc comment).
+  await expect(inner.locator('[data-zyad-slot="tenant-nav"]')).toHaveCount(0)
+  await expect(inner.locator('text=placeholder nav')).toHaveCount(0)
+
+  // The header is filled live from the resolve payload: brand + nav + action.
+  await expect(page.locator('.zyad-tenant-header__brand')).toContainText('Demo Co')
+  const tenantLink = page.locator('nav.zyad-tenant-header__nav a')
   await expect(tenantLink).toHaveText('Harga')
   await expect(tenantLink).toHaveAttribute('href', '/pricing')
-  await expect(inner.locator('.zyad-tenant-header__action')).toHaveText('Masuk')
-  await expect(inner.locator('text=placeholder nav')).toHaveCount(0)
+  await expect(page.locator('.zyad-tenant-header__action')).toHaveText('Masuk')
 
   // The smuggled <script> / onerror never ran in the top document.
   expect(
     await page.evaluate(() => (window as unknown as Record<string, unknown>).__pwned),
   ).toBeUndefined()
 
-  // The shared marketing <nav> is suppressed (page owns its chrome).
-  await expect(page.locator('nav')).toHaveCount(0)
+  // The shared marketing <nav> is suppressed (page owns its chrome) — the
+  // tenant header's own <nav class="zyad-tenant-header__nav"> is expected.
+  await expect(page.locator('nav:not(.zyad-tenant-header__nav)')).toHaveCount(0)
 
   await expect(page).toHaveTitle('Halaman GrapesJS')
 })

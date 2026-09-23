@@ -16,6 +16,7 @@ import {
   useRestoreContactMutation,
   useUpdateContactMutation,
 } from '@/features/crm/contacts/api/contacts.queries'
+import { useCompaniesQuery } from '@/features/crm/companies/api/companies.queries'
 
 const search = ref('')
 const page = ref(1)
@@ -34,6 +35,13 @@ const createMutation = useCreateContactMutation()
 const updateMutation = useUpdateContactMutation()
 const deleteMutation = useDeleteContactMutation()
 const restoreMutation = useRestoreContactMutation()
+
+const companyListParams = computed(() => ({ page: 1, per_page: 100 }))
+const companiesQuery = useCompaniesQuery(companyListParams)
+const companies = computed(() => companiesQuery.data.value?.data ?? [])
+const companyNameById = computed(() =>
+  Object.fromEntries(companies.value.map((company) => [company.id, company.name])),
+)
 
 const contacts = computed(() => contactsQuery.data.value?.data ?? [])
 const totalPages = computed(() => contactsQuery.data.value?.meta.total_pages ?? 1)
@@ -58,11 +66,21 @@ const form = reactive<ContactPayload>({
   email: '',
   phone: '',
   job_title: '',
+  company_id: '',
+  lifecycle_stage: 'contact',
 })
 
 function openCreateModal() {
   editingContact.value = null
-  Object.assign(form, { first_name: '', last_name: '', email: '', phone: '', job_title: '' })
+  Object.assign(form, {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    job_title: '',
+    company_id: '',
+    lifecycle_stage: 'contact',
+  })
   errorMessage.value = ''
   isModalOpen.value = true
 }
@@ -75,6 +93,8 @@ function openEditModal(contact: Contact) {
     email: contact.email ?? '',
     phone: contact.phone ?? '',
     job_title: contact.job_title ?? '',
+    company_id: contact.company_id ?? '',
+    lifecycle_stage: contact.lifecycle_stage,
   })
   errorMessage.value = ''
   isModalOpen.value = true
@@ -92,13 +112,21 @@ function extractError(error: unknown): string {
   return 'Terjadi kesalahan, silakan coba lagi.'
 }
 
+function buildPayload(): ContactPayload {
+  return {
+    ...form,
+    company_id: form.company_id || undefined,
+    is_customer: form.lifecycle_stage === 'customer',
+  }
+}
+
 async function submitForm() {
   errorMessage.value = ''
   try {
     if (editingContact.value) {
-      await updateMutation.mutateAsync({ id: editingContact.value.id, payload: { ...form } })
+      await updateMutation.mutateAsync({ id: editingContact.value.id, payload: buildPayload() })
     } else {
-      await createMutation.mutateAsync({ ...form })
+      await createMutation.mutateAsync(buildPayload())
     }
     isModalOpen.value = false
   } catch (error) {
@@ -180,6 +208,7 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
             <tr>
               <th class="px-5 py-3">Nama</th>
               <th class="px-5 py-3">Kontak</th>
+              <th class="px-5 py-3">Company</th>
               <th class="px-5 py-3">Status</th>
               <th class="px-5 py-3 text-right">Aksi</th>
             </tr>
@@ -190,6 +219,9 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
                 {{ contact.first_name }} {{ contact.last_name }}
               </td>
               <td class="px-5 py-3 text-gray-500">{{ contact.email || contact.phone || '-' }}</td>
+              <td class="px-5 py-3 text-gray-500">
+                {{ contact.company_id ? (companyNameById[contact.company_id] ?? '-') : '-' }}
+              </td>
               <td class="px-5 py-3">
                 <span
                   class="rounded-full px-2.5 py-1 text-xs font-medium"
@@ -265,6 +297,37 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
           <TextField v-model="form.phone" name="phone" label="Telepon" />
         </div>
         <TextField v-model="form.job_title" name="job_title" label="Jabatan" />
+
+        <div class="grid grid-cols-2 gap-4">
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Company (opsional)
+            </span>
+            <select
+              v-model="form.company_id"
+              class="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+            >
+              <option value="">Tidak ada company</option>
+              <option v-for="company in companies" :key="company.id" :value="company.id">
+                {{ company.name }}
+              </option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Status
+            </span>
+            <select
+              v-model="form.lifecycle_stage"
+              class="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+            >
+              <option value="lead">Lead</option>
+              <option value="contact">Contact</option>
+              <option value="customer">Customer</option>
+              <option value="churned">Churned</option>
+            </select>
+          </label>
+        </div>
 
         <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
 

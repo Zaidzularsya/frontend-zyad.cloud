@@ -42,18 +42,40 @@ describe('GrapesHeaderPanel', () => {
     expect(text).toContain('Action & Tampilan')
   })
 
-  it('writes presentation onto the component when a toggle changes', async () => {
+  it('writes presentation onto the component when a select changes', async () => {
     const component = fakeComponent()
     const wrapper = mount(GrapesHeaderPanel, { props: { component } })
 
-    const sticky = wrapper
-      .findAll('input[type="checkbox"]')
-      .find((c) => c.element.parentElement?.textContent?.includes('Sticky'))
-    await sticky!.setValue(false)
+    const selects = wrapper.findAll('select')
+    const positionSelect = selects.find((s) => {
+      const text = s.element.parentElement?.textContent ?? ''
+      return text.includes('Posisi') && !text.includes('grup')
+    })
+    await positionSelect!.setValue('fixed')
 
     expect(component.addAttributes).toHaveBeenCalled()
     const written = JSON.parse(component.getAttributes()['data-zyad-header']!)
-    expect(written.sticky).toBe(false)
+    expect(written.position).toBe('fixed')
+  })
+
+  it('keeps the container checkbox enabled and functional when layout is spread', async () => {
+    const component = fakeComponent()
+    const wrapper = mount(GrapesHeaderPanel, { props: { component } })
+
+    const layoutSelect = wrapper
+      .findAll('select')
+      .find((s) => s.element.parentElement?.textContent?.includes('Layout'))
+    await layoutSelect!.setValue('spread')
+
+    const containerCheckbox = wrapper
+      .findAll('input[type="checkbox"]')
+      .find((c) => c.element.parentElement?.textContent?.includes('Batasi lebar'))
+    expect((containerCheckbox!.element as HTMLInputElement).disabled).toBe(false)
+    await containerCheckbox!.setValue(false)
+
+    const written = JSON.parse(component.getAttributes()['data-zyad-header']!)
+    expect(written.layout).toBe('spread')
+    expect(written.container).toBe(false)
   })
 
   it('hides the action label / url inputs when the action is off', async () => {

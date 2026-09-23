@@ -16,11 +16,15 @@ import DOMPurify from 'dompurify'
  * content script its way out.
  *
  * Live tenant chrome: the editor drops sentinel `<div data-zyad-slot="tenant-nav">`
- * / `"tenant-footer"` blocks. Their innerHTML is (re)built here from the
- * resolve response's live menu + branding data — so editing the tenant menu
- * shows on every GrapesJS page immediately, without re-publishing. Markup is
- * assembled with DOM APIs (textContent + setAttribute), never innerHTML from a
- * user string, so no extra sanitiser is needed.
+ * / `"tenant-footer"` blocks. Footer/pricing innerHTML is (re)built inside the
+ * iframe from the resolve response's live menu + branding data, assembled with
+ * DOM APIs (textContent + setAttribute), never innerHTML from a user string —
+ * no extra sanitiser needed. The header sentinel is instead REMOVED from what
+ * goes into the iframe and re-rendered as a real Vue `<header>` in this
+ * component's own template (see `headerPresentation` below): the iframe's
+ * document is auto-height and never scrolls internally, so CSS
+ * `position: sticky`/`fixed` inside it has no visible effect, and no script
+ * can run in there to drive a hide-on-scroll animation either.
  */
 
 export interface GrapesChromeLink {
@@ -54,40 +58,92 @@ export interface GrapesChrome {
 }
 
 interface HeaderPresentation {
-  sticky: boolean
+  position: 'static' | 'sticky' | 'fixed'
   variant: 'solid' | 'transparent' | 'glass'
-  align: 'left' | 'center' | 'right'
+  layout: 'grouped' | 'split' | 'spread'
+  groupAlign: 'left' | 'center' | 'right'
+  container: boolean
   showAction: boolean
   actionLabel: string
   actionUrl: string
+  hideOnScroll: boolean
+  brandColor: string
+  navColor: string
 }
 
+// Accepts hex/rgb(a)()/hsl(a)()/bare CSS color keywords — rejects anything
+// else so a stored value can never break out of the single CSS custom
+// property it's substituted into. Mirrors grapes.header-component.ts's
+// `safeHeaderColor` and document_ssr.go's `safeSSRColor`. Keep in sync.
+const SAFE_COLOR_RE = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,24}|(?:rgb|rgba|hsl|hsla)\([\d.,%\s/]+\))$/
+
+function safeColor(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback
+  const v = raw.trim()
+  return v && SAFE_COLOR_RE.test(v) ? v : fallback
+}
+
+// Mirrors grapes.header-component.ts parseHeaderPresentation() — see that
+// file's doc comment for why the migration below exists. Keep both in sync.
 function readHeaderPresentation(slot: Element): HeaderPresentation {
   const d: HeaderPresentation = {
-    sticky: true,
+    position: 'sticky',
     variant: 'solid',
-    align: 'left',
+    layout: 'grouped',
+    groupAlign: 'left',
+    container: true,
     showAction: true,
     actionLabel: 'Masuk',
     actionUrl: '/login',
+    hideOnScroll: false,
+    brandColor: '#0f172a',
+    navColor: '#475569',
   }
-  let p: Partial<HeaderPresentation> = {}
+  let p: Record<string, unknown> = {}
   try {
-    p = JSON.parse(slot.getAttribute('data-zyad-header') || '{}') as Partial<HeaderPresentation>
+    p = JSON.parse(slot.getAttribute('data-zyad-header') || '{}') as Record<string, unknown>
   } catch {
     p = {}
   }
+
+  const legacyAlign = typeof p.align === 'string' ? p.align : undefined
+  const legacySticky = typeof p.sticky === 'boolean' ? p.sticky : undefined
+
+  const position: HeaderPresentation['position'] =
+    typeof p.position === 'string' && ['static', 'sticky', 'fixed'].includes(p.position)
+      ? (p.position as HeaderPresentation['position'])
+      : legacySticky !== undefined
+        ? legacySticky
+          ? 'sticky'
+          : 'static'
+        : d.position
+
+  const layout: HeaderPresentation['layout'] =
+    typeof p.layout === 'string' && ['grouped', 'split', 'spread'].includes(p.layout)
+      ? (p.layout as HeaderPresentation['layout'])
+      : 'grouped'
+
+  const groupAlign: HeaderPresentation['groupAlign'] =
+    typeof p.groupAlign === 'string' && ['left', 'center', 'right'].includes(p.groupAlign)
+      ? (p.groupAlign as HeaderPresentation['groupAlign'])
+      : legacyAlign && ['left', 'center', 'right'].includes(legacyAlign)
+        ? (legacyAlign as HeaderPresentation['groupAlign'])
+        : d.groupAlign
+
   return {
-    sticky: typeof p.sticky === 'boolean' ? p.sticky : d.sticky,
+    position,
     variant: ['solid', 'transparent', 'glass'].includes(p.variant as string)
       ? (p.variant as HeaderPresentation['variant'])
       : d.variant,
-    align: ['left', 'center', 'right'].includes(p.align as string)
-      ? (p.align as HeaderPresentation['align'])
-      : d.align,
+    layout,
+    groupAlign,
+    container: typeof p.container === 'boolean' ? p.container : d.container,
     showAction: typeof p.showAction === 'boolean' ? p.showAction : d.showAction,
     actionLabel: typeof p.actionLabel === 'string' ? p.actionLabel : d.actionLabel,
     actionUrl: typeof p.actionUrl === 'string' ? p.actionUrl : d.actionUrl,
+    hideOnScroll: typeof p.hideOnScroll === 'boolean' ? p.hideOnScroll : d.hideOnScroll,
+    brandColor: safeColor(p.brandColor, d.brandColor),
+    navColor: safeColor(p.navColor, d.navColor),
   }
 }
 
@@ -133,54 +189,6 @@ function appendLinks(doc: Document, parent: HTMLElement, links: GrapesChromeLink
     }
     parent.appendChild(a)
   })
-}
-
-function fillHeader(
-  doc: Document,
-  slot: Element,
-  nav: GrapesChromeLink[],
-  brand: NonNullable<GrapesChrome['brand']>,
-) {
-  const p = readHeaderPresentation(slot)
-
-  const bar = doc.createElement('div')
-  bar.className = `zyad-tenant-header zyad-tenant-header--${p.variant} zyad-tenant-header--${p.align}`
-  if (p.sticky) bar.classList.add('zyad-tenant-header--sticky')
-
-  const brandEl = doc.createElement('a')
-  brandEl.className = 'zyad-tenant-header__brand'
-  brandEl.setAttribute('href', '/')
-  if (brand.logoUrl) {
-    const img = doc.createElement('img')
-    img.setAttribute('src', safeHref(brand.logoUrl))
-    img.setAttribute('alt', brand.name || '')
-    brandEl.appendChild(img)
-  }
-  if (brand.name) {
-    const span = doc.createElement('span')
-    span.textContent = brand.name
-    brandEl.appendChild(span)
-  }
-  bar.appendChild(brandEl)
-
-  const navEl = doc.createElement('nav')
-  navEl.className = 'zyad-tenant-header__nav'
-  appendLinks(doc, navEl, nav)
-  bar.appendChild(navEl)
-
-  if (p.showAction && (p.actionLabel || p.actionUrl)) {
-    const action = doc.createElement('a')
-    action.className = 'zyad-tenant-header__action'
-    action.setAttribute('href', safeHref(p.actionUrl))
-    action.textContent = p.actionLabel || 'Masuk'
-    bar.appendChild(action)
-  }
-
-  // Only the consumed presentation attribute is removed — any class/style the
-  // author added via the Style Manager (background, opacity, position for a
-  // transparent header overlapping a hero section, etc.) stays intact.
-  slot.removeAttribute('data-zyad-header')
-  slot.replaceChildren(bar)
 }
 
 function fillFooter(doc: Document, slot: Element, footer: NonNullable<GrapesChrome['footer']>) {
@@ -313,8 +321,20 @@ function firstSlotDroppingRest(list: ArrayLike<Element>): Element | null {
   return first ?? null
 }
 
-/** Sanitise, then hydrate the data-zyad-slot sentinels from live chrome data. */
-const bodyHtml = computed(() => {
+/**
+ * Sanitise, hydrate the footer/pricing data-zyad-slot sentinels from live
+ * chrome data, and — crucially — REMOVE the tenant-nav (header) sentinel
+ * entirely rather than filling it. The header is rendered separately, as a
+ * real Vue element in this component's own template (see `headerPresentation`
+ * below), not as markup embedded in the iframe: the iframe's document never
+ * scrolls internally (it's auto-height, sized to its content), so CSS
+ * `position: sticky`/`fixed` on anything inside it has no visible effect —
+ * only an element genuinely living in the SPA's document (which the browser
+ * really does scroll) can be sticky/fixed. This also lets a real
+ * `window.scroll` listener drive the hide-on-scroll animation, which
+ * couldn't run inside the iframe either (sandboxed without `allow-scripts`).
+ */
+const processed = computed<{ html: string; header: HeaderPresentation | null }>(() => {
   const clean = DOMPurify.sanitize(props.html || '', {
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link'],
     FORBID_ATTR: ['srcdoc'],
@@ -322,51 +342,69 @@ const bodyHtml = computed(() => {
     ALLOW_DATA_ATTR: true,
   })
 
-  const chrome = props.chrome
-  if (
-    !chrome ||
-    (!chrome.nav?.length && !chrome.brand && !chrome.footer && !chrome.pricingPlans?.length)
-  ) {
-    return clean
+  const parsed = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html')
+
+  let header: HeaderPresentation | null = null
+  const navSlot = firstSlotDroppingRest(
+    parsed.body.querySelectorAll('[data-zyad-slot="tenant-nav"]'),
+  )
+  if (navSlot) {
+    header = readHeaderPresentation(navSlot)
+    navSlot.remove()
   }
 
-  const parsed = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html')
-  if (chrome.nav?.length || chrome.brand) {
-    const slot = firstSlotDroppingRest(
-      parsed.body.querySelectorAll('[data-zyad-slot="tenant-nav"]'),
-    )
-    if (slot) fillHeader(parsed, slot, chrome.nav ?? [], chrome.brand ?? {})
-  }
-  if (chrome.footer) {
+  const chrome = props.chrome
+  if (chrome?.footer) {
     const slot = firstSlotDroppingRest(
       parsed.body.querySelectorAll('[data-zyad-slot="tenant-footer"]'),
     )
-    if (slot) fillFooter(parsed, slot, chrome.footer!)
+    if (slot) fillFooter(parsed, slot, chrome.footer)
   }
-  if (chrome.pricingPlans?.length) {
+  if (chrome?.pricingPlans?.length) {
     const slot = firstSlotDroppingRest(
       parsed.body.querySelectorAll('[data-zyad-slot="pricing-plans"]'),
     )
     if (slot) fillPricing(parsed, slot, chrome.pricingPlans)
   }
-  return parsed.body.innerHTML
+
+  return { html: parsed.body.innerHTML, header }
+})
+
+const bodyHtml = computed(() => processed.value.html)
+const headerPresentation = computed(() => processed.value.header)
+
+const headerClasses = computed(() => {
+  const p = headerPresentation.value
+  if (!p) return []
+  return [
+    `zyad-tenant-header--${p.variant}`,
+    `zyad-tenant-header--${p.layout}`,
+    p.layout === 'grouped' ? `zyad-tenant-header--group-${p.groupAlign}` : '',
+    p.position === 'sticky' ? 'zyad-tenant-header--sticky' : '',
+    p.position === 'fixed' ? 'zyad-tenant-header--fixed' : '',
+    p.container ? 'zyad-tenant-header--container' : '',
+    p.hideOnScroll && headerHidden.value ? 'zyad-tenant-header--hidden' : '',
+  ].filter(Boolean)
+})
+
+function headerLinkTarget(link: GrapesChromeLink): '_blank' | undefined {
+  return link.target === 'new_tab' || link.target === '_blank' ? '_blank' : undefined
+}
+
+// CSS custom properties, not a direct inline `color`, so the shared
+// .zyad-tenant-header__nav a rule (and its :hover) still apply — Vue's style
+// binding sets one property's value directly, it can't inject other
+// declarations even if the stored string were malformed.
+const headerStyleVars = computed(() => {
+  const p = headerPresentation.value
+  if (!p) return {}
+  return {
+    '--zyad-header-brand-color': p.brandColor,
+    '--zyad-header-nav-color': p.navColor,
+  }
 })
 
 const CHROME_CSS = `
-.zyad-tenant-header{display:flex;align-items:center;gap:24px;padding:14px 24px;font-family:'Inter','Segoe UI',system-ui,sans-serif}
-.zyad-tenant-header--solid{background:#fff;border-bottom:1px solid #e5e7eb}
-.zyad-tenant-header--glass{background:rgba(255,255,255,.72);backdrop-filter:blur(8px);border-bottom:1px solid #e5e7eb}
-.zyad-tenant-header--transparent{background:transparent}
-.zyad-tenant-header--sticky{position:sticky;top:0;z-index:50}
-.zyad-tenant-header--left{justify-content:space-between}
-.zyad-tenant-header--center{justify-content:center}
-.zyad-tenant-header--right{justify-content:flex-end}
-.zyad-tenant-header__brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#0f172a;text-decoration:none;font-size:16px}
-.zyad-tenant-header__brand img{height:28px;width:auto;display:block}
-.zyad-tenant-header__nav{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
-.zyad-tenant-header__nav a{color:#475569;text-decoration:none;font-size:14px;font-weight:500}
-.zyad-tenant-header__nav a:hover{color:#465fff}
-.zyad-tenant-header__action{display:inline-block;padding:9px 18px;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
 .zyad-tenant-footer{padding:48px 24px;background:#0f172a;color:#cbd5e1;font-size:14px}
 .zyad-tenant-footer__top{max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between}
 .zyad-tenant-footer__brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:16px}
@@ -411,6 +449,18 @@ ${bodyHtml.value}
 </html>`,
 )
 
+const headerHidden = ref(false)
+let lastScrollY = 0
+
+function handleHeaderScroll() {
+  if (!headerPresentation.value?.hideOnScroll) return
+  const y = window.scrollY
+  const delta = y - lastScrollY
+  if (Math.abs(delta) < 4) return
+  headerHidden.value = delta > 0 && y > 80
+  lastScrollY = y
+}
+
 function measure() {
   const doc = frameRef.value?.contentDocument
   if (!doc) return
@@ -437,10 +487,12 @@ function syncHeight() {
 
 onMounted(() => {
   window.addEventListener('resize', measure)
+  window.addEventListener('scroll', handleHeaderScroll, { passive: true })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', measure)
+  window.removeEventListener('scroll', handleHeaderScroll)
   resizeObserver?.disconnect()
   resizeObserver = null
   settleTimers.forEach(clearTimeout)
@@ -452,6 +504,44 @@ watch(srcdoc, () => {
 </script>
 
 <template>
+  <header
+    v-if="headerPresentation"
+    class="zyad-tenant-header"
+    :class="headerClasses"
+    :style="headerStyleVars"
+  >
+    <div class="zyad-tenant-header__inner">
+      <a class="zyad-tenant-header__brand" href="/">
+        <img
+          v-if="chrome?.brand?.logoUrl"
+          :src="safeHref(chrome.brand.logoUrl)"
+          :alt="chrome?.brand?.name || ''"
+        />
+        <span v-if="chrome?.brand?.name">{{ chrome.brand.name }}</span>
+      </a>
+      <nav class="zyad-tenant-header__nav">
+        <a
+          v-for="(link, i) in chrome?.nav ?? []"
+          :key="i"
+          :href="safeHref(link.href)"
+          :target="headerLinkTarget(link)"
+          :rel="headerLinkTarget(link) ? 'noopener noreferrer' : undefined"
+        >
+          {{ link.label }}
+        </a>
+      </nav>
+      <a
+        v-if="
+          headerPresentation.showAction &&
+          (headerPresentation.actionLabel || headerPresentation.actionUrl)
+        "
+        class="zyad-tenant-header__action"
+        :href="safeHref(headerPresentation.actionUrl)"
+      >
+        {{ headerPresentation.actionLabel || 'Masuk' }}
+      </a>
+    </div>
+  </header>
   <iframe
     ref="frameRef"
     class="grapes-page-frame"
@@ -472,5 +562,106 @@ watch(srcdoc, () => {
   border: 0;
   overflow: hidden;
   background: #ffffff;
+}
+
+.zyad-tenant-header {
+  padding: 14px 24px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  transition: transform 0.25s ease;
+}
+.zyad-tenant-header--hidden {
+  transform: translateY(-100%);
+}
+.zyad-tenant-header--solid {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.zyad-tenant-header--glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e5e7eb;
+}
+.zyad-tenant-header--transparent {
+  background: transparent;
+}
+.zyad-tenant-header--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.zyad-tenant-header--fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+.zyad-tenant-header__inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+}
+.zyad-tenant-header--container .zyad-tenant-header__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.zyad-tenant-header--group-left .zyad-tenant-header__inner {
+  justify-content: flex-start;
+}
+.zyad-tenant-header--group-center .zyad-tenant-header__inner {
+  justify-content: center;
+}
+.zyad-tenant-header--group-right .zyad-tenant-header__inner {
+  justify-content: flex-end;
+}
+.zyad-tenant-header--split .zyad-tenant-header__nav {
+  margin-left: auto;
+}
+.zyad-tenant-header--spread .zyad-tenant-header__nav {
+  flex: 1;
+  justify-content: center;
+}
+.zyad-tenant-header__brand {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--zyad-header-brand-color, #0f172a);
+  text-decoration: none;
+  font-size: 16px;
+}
+.zyad-tenant-header__brand img {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+.zyad-tenant-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.zyad-tenant-header__nav a {
+  color: var(--zyad-header-nav-color, #475569);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.zyad-tenant-header__nav a:hover {
+  color: #465fff;
+}
+.zyad-tenant-header__action {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: 9px 18px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
 }
 </style>

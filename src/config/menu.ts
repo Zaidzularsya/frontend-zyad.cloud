@@ -89,9 +89,55 @@ export const platformMenuGroups: MenuGroup[] = [
   },
   {
     label: 'Business Management',
+    items: [{ label: 'Customers', route: 'platform-customers', icon: Users }],
+  },
+  {
+    label: 'CRM',
     items: [
-      { label: 'Customers', route: 'platform-customers', icon: Users },
-      { label: 'Leads', route: 'platform-leads', icon: Magnet },
+      { label: 'Leads', route: 'platform-crm-leads', icon: Magnet, permission: 'lead.read' },
+      {
+        label: 'Contacts',
+        route: 'platform-crm-contacts',
+        icon: Users,
+        permission: 'contact.read',
+      },
+      {
+        label: 'Companies',
+        route: 'platform-crm-companies',
+        icon: Building2,
+        permission: 'company.read',
+      },
+      { label: 'Deals', route: 'platform-crm-deals', icon: Waypoints, permission: 'deal.read' },
+      {
+        label: 'Pipelines',
+        route: 'platform-crm-pipelines',
+        icon: Waypoints,
+        permission: 'pipeline.read',
+      },
+      {
+        label: 'Activities',
+        route: 'platform-crm-activities',
+        icon: FileClock,
+        permission: 'activity.read',
+      },
+      {
+        label: 'Quotations',
+        route: 'platform-crm-quotations',
+        icon: FileText,
+        permission: 'quotation.read',
+      },
+      {
+        label: 'Invoices',
+        route: 'platform-crm-invoices',
+        icon: CreditCard,
+        permission: 'invoice.read',
+      },
+      {
+        label: 'Integrations',
+        route: 'platform-crm-integrations',
+        icon: Package,
+        permission: 'integration.read',
+      },
     ],
   },
   {

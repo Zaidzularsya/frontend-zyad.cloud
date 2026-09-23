@@ -2,11 +2,27 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #e0eaff;
-  --color-brand-500: #465fff;
-  --color-brand-600: #3641f5;
-  --color-brand-700: #2a31d8;
+  /* Admin dashboard brand ramp — sky (DESIGN.md), migrated from the legacy
+     TailAdmin indigo ramp in one pass per DESIGN.md "Extending to the app UI
+     later". 50-400 are literal Tailwind `sky` tints (badges, rings, light
+     backgrounds — DESIGN.md's Sky 300/400 reference). 500-900 are shifted
+     one step darker than the literal sky scale: DESIGN.md's own Sky 500
+     (#0EA5E9) only reaches ~2.77:1 contrast against white text (fails WCAG
+     AA's 4.5:1) — it's specced there as a gradient/icon color for sparse
+     marketing buttons, not the fill for the many dense white-text buttons
+     this admin UI has. Using sky-700 for the 500 slot keeps the same "sky"
+     identity while clearing AA (~5.9:1); everything darker cascades from
+     there. See antislop-human contrast check before shipping. */
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0369a1;
+  --color-brand-600: #075985;
+  --color-brand-700: #0c4a6e;
+  --color-brand-800: #0a3d5c;
+  --color-brand-900: #082f47;
   --color-navy-950: #101828;
   --font-sans: 'Inter', 'Segoe UI', sans-serif;
 }
