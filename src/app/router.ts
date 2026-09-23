@@ -264,22 +264,16 @@ const routes: RouteRecordRaw[] = [
       },
       ...buildLandingManagementRoutes('platform-landing-pages'),
       {
-        path: 'branding',
-        name: 'platform-branding',
-        component: () => import('@/features/platform/pages/BrandingManagementPage.vue'),
-        meta: { title: 'Branding Management' },
-      },
-      {
         path: 'users',
         name: 'platform-users',
         component: () => import('@/features/users/pages/UsersPage.vue'),
         meta: { title: 'Members' },
       },
       {
-        path: 'customers',
-        name: 'platform-customers',
-        component: () => import('@/features/platform/pages/CustomerManagementPage.vue'),
-        meta: { title: 'Customer Management' },
+        path: 'users/:id',
+        name: 'platform-user-detail',
+        component: () => import('@/features/users/pages/UserDetailPage.vue'),
+        meta: { title: 'Member Detail' },
       },
       {
         path: 'billing/plans',
