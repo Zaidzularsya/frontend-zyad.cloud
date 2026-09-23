@@ -3,8 +3,11 @@ import {
   Bell,
   Building2,
   Calculator,
+  ClipboardList,
   CreditCard,
   FileClock,
+  FileMinus,
+  FileSignature,
   FileText,
   Globe,
   HardDrive,
@@ -12,9 +15,14 @@ import {
   LifeBuoy,
   Magnet,
   Package,
+  Plug,
+  Receipt,
+  RefreshCw,
+  RotateCcw,
   Settings,
   ShieldCheck,
   Users,
+  Wallet,
   Waypoints,
 } from 'lucide-vue-next'
 
@@ -123,6 +131,11 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: FileClock,
         permission: 'activity.read',
       },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
       {
         label: 'Quotations',
         route: 'platform-crm-quotations',
@@ -130,16 +143,52 @@ export const platformMenuGroups: MenuGroup[] = [
         permission: 'quotation.read',
       },
       {
+        label: 'Sales Orders',
+        route: 'platform-sales-orders',
+        icon: ClipboardList,
+        description: 'Belum tersedia — placeholder sampai modul backend Sales Order dibangun.',
+      },
+      {
+        label: 'Contracts',
+        route: 'platform-contracts',
+        icon: FileSignature,
+        description: 'Belum tersedia — placeholder sampai modul backend Contract dibangun.',
+      },
+    ],
+  },
+  {
+    label: 'Billing',
+    items: [
+      {
         label: 'Invoices',
         route: 'platform-crm-invoices',
-        icon: CreditCard,
+        icon: Receipt,
         permission: 'invoice.read',
       },
       {
-        label: 'Integrations',
-        route: 'platform-crm-integrations',
-        icon: Package,
-        permission: 'integration.read',
+        label: 'Payments',
+        route: 'platform-billing-payments',
+        icon: Wallet,
+        description: 'Belum tersedia — placeholder sampai modul backend Payments dibangun.',
+      },
+      {
+        label: 'Recurring Billing',
+        route: 'platform-billing-recurring',
+        icon: RefreshCw,
+        description:
+          'Belum tersedia — placeholder sampai modul backend Recurring Billing dibangun.',
+      },
+      {
+        label: 'Credit Notes',
+        route: 'platform-billing-credit-notes',
+        icon: FileMinus,
+        description: 'Belum tersedia — placeholder sampai modul backend Credit Notes dibangun.',
+      },
+      {
+        label: 'Refunds',
+        route: 'platform-billing-refunds',
+        icon: RotateCcw,
+        description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
       },
     ],
   },
@@ -152,6 +201,17 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: Calculator,
         description: 'Pembukuan double-entry PT Zyad Technovation.',
         children: buildFinanceMenuItems(),
+      },
+    ],
+  },
+  {
+    label: 'Integrations',
+    items: [
+      {
+        label: 'Integrations',
+        route: 'platform-crm-integrations',
+        icon: Plug,
+        permission: 'integration.read',
       },
     ],
   },
