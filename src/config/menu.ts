@@ -232,17 +232,69 @@ export const customerMenuGroups: MenuGroup[] = [
         icon: FileClock,
         permission: 'activity.read',
       },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
       {
         label: 'Quotations',
         route: 'crm-quotations',
         icon: FileText,
         permission: 'quotation.read',
       },
-      { label: 'Invoices', route: 'crm-invoices', icon: CreditCard, permission: 'invoice.read' },
+      {
+        label: 'Sales Orders',
+        route: 'sales-orders',
+        icon: ClipboardList,
+        description: 'Belum tersedia — placeholder sampai modul backend Sales Order dibangun.',
+      },
+      {
+        label: 'Contracts',
+        route: 'contracts',
+        icon: FileSignature,
+        description: 'Belum tersedia — placeholder sampai modul backend Contract dibangun.',
+      },
+    ],
+  },
+  {
+    label: 'Billing',
+    items: [
+      { label: 'Invoices', route: 'crm-invoices', icon: Receipt, permission: 'invoice.read' },
+      {
+        label: 'Payments',
+        route: 'billing-payments',
+        icon: Wallet,
+        description: 'Belum tersedia — placeholder sampai modul backend Payments dibangun.',
+      },
+      {
+        label: 'Recurring Billing',
+        route: 'billing-recurring',
+        icon: RefreshCw,
+        description:
+          'Belum tersedia — placeholder sampai modul backend Recurring Billing dibangun.',
+      },
+      {
+        label: 'Credit Notes',
+        route: 'billing-credit-notes',
+        icon: FileMinus,
+        description: 'Belum tersedia — placeholder sampai modul backend Credit Notes dibangun.',
+      },
+      {
+        label: 'Refunds',
+        route: 'billing-refunds',
+        icon: RotateCcw,
+        description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
+      },
+    ],
+  },
+  {
+    label: 'Integrations',
+    items: [
       {
         label: 'Integrations',
         route: 'crm-integrations',
-        icon: Package,
+        icon: Plug,
         permission: 'integration.read',
       },
     ],
