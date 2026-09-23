@@ -102,6 +102,16 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Profile' },
       },
       {
+        path: 'account/bank',
+        name: 'account-bank',
+        component: placeholder,
+        props: {
+          title: 'Bank',
+          description: 'Kelola rekening bank tenant untuk pencairan dan detail pembayaran invoice.',
+        },
+        meta: { title: 'Bank' },
+      },
+      {
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/features/dashboard/pages/DashboardPage.vue'),

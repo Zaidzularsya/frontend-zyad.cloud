@@ -4,7 +4,6 @@ import {
   Building2,
   Calculator,
   ClipboardList,
-  CreditCard,
   FileClock,
   FileMinus,
   FileSignature,
@@ -12,7 +11,6 @@ import {
   Globe,
   HardDrive,
   LayoutDashboard,
-  LifeBuoy,
   Magnet,
   Package,
   Plug,
@@ -320,13 +318,6 @@ export const customerMenuGroups: MenuGroup[] = [
         icon: Plug,
         permission: 'integration.read',
       },
-    ],
-  },
-  {
-    label: 'Account Services',
-    items: [
-      { label: 'Plan & Billing', route: 'billing', icon: CreditCard },
-      { label: 'Support Tickets', route: 'ticketing', icon: LifeBuoy },
     ],
   },
 ]
