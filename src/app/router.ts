@@ -321,6 +321,17 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Profile' },
       },
       {
+        path: 'bank',
+        name: 'platform-bank',
+        component: placeholder,
+        props: {
+          title: 'Bank',
+          description:
+            'Kelola rekening bank platform untuk pencairan dan detail pembayaran invoice.',
+        },
+        meta: { title: 'Bank' },
+      },
+      {
         path: 'landing-pages',
         name: 'platform-landing-pages',
         redirect: { name: 'platform-landing-pages-pages' },
