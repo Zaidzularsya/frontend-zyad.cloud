@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { Archive, Plus, RotateCcw, Trash2, Waypoints } from 'lucide-vue-next'
+import { Archive, Layers, Plus, RotateCcw, Star, Trash2, Waypoints } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -27,6 +27,15 @@ const archiveMutation = useArchivePipelineMutation()
 const replaceStagesMutation = useReplaceStagesMutation()
 
 const pipelines = computed(() => pipelinesQuery.data.value?.data ?? [])
+
+const activePipelines = computed(() => pipelines.value.filter((p) => !p.deleted_at))
+const archivedCount = computed(() => activePipelines.value.filter((p) => p.archived_at).length)
+const defaultPipelineName = computed(
+  () => activePipelines.value.find((p) => p.is_default)?.name ?? '-',
+)
+const totalStages = computed(() =>
+  activePipelines.value.reduce((total, p) => total + p.stages.length, 0),
+)
 
 function extractError(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -145,6 +154,59 @@ async function handleArchive(pipeline: Pipeline) {
         Pipeline Baru
       </BaseButton>
     </PageHeader>
+
+    <div v-if="!pipelinesQuery.isPending.value" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <BaseCard class="!p-4">
+        <div class="flex items-center gap-3">
+          <span class="grid size-11 place-items-center rounded-2xl bg-brand-50 text-brand-600">
+            <Waypoints class="size-5" />
+          </span>
+          <div>
+            <p class="text-sm text-gray-500">Total Pipeline</p>
+            <p class="text-2xl font-bold">{{ activePipelines.length }}</p>
+          </div>
+        </div>
+      </BaseCard>
+      <BaseCard class="!p-4">
+        <div class="flex items-center gap-3">
+          <span
+            class="grid size-11 place-items-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300"
+          >
+            <Star class="size-5" />
+          </span>
+          <div>
+            <p class="text-sm text-gray-500">Default Pipeline</p>
+            <p class="truncate text-2xl font-bold">{{ defaultPipelineName }}</p>
+          </div>
+        </div>
+      </BaseCard>
+      <BaseCard class="!p-4">
+        <div class="flex items-center gap-3">
+          <span
+            class="grid size-11 place-items-center rounded-2xl bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+          >
+            <Archive class="size-5" />
+          </span>
+          <div>
+            <p class="text-sm text-gray-500">Archived</p>
+            <p class="text-2xl font-bold">{{ archivedCount }}</p>
+          </div>
+        </div>
+      </BaseCard>
+      <BaseCard class="!p-4">
+        <div class="flex items-center gap-3">
+          <span
+            class="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"
+          >
+            <Layers class="size-5" />
+          </span>
+          <div>
+            <p class="text-sm text-gray-500">Total Stage</p>
+            <p class="text-2xl font-bold">{{ totalStages }}</p>
+          </div>
+        </div>
+      </BaseCard>
+    </div>
 
     <div v-if="pipelinesQuery.isPending.value" class="p-12 text-center text-sm text-gray-500">
       Memuat data...
