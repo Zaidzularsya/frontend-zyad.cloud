@@ -105,7 +105,7 @@ function closeMobileSidebar() {
         :to="{ name: isPlatformMode ? 'platform-dashboard' : 'profile' }"
         class="flex items-center gap-3"
       >
-        <BrandLogo v-if="isPlatformMode" class="h-10 shrink-0" />
+        <BrandLogo v-if="isPlatformMode" class="size-10 shrink-0 [&>svg]:h-full [&>svg]:w-full" />
         <span
           v-else
           class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white"
