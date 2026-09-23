@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronDown, ChevronRight, UserCircle2, X } from 'lucide-vue-next'
+import { ChevronDown, UserCircle2, X } from 'lucide-vue-next'
 
 import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
-import {
-  getLandingMenuToneClasses,
-  type LandingMenuTone,
-} from '@/features/landing/builder/config/landing-menu'
+import type { LandingMenuTone } from '@/features/landing/builder/config/landing-menu'
 import { hasPermission } from '@/lib/permission'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -60,9 +57,19 @@ function itemKey(item: MenuItem | MenuChildItem, parentKey = '') {
   return parentKey ? `${parentKey}/${item.label}` : item.label
 }
 
+const toneTextClasses: Record<LandingMenuTone, string> = {
+  sky: 'text-sky-500 dark:text-sky-400',
+  violet: 'text-violet-500 dark:text-violet-400',
+  emerald: 'text-emerald-500 dark:text-emerald-400',
+  amber: 'text-amber-500 dark:text-amber-400',
+  rose: 'text-rose-500 dark:text-rose-400',
+  cyan: 'text-cyan-500 dark:text-cyan-400',
+  slate: 'text-slate-500 dark:text-slate-400',
+}
+
 function iconToneClass(tone?: string) {
-  if (!tone) return 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-300'
-  return getLandingMenuToneClasses(tone as LandingMenuTone)
+  if (!tone) return 'text-gray-400 dark:text-gray-500'
+  return toneTextClasses[tone as LandingMenuTone]
 }
 
 function isOpen(key: string) {
@@ -213,28 +220,28 @@ function closeMobileSidebar() {
 
             <div
               v-if="item.children?.length && isOpen(itemKey(item))"
-              class="mt-2 space-y-2 border-l border-gray-100 pl-4 dark:border-gray-800"
+              class="mt-1 space-y-0.5 border-l border-gray-100 pl-4 dark:border-gray-800"
             >
-              <div v-for="child in item.children" :key="itemKey(child, itemKey(item))">
+              <template v-for="child in item.children" :key="itemKey(child, itemKey(item))">
                 <RouterLink
                   v-if="child.route"
                   :to="{ name: child.route }"
-                  class="group flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3 py-3 text-sm font-medium text-gray-600 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900/80"
-                  active-class="!border-brand-200 !bg-brand-50 !text-brand-700 dark:!border-brand-900 dark:!bg-brand-950 dark:!text-brand-200"
+                  class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+                  :active-class="
+                    isPlatformMode
+                      ? '!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50'
+                      : '!bg-brand-50 !text-brand-600 dark:!bg-brand-950'
+                  "
                   @click="closeMobileSidebar"
                 >
-                  <span
-                    class="grid size-9 shrink-0 place-items-center rounded-xl text-white shadow-sm"
+                  <component
+                    :is="child.icon || item.icon"
+                    class="size-4 shrink-0"
                     :class="iconToneClass(child.tone)"
-                  >
-                    <component :is="child.icon || item.icon" class="size-4" />
-                  </span>
-                  <span class="min-w-0 flex-1 truncate">{{ child.label }}</span>
-                  <ChevronRight
-                    class="size-4 shrink-0 text-gray-300 transition group-hover:text-gray-500"
                   />
+                  <span class="min-w-0 flex-1 truncate">{{ child.label }}</span>
                 </RouterLink>
-              </div>
+              </template>
             </div>
           </div>
         </div>
