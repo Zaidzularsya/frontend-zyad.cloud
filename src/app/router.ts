@@ -286,6 +286,66 @@ const routes: RouteRecordRaw[] = [
       },
       ...buildCrmRoutes('crm', 'platform-crm'),
       {
+        path: 'sales/orders',
+        name: 'platform-sales-orders',
+        component: placeholder,
+        props: {
+          title: 'Sales Orders',
+          description: 'Kelola sales order hasil konversi quotation yang deal.',
+        },
+        meta: { title: 'Sales Orders' },
+      },
+      {
+        path: 'sales/contracts',
+        name: 'platform-contracts',
+        component: placeholder,
+        props: {
+          title: 'Contracts',
+          description: 'Kelola kontrak berlangganan dan perjanjian dengan customer.',
+        },
+        meta: { title: 'Contracts' },
+      },
+      {
+        path: 'billing/payments',
+        name: 'platform-billing-payments',
+        component: placeholder,
+        props: {
+          title: 'Payments',
+          description: 'Riwayat pembayaran invoice dari seluruh tenant.',
+        },
+        meta: { title: 'Payments' },
+      },
+      {
+        path: 'billing/recurring',
+        name: 'platform-billing-recurring',
+        component: placeholder,
+        props: {
+          title: 'Recurring Billing',
+          description: 'Jadwal penagihan berulang untuk subscription tenant.',
+        },
+        meta: { title: 'Recurring Billing' },
+      },
+      {
+        path: 'billing/credit-notes',
+        name: 'platform-billing-credit-notes',
+        component: placeholder,
+        props: {
+          title: 'Credit Notes',
+          description: 'Nota kredit atas koreksi atau kelebihan tagihan invoice.',
+        },
+        meta: { title: 'Credit Notes' },
+      },
+      {
+        path: 'billing/refunds',
+        name: 'platform-billing-refunds',
+        component: placeholder,
+        props: {
+          title: 'Refunds',
+          description: 'Pengajuan dan riwayat refund pembayaran tenant.',
+        },
+        meta: { title: 'Refunds' },
+      },
+      {
         path: 'notifications',
         name: 'platform-notifications',
         component: () => import('@/features/notifications/pages/NotificationManagementPage.vue'),
