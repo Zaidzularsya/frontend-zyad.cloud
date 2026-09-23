@@ -15,6 +15,14 @@ export const companyKeys = {
   detail: (id: string) => [...companyKeys.details(), id] as const,
 }
 
+export function useCompanyQuery(id: Ref<string | undefined>) {
+  return useQuery({
+    queryKey: computed(() => companyKeys.detail(id.value ?? '')),
+    queryFn: () => companiesApi.detail(id.value as string),
+    enabled: computed(() => Boolean(id.value)),
+  })
+}
+
 export function useCompaniesQuery(params: Ref<CompanyListParams>) {
   return useQuery({
     queryKey: computed(() => companyKeys.list(params.value)),
