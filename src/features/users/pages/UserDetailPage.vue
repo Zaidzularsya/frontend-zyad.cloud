@@ -30,6 +30,8 @@ import { formatDate } from '@/lib/utils'
 
 const route = useRoute()
 const router = useRouter()
+const isPlatformMode = computed(() => route.path.startsWith('/platform'))
+const usersListRoute = computed(() => (isPlatformMode.value ? 'platform-users' : 'users'))
 
 const userId = computed(() => String(route.params.id || ''))
 const isNewRoute = computed(() => userId.value === 'new')
@@ -82,7 +84,7 @@ const activeRoles = computed(() => user.value?.roles ?? [])
 const activePermissions = computed(() => user.value?.direct_permissions ?? [])
 
 function goBack() {
-  void router.push({ name: 'users' })
+  void router.push({ name: usersListRoute.value })
 }
 
 function resetStatusError() {
@@ -141,7 +143,7 @@ async function handleDelete() {
   if (!user.value) return
   if (!confirm(`Hapus pengguna ${user.value.name}?`)) return
   await deleteUserMut.mutateAsync(user.value.id)
-  await router.push({ name: 'users' })
+  await router.push({ name: usersListRoute.value })
 }
 
 async function handleRestore() {
