@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronDown, ChevronRight, UserCircle2, X } from 'lucide-vue-next'
 
+import BrandLogo from '@/features/branding/components/BrandLogo.vue'
 import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
 import {
@@ -104,12 +105,12 @@ function closeMobileSidebar() {
         :to="{ name: isPlatformMode ? 'platform-dashboard' : 'profile' }"
         class="flex items-center gap-3"
       >
-        <img
+        <span
           v-if="isPlatformMode"
-          src="/branding/zyad-icon-square.svg"
-          alt="Zyad Cloud"
-          class="size-10 shrink-0 rounded-xl object-contain"
-        />
+          class="grid size-10 shrink-0 place-items-center rounded-xl bg-[#00003c]"
+        >
+          <BrandLogo variant="dark" class="h-6 w-auto" />
+        </span>
         <span
           v-else
           class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white"
