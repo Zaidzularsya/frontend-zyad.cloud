@@ -251,7 +251,7 @@ function closeMobileSidebar() {
     <div class="border-t p-4 pt-5">
       <RouterLink
         v-if="isPlatformMode"
-        :to="{ name: 'profile' }"
+        :to="{ name: 'platform-profile' }"
         class="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
         active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
         @click="closeMobileSidebar"
