@@ -315,6 +315,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Platform Overview' },
       },
       {
+        path: 'profile',
+        name: 'platform-profile',
+        component: () => import('@/features/profile/pages/ProfilePage.vue'),
+        meta: { title: 'Profile' },
+      },
+      {
         path: 'landing-pages',
         name: 'platform-landing-pages',
         redirect: { name: 'platform-landing-pages-pages' },
