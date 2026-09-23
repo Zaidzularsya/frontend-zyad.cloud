@@ -219,6 +219,29 @@ export const platformMenuGroups: MenuGroup[] = [
 
 export const customerMenuGroups: MenuGroup[] = [
   {
+    label: 'Workspace',
+    items: [
+      {
+        label: 'Landing Page',
+        route: 'landing-pages',
+        icon: Globe,
+        children: buildLandingManagementMenuItems('landing-pages'),
+      },
+      { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: 'Storage',
+    items: [
+      {
+        label: 'Files',
+        route: 'storage',
+        icon: HardDrive,
+        permission: 'storage.object.read',
+      },
+    ],
+  },
+  {
     label: 'CRM',
     items: [
       { label: 'Leads', route: 'crm-leads', icon: Magnet, permission: 'lead.read' },
@@ -300,33 +323,10 @@ export const customerMenuGroups: MenuGroup[] = [
     ],
   },
   {
-    label: 'Workspace',
-    items: [
-      {
-        label: 'Landing Page',
-        route: 'landing-pages',
-        icon: Globe,
-        children: buildLandingManagementMenuItems('landing-pages'),
-      },
-      { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
-    ],
-  },
-  {
     label: 'Account Services',
     items: [
       { label: 'Plan & Billing', route: 'billing', icon: CreditCard },
       { label: 'Support Tickets', route: 'ticketing', icon: LifeBuoy },
-    ],
-  },
-  {
-    label: 'Storage',
-    items: [
-      {
-        label: 'Files',
-        route: 'storage',
-        icon: HardDrive,
-        permission: 'storage.object.read',
-      },
     ],
   },
 ]
