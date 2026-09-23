@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   Check,
   ChevronDown,
   Copy,
+  CreditCard,
+  LifeBuoy,
   LogOut,
   Menu,
   Moon,
@@ -141,6 +143,24 @@ onBeforeUnmount(() => {
             <p class="text-sm font-semibold">{{ auth.user?.name }}</p>
             <p class="mt-0.5 truncate text-xs text-gray-500">{{ auth.user?.email }}</p>
           </div>
+          <template v-if="!isPlatformMode && tenant.activeTenantId">
+            <RouterLink
+              :to="{ name: 'billing' }"
+              class="flex items-center gap-3 border-b px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
+              @click="accountMenuOpen = false"
+            >
+              <CreditCard class="size-4 text-gray-500" />
+              Tagihan
+            </RouterLink>
+            <RouterLink
+              :to="{ name: 'ticketing' }"
+              class="flex items-center gap-3 border-b px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
+              @click="accountMenuOpen = false"
+            >
+              <LifeBuoy class="size-4 text-gray-500" />
+              Bantuan
+            </RouterLink>
+          </template>
           <button
             v-if="tenant.activeTenantId"
             class="flex w-full items-center gap-3 border-b px-4 py-3 text-left text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
