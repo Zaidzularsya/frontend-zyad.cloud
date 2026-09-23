@@ -1,7 +1,6 @@
 import type { Component } from 'vue'
 import {
   Bell,
-  Brush,
   Building2,
   Calculator,
   CreditCard,
@@ -13,6 +12,7 @@ import {
   LifeBuoy,
   Magnet,
   Package,
+  Settings,
   ShieldCheck,
   Users,
   Waypoints,
@@ -58,25 +58,12 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: Globe,
         children: buildLandingManagementMenuItems('platform-landing-pages'),
       },
-      { label: 'Branding', route: 'platform-branding', icon: Brush },
-      { label: 'Admins & Roles', route: 'platform-users', icon: ShieldCheck },
+      { label: 'Members', route: 'platform-users', icon: ShieldCheck },
       {
         label: 'Product Catalog',
         route: 'platform-billing-plans',
         icon: Package,
         description: 'Katalog plan, harga, dan feature platform untuk berlangganan.',
-      },
-      {
-        label: 'Notifications',
-        route: 'platform-notifications',
-        icon: Bell,
-        permission: 'notification_template.read',
-      },
-      {
-        label: 'Audit Logs',
-        route: 'platform-audit-logs',
-        icon: FileClock,
-        permission: 'audit.read',
       },
       {
         label: 'Storage Quota',
@@ -85,11 +72,27 @@ export const platformMenuGroups: MenuGroup[] = [
         description: 'Atur batas kapasitas storage per tenant.',
         permission: 'platform.organization.manage',
       },
+      {
+        label: 'Settings',
+        icon: Settings,
+        children: [
+          {
+            label: 'Notification Templates',
+            route: 'platform-notifications',
+            icon: Bell,
+            description: 'Template & aturan pengiriman notifikasi sistem ke tenant.',
+            permission: 'notification_template.read',
+          },
+          {
+            label: 'Audit Logs',
+            route: 'platform-audit-logs',
+            icon: FileClock,
+            description: 'Riwayat aktivitas admin & perubahan data di seluruh platform.',
+            permission: 'audit.read',
+          },
+        ],
+      },
     ],
-  },
-  {
-    label: 'Business Management',
-    items: [{ label: 'Customers', route: 'platform-customers', icon: Users }],
   },
   {
     label: 'CRM',

@@ -273,7 +273,7 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         name: 'platform-users',
         component: () => import('@/features/users/pages/UsersPage.vue'),
-        meta: { title: 'Admins & Roles' },
+        meta: { title: 'Members' },
       },
       {
         path: 'customers',
