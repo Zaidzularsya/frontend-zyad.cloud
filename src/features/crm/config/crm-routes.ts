@@ -32,6 +32,12 @@ export function buildCrmRoutes(
       meta: { title: 'Leads', permissions: ['lead.read'] },
     },
     {
+      path: `${pathPrefix}/leads/:id`,
+      name: `${namePrefix}-lead-detail`,
+      component: () => import('@/features/crm/leads/pages/LeadDetailPage.vue'),
+      meta: { title: 'Detail Lead', permissions: ['lead.read'] },
+    },
+    {
       path: `${pathPrefix}/pipelines`,
       name: `${namePrefix}-pipelines`,
       component: () => import('@/features/crm/pipelines/pages/PipelinesPage.vue'),

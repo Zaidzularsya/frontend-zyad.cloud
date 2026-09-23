@@ -12,6 +12,16 @@ export interface LeadListParams {
   status?: LeadStatus
 }
 
+// Bentuk bebas (jsonb) — sama seperti crm_contacts.address; field di bawah
+// adalah yang diisi oleh form lead.
+export interface LeadAddress {
+  street?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+}
+
 export interface Lead {
   id: string
   contact_name: string
@@ -22,7 +32,11 @@ export interface Lead {
   status: LeadStatus
   score: number
   owner_user_id?: string
+  owner_name?: string
   notes?: string
+  job_title?: string
+  annual_revenue?: string | null
+  address: LeadAddress
   converted_contact_id?: string | null
   converted_company_id?: string | null
   converted_deal_id?: string | null
@@ -41,6 +55,27 @@ export interface LeadPayload {
   score?: number
   owner_user_id?: string
   notes?: string
+  job_title?: string
+  /** String desimal; "" mengosongkan nilai. */
+  annual_revenue?: string
+  address?: LeadAddress
+}
+
+export interface LeadAttachment {
+  id: string
+  lead_id: string
+  asset_object_id: string
+  filename: string
+  mime_type: string
+  size_bytes: number
+  created_by?: string
+  created_at: string
+}
+
+export interface CrmMember {
+  user_id: string
+  name: string
+  email: string
 }
 
 export interface LeadConversionResult {
@@ -88,6 +123,39 @@ export const leadsApi = {
       .post<{ success: boolean; data: Lead }>(`/app/crm/leads/${id}/assign`, {
         owner_user_id: ownerUserId,
       })
+      .then((response) => response.data.data),
+
+  attachments: (id: string) =>
+    http
+      .get<{ success: boolean; data: LeadAttachment[] }>(`/app/crm/leads/${id}/attachments`)
+      .then((response) => response.data.data),
+
+  uploadAttachment: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return http
+      .post<{ success: boolean; data: LeadAttachment }>(`/app/crm/leads/${id}/attachments`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((response) => response.data.data)
+  },
+
+  attachmentDownloadUrl: (id: string, attachmentId: string) =>
+    http
+      .get<{
+        success: boolean
+        data: { download_url: string }
+      }>(`/app/crm/leads/${id}/attachments/${attachmentId}/download`)
+      .then((response) => response.data.data.download_url),
+
+  deleteAttachment: (id: string, attachmentId: string) =>
+    http
+      .delete(`/app/crm/leads/${id}/attachments/${attachmentId}`)
+      .then((response) => response.data.data),
+
+  members: () =>
+    http
+      .get<{ success: boolean; data: CrmMember[] }>('/app/crm/members')
       .then((response) => response.data.data),
 
   convert: (id: string, payload: { create_company: boolean; owner_user_id?: string }) =>

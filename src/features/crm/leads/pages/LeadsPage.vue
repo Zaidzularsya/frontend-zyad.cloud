@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Download,
   Magnet,
@@ -27,6 +28,13 @@ import {
   useUpdateLeadMutation,
 } from '@/features/crm/leads/api/leads.queries'
 import { formatDate } from '@/lib/utils'
+
+const route = useRoute()
+const router = useRouter()
+
+function openDetail(lead: Lead) {
+  void router.push(`${route.path.replace(/\/$/, '')}/${lead.id}`)
+}
 
 const statusLabels: Record<LeadStatus, string> = {
   new: 'Baru',
@@ -405,7 +413,12 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
                 />
               </td>
               <td class="px-5 py-3">
-                <p class="font-medium">{{ lead.contact_name }}</p>
+                <button
+                  class="text-left font-medium hover:text-brand-600 hover:underline"
+                  @click="openDetail(lead)"
+                >
+                  {{ lead.contact_name }}
+                </button>
                 <p v-if="lead.email" class="text-xs text-gray-500">{{ lead.email }}</p>
               </td>
               <td class="px-5 py-3 text-gray-500">{{ lead.company_name || '-' }}</td>
