@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronDown, Landmark, UserCircle2, X } from 'lucide-vue-next'
+import { ChevronDown, FileText, Landmark, ShieldQuestion, UserCircle2, X } from 'lucide-vue-next'
 
 import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
@@ -249,16 +249,56 @@ function closeMobileSidebar() {
     </nav>
 
     <div class="border-t p-4 pt-5">
-      <RouterLink
-        v-if="isPlatformMode"
-        :to="{ name: 'platform-profile' }"
-        class="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
-        active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
-        @click="closeMobileSidebar"
-      >
-        <UserCircle2 class="size-5" />
-        Profile
-      </RouterLink>
+      <template v-if="isPlatformMode">
+        <div v-if="isOpen('account')" class="mb-2 space-y-1">
+          <RouterLink
+            :to="{ name: 'platform-profile' }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50"
+            @click="closeMobileSidebar"
+          >
+            <UserCircle2 class="size-4 shrink-0" />
+            Profile
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'platform-bank' }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50"
+            @click="closeMobileSidebar"
+          >
+            <Landmark class="size-4 shrink-0" />
+            Bank
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-privacy' }"
+            target="_blank"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+          >
+            <ShieldQuestion class="size-4 shrink-0" />
+            Privacy Policy
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-terms' }"
+            target="_blank"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+          >
+            <FileText class="size-4 shrink-0" />
+            Terms and Conditions
+          </RouterLink>
+        </div>
+        <button
+          type="button"
+          class="flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+          @click="toggleMenu('account')"
+        >
+          <UserCircle2 class="size-5" />
+          <span class="flex-1 text-left">Platform</span>
+          <ChevronDown
+            class="size-4 shrink-0 text-gray-400 transition-transform"
+            :class="isOpen('account') ? 'rotate-180' : ''"
+          />
+        </button>
+      </template>
       <template v-else>
         <div v-if="isOpen('account')" class="mb-2 space-y-1">
           <RouterLink
