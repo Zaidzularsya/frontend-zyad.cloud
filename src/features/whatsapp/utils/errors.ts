@@ -18,6 +18,15 @@ const messages: Record<string, string> = {
   WHATSAPP_SESSION_NOT_SCANNING:
     'Koneksi belum siap untuk pairing. Tunggu beberapa detik atau hubungkan ulang.',
   WHATSAPP_SESSION_NOT_FOUND: 'Koneksi WhatsApp tidak ditemukan.',
+  WHATSAPP_RATE_LIMITED: 'Terlalu banyak pesan dari nomor ini. Tunggu sebentar lalu kirim lagi.',
+  WHATSAPP_SESSION_NOT_CONNECTED:
+    'Nomor WhatsApp pengirim sedang terputus. Hubungkan ulang di halaman WhatsApp.',
+  WHATSAPP_NO_CONNECTED_SESSION:
+    'Belum ada nomor WhatsApp yang terhubung. Hubungkan nomor di halaman WhatsApp.',
+  WHATSAPP_ENTITY_PHONE_INVALID: 'Nomor telepon lead belum valid untuk WhatsApp.',
+  WHATSAPP_CONVERSATION_FORBIDDEN: 'Chat dengan lead ini dipegang user lain.',
+  WHATSAPP_CONVERSATION_NOT_FOUND: 'Percakapan tidak ditemukan atau bukan milik Anda.',
+  WHATSAPP_MESSAGE_NOT_RETRYABLE: 'Pesan ini tidak bisa dikirim ulang.',
 }
 
 export function whatsappErrorCode(error: unknown): string | undefined {

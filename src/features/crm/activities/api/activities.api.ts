@@ -2,7 +2,9 @@ import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
 export type ActivityEntityType = 'lead' | 'contact' | 'company' | 'deal'
-export type ActivityType = 'call' | 'email' | 'meeting' | 'task' | 'note'
+export type ActivityType = 'call' | 'email' | 'meeting' | 'task' | 'note' | 'whatsapp'
+/** Types a user can create by hand; 'whatsapp' activities are written by the system. */
+export type ManualActivityType = Exclude<ActivityType, 'whatsapp'>
 export type ActivityStatus = 'pending' | 'completed' | 'cancelled'
 
 export interface ActivityListParams {

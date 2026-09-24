@@ -1,17 +1,24 @@
 import { http } from '@/lib/http'
 
 import type {
+  ConversationListParams,
   CreateSessionPayload,
+  MessagePage,
   SessionQR,
+  StartConversationPayload,
   UpdateSessionPayload,
+  WhatsAppConversation,
+  WhatsAppMessage,
   WhatsAppSession,
 } from '@/features/whatsapp/types'
 
 type Envelope<T> = { success: boolean; data: T }
 
 const base = '/app/whatsapp/sessions'
+const conversationsBase = '/app/whatsapp/conversations'
 
-// Endpoints: backend/docs/reference-whatsapp.md "Session API (Fase 4)".
+// Endpoints: backend/docs/reference-whatsapp.md "Session API (Fase 4)" and
+// "Conversation & Messaging API (Fase 6)".
 export const whatsappApi = {
   listSessions: () =>
     http.get<Envelope<WhatsAppSession[]>>(base).then((response) => response.data.data),
@@ -55,4 +62,36 @@ export const whatsappApi = {
     http
       .post<Envelope<{ code: string }>>(`${base}/${id}/pairing-code`, { phone })
       .then((response) => response.data.data.code),
+
+  /** Without whatsapp.conversation.read_all the backend returns own conversations only. */
+  listConversations: (params: ConversationListParams) =>
+    http
+      .get<Envelope<WhatsAppConversation[]>>(conversationsBase, { params })
+      .then((response) => response.data.data),
+
+  startConversation: (payload: StartConversationPayload) =>
+    http
+      .post<Envelope<WhatsAppConversation>>(`${conversationsBase}/start`, payload)
+      .then((response) => response.data.data),
+
+  listMessages: (conversationId: string, before?: string, limit = 30) =>
+    http
+      .get<Envelope<MessagePage>>(`${conversationsBase}/${conversationId}/messages`, {
+        params: { before: before || undefined, limit },
+      })
+      .then((response) => response.data.data),
+
+  /** Provider failures come back as a message with status "failed", not an error. */
+  sendMessage: (conversationId: string, text: string) =>
+    http
+      .post<Envelope<WhatsAppMessage>>(`${conversationsBase}/${conversationId}/messages`, { text })
+      .then((response) => response.data.data),
+
+  retryMessage: (messageId: string) =>
+    http
+      .post<Envelope<WhatsAppMessage>>(`/app/whatsapp/messages/${messageId}/retry`)
+      .then((response) => response.data.data),
+
+  markConversationRead: (conversationId: string) =>
+    http.post(`${conversationsBase}/${conversationId}/read`).then(() => undefined),
 }
