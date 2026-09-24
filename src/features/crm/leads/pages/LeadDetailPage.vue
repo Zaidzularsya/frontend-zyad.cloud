@@ -138,7 +138,9 @@ const auth = useAuthStore()
 const canUseWhatsApp = computed(() => auth.can('whatsapp.conversation.read'))
 const middleTabs = [
   { value: 'timeline', label: 'Timeline' },
-  { value: 'whatsapp', label: 'WhatsApp' },
+  // "Chat" makes clear this opens the conversation; the timeline still lists
+  // the daily 'whatsapp' activities under "Activity".
+  { value: 'whatsapp', label: 'Chat WhatsApp' },
 ] as const
 const middleTab = ref<'timeline' | 'whatsapp'>('timeline')
 const documentVisible = useDocumentVisible()
@@ -150,14 +152,13 @@ const leadConversationQuery = useEntityConversationQuery(
 const whatsappUnread = computed(() => leadConversationQuery.data.value?.unread_count ?? 0)
 
 // --- Activity ---
-const tabs: { value: ActivityType | 'all'; label: string }[] = [
+const tabs: { value: ManualActivityType | 'all'; label: string }[] = [
   { value: 'all', label: 'Activity' },
   { value: 'note', label: 'Notes' },
   { value: 'email', label: 'Emails' },
   { value: 'call', label: 'Calls' },
   { value: 'task', label: 'Task' },
   { value: 'meeting', label: 'Meetings' },
-  { value: 'whatsapp', label: 'WhatsApp' },
 ]
 const typeLabels: Record<ActivityType, string> = {
   call: 'Telepon',
@@ -176,7 +177,7 @@ const manualTypeLabels: Record<ManualActivityType, string> = {
   note: typeLabels.note,
 }
 
-const activeTab = ref<ActivityType | 'all'>('all')
+const activeTab = ref<ManualActivityType | 'all'>('all')
 const activitySearch = ref('')
 
 const activityParams = computed(() => ({
@@ -715,7 +716,7 @@ async function removeAttachment(attachment: LeadAttachment) {
             </button>
           </div>
 
-          <div v-if="activeTab !== 'whatsapp'" class="flex justify-end">
+          <div class="flex justify-end">
             <BaseButton
               variant="outline"
               @click="openComposer(activeTab === 'all' ? 'note' : activeTab)"
