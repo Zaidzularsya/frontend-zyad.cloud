@@ -29,8 +29,8 @@ export const whatsappKeys = {
   messages: (conversationId: string) => [...whatsappKeys.all, 'messages', conversationId] as const,
 }
 
-const CONVERSATION_POLL_MS = 15000
-const MESSAGES_POLL_MS = 5000
+const CONVERSATION_POLL_MS = 8000
+const MESSAGES_POLL_MS = 3000
 const MESSAGES_PAGE_SIZE = 30
 
 export function useSessionsQuery() {
@@ -137,6 +137,9 @@ export function useEntityConversationQuery(
     },
     enabled: computed(() => options.enabled.value && Boolean(id.value)),
     refetchInterval: computed(() => (options.visible.value ? CONVERSATION_POLL_MS : false)),
+    // Coming back from another tab/app should feel current immediately,
+    // not wait out the rest of the interval.
+    refetchOnWindowFocus: 'always',
   })
 }
 
@@ -153,6 +156,7 @@ export function useConversationMessagesQuery(conversationId: Ref<string>, pollin
     getNextPageParam: (lastPage: MessagePage) => lastPage.next_before || undefined,
     enabled: computed(() => Boolean(conversationId.value)),
     refetchInterval: computed(() => (polling.value ? MESSAGES_POLL_MS : false)),
+    refetchOnWindowFocus: 'always',
   })
 }
 
