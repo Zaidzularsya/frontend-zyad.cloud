@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Package, Plus, Trash2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -20,6 +21,8 @@ import {
   useIntegrationsQuery,
   useUpdateIntegrationSecretMutation,
 } from '@/features/crm/integrations/api/integrations.queries'
+
+const route = useRoute()
 
 const providerLabels: Record<IntegrationProvider, string> = {
   webhook: 'Webhook',
@@ -112,6 +115,16 @@ async function submitForm() {
         Integration Baru
       </BaseButton>
     </PageHeader>
+
+    <p class="text-sm text-gray-600 dark:text-gray-400">
+      Untuk menghubungkan nomor WhatsApp dan chat langsung dengan lead, buka halaman
+      <RouterLink
+        :to="{ name: route.path.startsWith('/platform') ? 'platform-whatsapp' : 'whatsapp' }"
+        class="font-medium text-brand-600 hover:underline dark:text-brand-400"
+      >
+        WhatsApp</RouterLink
+      >.
+    </p>
 
     <BaseCard class="!p-0">
       <div v-if="integrationsQuery.isPending.value" class="p-12 text-center text-sm text-gray-500">
