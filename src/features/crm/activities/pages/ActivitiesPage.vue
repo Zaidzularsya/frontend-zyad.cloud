@@ -14,6 +14,7 @@ import type {
   ActivityPayload,
   ActivityStatus,
   ActivityType,
+  ManualActivityType,
 } from '@/features/crm/activities/api/activities.api'
 import {
   useActivitiesQuery,
@@ -35,6 +36,15 @@ const typeLabels: Record<ActivityType, string> = {
   meeting: 'Meeting',
   task: 'Task',
   note: 'Catatan',
+  whatsapp: 'WhatsApp',
+}
+// The create form only offers types a user records by hand.
+const manualTypeLabels: Record<ManualActivityType, string> = {
+  call: typeLabels.call,
+  email: typeLabels.email,
+  meeting: typeLabels.meeting,
+  task: typeLabels.task,
+  note: typeLabels.note,
 }
 
 const statusFilter = ref<ActivityStatus | 'all'>('pending')
@@ -233,7 +243,7 @@ watch([statusFilter, entityTypeFilter], () => {
               v-model="form.type"
               class="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
             >
-              <option v-for="(label, value) in typeLabels" :key="value" :value="value">
+              <option v-for="(label, value) in manualTypeLabels" :key="value" :value="value">
                 {{ label }}
               </option>
             </select>

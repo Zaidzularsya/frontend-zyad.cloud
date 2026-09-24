@@ -125,6 +125,12 @@ const routes: RouteRecordRaw[] = [
       },
       ...buildCrmRoutes('crm'),
       {
+        path: 'whatsapp',
+        name: 'whatsapp',
+        component: () => import('@/features/whatsapp/pages/WhatsAppConnectionsPage.vue'),
+        meta: { title: 'WhatsApp', permissions: ['whatsapp.session.read'] },
+      },
+      {
         path: 'sales/orders',
         name: 'sales-orders',
         component: placeholder,
@@ -372,6 +378,12 @@ const routes: RouteRecordRaw[] = [
         },
       },
       ...buildCrmRoutes('crm', 'platform-crm'),
+      {
+        path: 'whatsapp',
+        name: 'platform-whatsapp',
+        component: () => import('@/features/whatsapp/pages/WhatsAppConnectionsPage.vue'),
+        meta: { title: 'WhatsApp', permissions: ['whatsapp.session.read'] },
+      },
       {
         path: 'sales/orders',
         name: 'platform-sales-orders',

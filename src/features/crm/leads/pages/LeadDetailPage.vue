@@ -20,7 +20,11 @@ import {
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 
-import type { Activity, ActivityType } from '@/features/crm/activities/api/activities.api'
+import type {
+  Activity,
+  ActivityType,
+  ManualActivityType,
+} from '@/features/crm/activities/api/activities.api'
 import {
   useActivitiesQuery,
   useCancelActivityMutation,
@@ -46,7 +50,11 @@ import {
   useUploadLeadAttachmentMutation,
 } from '@/features/crm/leads/api/leads.queries'
 import { compactAddress, isValidAnnualRevenue } from '@/features/crm/leads/utils/lead-form'
+import ConversationPanel from '@/features/whatsapp/components/ConversationPanel.vue'
+import { useEntityConversationQuery } from '@/features/whatsapp/api/whatsapp.queries'
+import { useDocumentVisible } from '@/features/whatsapp/composables/useDocumentVisible'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth.store'
 
 const route = useRoute()
 const router = useRouter()
@@ -125,6 +133,22 @@ async function convert() {
   }
 }
 
+// --- Panel tengah: Timeline | WhatsApp ---
+const auth = useAuthStore()
+const canUseWhatsApp = computed(() => auth.can('whatsapp.conversation.read'))
+const middleTabs = [
+  { value: 'timeline', label: 'Timeline' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+] as const
+const middleTab = ref<'timeline' | 'whatsapp'>('timeline')
+const documentVisible = useDocumentVisible()
+const leadConversationQuery = useEntityConversationQuery(
+  computed(() => 'lead' as const),
+  leadId,
+  { enabled: canUseWhatsApp, visible: documentVisible },
+)
+const whatsappUnread = computed(() => leadConversationQuery.data.value?.unread_count ?? 0)
+
 // --- Activity ---
 const tabs: { value: ActivityType | 'all'; label: string }[] = [
   { value: 'all', label: 'Activity' },
@@ -133,6 +157,7 @@ const tabs: { value: ActivityType | 'all'; label: string }[] = [
   { value: 'call', label: 'Calls' },
   { value: 'task', label: 'Task' },
   { value: 'meeting', label: 'Meetings' },
+  { value: 'whatsapp', label: 'WhatsApp' },
 ]
 const typeLabels: Record<ActivityType, string> = {
   call: 'Telepon',
@@ -140,6 +165,15 @@ const typeLabels: Record<ActivityType, string> = {
   meeting: 'Meeting',
   task: 'Task',
   note: 'Catatan',
+  whatsapp: 'WhatsApp',
+}
+// The create form only offers types a user records by hand.
+const manualTypeLabels: Record<ManualActivityType, string> = {
+  call: typeLabels.call,
+  email: typeLabels.email,
+  meeting: typeLabels.meeting,
+  task: typeLabels.task,
+  note: typeLabels.note,
 }
 
 const activeTab = ref<ActivityType | 'all'>('all')
@@ -185,13 +219,13 @@ const cancelMutation = useCancelActivityMutation()
 const composerOpen = ref(false)
 const composerError = ref('')
 const composer = reactive({
-  type: 'note' as ActivityType,
+  type: 'note' as ManualActivityType,
   subject: '',
   description: '',
   due_at: '',
 })
 
-function openComposer(type: ActivityType) {
+function openComposer(type: ManualActivityType) {
   Object.assign(composer, { type, subject: '', description: '', due_at: '' })
   composerError.value = ''
   composerOpen.value = true
@@ -597,152 +631,214 @@ async function removeAttachment(attachment: LeadAttachment) {
         </div>
       </BaseCard>
 
-      <!-- Panel tengah: activity -->
+      <!-- Panel tengah: timeline activity | chat WhatsApp -->
       <BaseCard class="space-y-4 !p-5">
-        <label class="relative block">
-          <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-          <input
-            v-model="activitySearch"
-            type="search"
-            placeholder="Cari activity, notes, email..."
-            class="w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
-          />
-        </label>
-
-        <div class="flex gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 dark:bg-gray-900">
+        <div
+          v-if="canUseWhatsApp"
+          role="tablist"
+          aria-label="Panel lead"
+          class="flex gap-1 border-b dark:border-gray-800"
+        >
           <button
-            v-for="tab in tabs"
+            v-for="tab in middleTabs"
+            :id="`lead-tab-${tab.value}`"
             :key="tab.value"
-            class="flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium"
+            type="button"
+            role="tab"
+            :aria-selected="middleTab === tab.value"
+            :aria-controls="`lead-panel-${tab.value}`"
+            class="-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-brand-500"
             :class="
-              activeTab === tab.value
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700'
+              middleTab === tab.value
+                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                : 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
             "
-            @click="activeTab = tab.value"
+            @click="middleTab = tab.value"
           >
             {{ tab.label }}
+            <span
+              v-if="tab.value === 'whatsapp' && whatsappUnread > 0"
+              class="rounded-full bg-brand-500 px-1.5 text-xs font-semibold text-white"
+              :aria-label="`${whatsappUnread} pesan belum dibaca`"
+            >
+              {{ whatsappUnread }}
+            </span>
           </button>
         </div>
 
-        <div class="flex justify-end">
-          <BaseButton
-            variant="outline"
-            @click="openComposer(activeTab === 'all' ? 'note' : activeTab)"
-          >
-            <Plus class="size-4" />
-            Tambah {{ activeTab === 'all' ? 'activity' : typeLabels[activeTab].toLowerCase() }}
-          </BaseButton>
+        <div
+          v-if="canUseWhatsApp && middleTab === 'whatsapp'"
+          id="lead-panel-whatsapp"
+          role="tabpanel"
+          aria-labelledby="lead-tab-whatsapp"
+        >
+          <ConversationPanel
+            related-entity-type="lead"
+            :related-entity-id="leadId"
+            :phone="lead.phone"
+            :entity-name="lead.contact_name"
+            :active="middleTab === 'whatsapp'"
+            @edit-phone="startEdit"
+          />
         </div>
 
-        <form
-          v-if="composerOpen"
-          class="space-y-3 rounded-xl border p-4"
-          @submit.prevent="submitActivity"
+        <div
+          v-show="!canUseWhatsApp || middleTab === 'timeline'"
+          id="lead-panel-timeline"
+          role="tabpanel"
+          aria-labelledby="lead-tab-timeline"
+          class="space-y-4"
         >
-          <div class="grid gap-3 sm:grid-cols-2">
-            <select
-              v-model="composer.type"
-              class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
-            >
-              <option v-for="(label, value) in typeLabels" :key="value" :value="value">
-                {{ label }}
-              </option>
-            </select>
+          <label class="relative block">
+            <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
             <input
-              v-model="composer.due_at"
-              type="datetime-local"
-              class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
-              :disabled="composer.type === 'note'"
+              v-model="activitySearch"
+              type="search"
+              placeholder="Cari activity, notes, email..."
+              class="w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
             />
+          </label>
+
+          <div class="flex gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 dark:bg-gray-900">
+            <button
+              v-for="tab in tabs"
+              :key="tab.value"
+              class="flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium"
+              :class="
+                activeTab === tab.value
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700'
+              "
+              @click="activeTab = tab.value"
+            >
+              {{ tab.label }}
+            </button>
           </div>
-          <input
-            v-model="composer.subject"
-            type="text"
-            placeholder="Subjek"
-            class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
-          />
-          <textarea
-            v-model="composer.description"
-            rows="3"
-            placeholder="Deskripsi (opsional)"
-            class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
-          />
-          <p v-if="composerError" class="text-sm text-red-600">{{ composerError }}</p>
-          <div class="flex justify-end gap-2">
-            <BaseButton variant="secondary" @click="composerOpen = false">Batal</BaseButton>
-            <BaseButton type="submit" :disabled="createMutation.isPending.value">
-              {{ createMutation.isPending.value ? 'Menyimpan...' : 'Simpan' }}
+
+          <div v-if="activeTab !== 'whatsapp'" class="flex justify-end">
+            <BaseButton
+              variant="outline"
+              @click="openComposer(activeTab === 'all' ? 'note' : activeTab)"
+            >
+              <Plus class="size-4" />
+              Tambah {{ activeTab === 'all' ? 'activity' : typeLabels[activeTab].toLowerCase() }}
             </BaseButton>
           </div>
-        </form>
 
-        <div v-if="activitiesQuery.isPending.value" class="py-8 text-center text-sm text-gray-500">
-          Memuat activity...
-        </div>
-        <div
-          v-else-if="activitiesQuery.isError.value"
-          class="py-8 text-center text-sm text-red-700"
-        >
-          Activity tidak dapat dimuat.
-        </div>
-        <template v-else>
-          <section v-if="upcoming.length">
-            <h2 class="mb-2 font-semibold">Upcoming Activity</h2>
-            <ul class="space-y-2">
-              <li v-for="activity in upcoming" :key="activity.id" class="rounded-xl border p-4">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="text-xs text-gray-500">{{ typeLabels[activity.type] }}</p>
-                    <p class="font-medium">{{ activity.subject }}</p>
-                    <p v-if="activity.description" class="mt-1 text-sm text-gray-500">
-                      {{ activity.description }}
-                    </p>
-                  </div>
-                  <div class="flex shrink-0 items-center gap-1">
-                    <span v-if="activity.due_at" class="mr-2 text-xs text-gray-500">
-                      Due: {{ formatDate(activity.due_at) }}
-                    </span>
-                    <button
-                      class="grid size-8 place-items-center rounded-lg text-emerald-600 hover:bg-emerald-50"
-                      title="Tandai selesai"
-                      :disabled="completeMutation.isPending.value"
-                      @click="completeMutation.mutate(activity.id)"
-                    >
-                      <Check class="size-4" />
-                    </button>
-                    <button
-                      class="grid size-8 place-items-center rounded-lg text-red-600 hover:bg-red-50"
-                      title="Batalkan"
-                      :disabled="cancelMutation.isPending.value"
-                      @click="cancelMutation.mutate(activity.id)"
-                    >
-                      <X class="size-4" />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            </ul>
-          </section>
+          <form
+            v-if="composerOpen"
+            class="space-y-3 rounded-xl border p-4"
+            @submit.prevent="submitActivity"
+          >
+            <div class="grid gap-3 sm:grid-cols-2">
+              <select
+                v-model="composer.type"
+                class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
+              >
+                <option v-for="(label, value) in manualTypeLabels" :key="value" :value="value">
+                  {{ label }}
+                </option>
+              </select>
+              <input
+                v-model="composer.due_at"
+                type="datetime-local"
+                class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
+                :disabled="composer.type === 'note'"
+              />
+            </div>
+            <input
+              v-model="composer.subject"
+              type="text"
+              placeholder="Subjek"
+              class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+            />
+            <textarea
+              v-model="composer.description"
+              rows="3"
+              placeholder="Deskripsi (opsional)"
+              class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
+            />
+            <p v-if="composerError" class="text-sm text-red-600">{{ composerError }}</p>
+            <div class="flex justify-end gap-2">
+              <BaseButton variant="secondary" @click="composerOpen = false">Batal</BaseButton>
+              <BaseButton type="submit" :disabled="createMutation.isPending.value">
+                {{ createMutation.isPending.value ? 'Menyimpan...' : 'Simpan' }}
+              </BaseButton>
+            </div>
+          </form>
 
-          <section>
-            <h2 class="mb-2 font-semibold">Activity History</h2>
-            <p v-if="!history.length" class="py-4 text-sm text-gray-500">Belum ada activity.</p>
-            <ul v-else class="space-y-2 border-l pl-4">
-              <li v-for="activity in history" :key="activity.id" class="relative">
-                <span class="absolute -left-[21px] top-1.5 size-2.5 rounded-full bg-gray-400" />
-                <p class="text-xs text-gray-500">
-                  {{ typeLabels[activity.type] }} · {{ formatDate(activity.created_at) }}
-                  <template v-if="activity.status !== 'pending'"> · {{ activity.status }}</template>
-                </p>
-                <p class="font-medium">{{ activity.subject }}</p>
-                <p v-if="activity.description" class="text-sm text-gray-500">
-                  {{ activity.description }}
-                </p>
-              </li>
-            </ul>
-          </section>
-        </template>
+          <div
+            v-if="activitiesQuery.isPending.value"
+            class="py-8 text-center text-sm text-gray-500"
+          >
+            Memuat activity...
+          </div>
+          <div
+            v-else-if="activitiesQuery.isError.value"
+            class="py-8 text-center text-sm text-red-700"
+          >
+            Activity tidak dapat dimuat.
+          </div>
+          <template v-else>
+            <section v-if="upcoming.length">
+              <h2 class="mb-2 font-semibold">Upcoming Activity</h2>
+              <ul class="space-y-2">
+                <li v-for="activity in upcoming" :key="activity.id" class="rounded-xl border p-4">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-xs text-gray-500">{{ typeLabels[activity.type] }}</p>
+                      <p class="font-medium">{{ activity.subject }}</p>
+                      <p v-if="activity.description" class="mt-1 text-sm text-gray-500">
+                        {{ activity.description }}
+                      </p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1">
+                      <span v-if="activity.due_at" class="mr-2 text-xs text-gray-500">
+                        Due: {{ formatDate(activity.due_at) }}
+                      </span>
+                      <button
+                        class="grid size-8 place-items-center rounded-lg text-emerald-600 hover:bg-emerald-50"
+                        title="Tandai selesai"
+                        :disabled="completeMutation.isPending.value"
+                        @click="completeMutation.mutate(activity.id)"
+                      >
+                        <Check class="size-4" />
+                      </button>
+                      <button
+                        class="grid size-8 place-items-center rounded-lg text-red-600 hover:bg-red-50"
+                        title="Batalkan"
+                        :disabled="cancelMutation.isPending.value"
+                        @click="cancelMutation.mutate(activity.id)"
+                      >
+                        <X class="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 class="mb-2 font-semibold">Activity History</h2>
+              <p v-if="!history.length" class="py-4 text-sm text-gray-500">Belum ada activity.</p>
+              <ul v-else class="space-y-2 border-l pl-4">
+                <li v-for="activity in history" :key="activity.id" class="relative">
+                  <span class="absolute -left-[21px] top-1.5 size-2.5 rounded-full bg-gray-400" />
+                  <p class="text-xs text-gray-500">
+                    {{ typeLabels[activity.type] }} · {{ formatDate(activity.created_at) }}
+                    <template v-if="activity.status !== 'pending'">
+                      · {{ activity.status }}</template
+                    >
+                  </p>
+                  <p class="font-medium">{{ activity.subject }}</p>
+                  <p v-if="activity.description" class="text-sm text-gray-500">
+                    {{ activity.description }}
+                  </p>
+                </li>
+              </ul>
+            </section>
+          </template>
+        </div>
       </BaseCard>
 
       <!-- Panel kanan: company & deals -->

@@ -22,6 +22,7 @@ import {
   Users,
   Wallet,
   Waypoints,
+  MessageCircle,
 } from 'lucide-vue-next'
 
 import { buildFinanceMenuItems } from '@/features/finance/config/finance-menu'
@@ -211,6 +212,12 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: Plug,
         permission: 'integration.read',
       },
+      {
+        label: 'WhatsApp',
+        route: 'platform-whatsapp',
+        icon: MessageCircle,
+        permission: 'whatsapp.session.read',
+      },
     ],
   },
 ]
@@ -317,6 +324,12 @@ export const customerMenuGroups: MenuGroup[] = [
         route: 'crm-integrations',
         icon: Plug,
         permission: 'integration.read',
+      },
+      {
+        label: 'WhatsApp',
+        route: 'whatsapp',
+        icon: MessageCircle,
+        permission: 'whatsapp.session.read',
       },
     ],
   },
