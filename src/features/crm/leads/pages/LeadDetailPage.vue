@@ -53,6 +53,7 @@ import { compactAddress, isValidAnnualRevenue } from '@/features/crm/leads/utils
 import ConversationPanel from '@/features/whatsapp/components/ConversationPanel.vue'
 import { useEntityConversationQuery } from '@/features/whatsapp/api/whatsapp.queries'
 import { useDocumentVisible } from '@/features/whatsapp/composables/useDocumentVisible'
+import { useWhatsAppStream } from '@/features/whatsapp/composables/useWhatsAppStream'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -149,6 +150,8 @@ const leadConversationQuery = useEntityConversationQuery(
   leadId,
   { enabled: canUseWhatsApp, visible: documentVisible },
 )
+// Realtime chat + unread badge; queries poll slowly only while it is down.
+useWhatsAppStream(canUseWhatsApp)
 const whatsappUnread = computed(() => leadConversationQuery.data.value?.unread_count ?? 0)
 
 // --- Activity ---
@@ -672,6 +675,7 @@ async function removeAttachment(attachment: LeadAttachment) {
           id="lead-panel-whatsapp"
           role="tabpanel"
           aria-labelledby="lead-tab-whatsapp"
+          class="flex h-[calc(100dvh-16rem)] min-h-[30rem] flex-col"
         >
           <ConversationPanel
             related-entity-type="lead"

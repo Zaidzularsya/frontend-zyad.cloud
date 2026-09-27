@@ -8,6 +8,7 @@ import {
 import { computed, type Ref } from 'vue'
 
 import { whatsappApi } from '@/features/whatsapp/api/whatsapp.api'
+import { whatsappStreamConnected } from '@/features/whatsapp/api/whatsapp.stream-state'
 import type {
   CreateSessionPayload,
   MessagePage,
@@ -26,11 +27,15 @@ export const whatsappKeys = {
   qr: (id: string) => [...whatsappKeys.all, 'qr', id] as const,
   entityConversation: (type: RelatedEntityType, id: string) =>
     [...whatsappKeys.all, 'entity-conversation', type, id] as const,
+  entityConversations: () => [...whatsappKeys.all, 'entity-conversation'] as const,
+  allMessages: () => [...whatsappKeys.all, 'messages'] as const,
   messages: (conversationId: string) => [...whatsappKeys.all, 'messages', conversationId] as const,
 }
 
-const CONVERSATION_POLL_MS = 8000
-const MESSAGES_POLL_MS = 3000
+// Chat data arrives over the realtime stream (useWhatsAppStream). These
+// intervals only apply while the stream is down, as a slower fallback.
+const CONVERSATION_POLL_MS = 15000
+const MESSAGES_POLL_MS = 5000
 const MESSAGES_PAGE_SIZE = 30
 
 export function useSessionsQuery() {
@@ -117,8 +122,9 @@ export function usePairingCodeMutation() {
 }
 
 /**
- * The conversation linked to a CRM entity (first match), or null. Polls
- * every 15s while `visible` so the unread badge stays current.
+ * The conversation linked to a CRM entity (first match), or null. Kept fresh
+ * by the realtime stream; polls every 15s only while the stream is down and
+ * the browser tab is `visible`.
  */
 export function useEntityConversationQuery(
   type: Ref<RelatedEntityType>,
@@ -136,7 +142,9 @@ export function useEntityConversationQuery(
       return conversations[0] ?? null
     },
     enabled: computed(() => options.enabled.value && Boolean(id.value)),
-    refetchInterval: computed(() => (options.visible.value ? CONVERSATION_POLL_MS : false)),
+    refetchInterval: computed(() =>
+      options.visible.value && !whatsappStreamConnected.value ? CONVERSATION_POLL_MS : false,
+    ),
     // Coming back from another tab/app should feel current immediately,
     // not wait out the rest of the interval.
     refetchOnWindowFocus: 'always',
@@ -145,7 +153,8 @@ export function useEntityConversationQuery(
 
 /**
  * Messages of a conversation, newest page first (pages[0] has no cursor).
- * Polls every 5s only while `polling` (tab active and browser tab visible).
+ * Kept fresh by the realtime stream; polls every 5s only while the stream is
+ * down and `polling` (tab active and browser tab visible).
  */
 export function useConversationMessagesQuery(conversationId: Ref<string>, polling: Ref<boolean>) {
   return useInfiniteQuery({
@@ -155,7 +164,9 @@ export function useConversationMessagesQuery(conversationId: Ref<string>, pollin
     initialPageParam: '',
     getNextPageParam: (lastPage: MessagePage) => lastPage.next_before || undefined,
     enabled: computed(() => Boolean(conversationId.value)),
-    refetchInterval: computed(() => (polling.value ? MESSAGES_POLL_MS : false)),
+    refetchInterval: computed(() =>
+      polling.value && !whatsappStreamConnected.value ? MESSAGES_POLL_MS : false,
+    ),
     refetchOnWindowFocus: 'always',
   })
 }

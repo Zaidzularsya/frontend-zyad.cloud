@@ -181,7 +181,7 @@ async function retry(message: WhatsAppMessage) {
 </script>
 
 <template>
-  <div class="flex min-h-[28rem] flex-col">
+  <div class="flex h-full min-h-0 flex-col">
     <p v-if="!canRead" class="py-12 text-center text-sm text-gray-600 dark:text-gray-400">
       Anda belum punya akses chat WhatsApp.
     </p>
@@ -270,7 +270,7 @@ async function retry(message: WhatsAppMessage) {
 
     <!-- Thread -->
     <template v-else>
-      <div class="flex items-center justify-between border-b pb-3 dark:border-gray-800">
+      <div class="flex shrink-0 items-center justify-between border-b pb-3 dark:border-gray-800">
         <div>
           <p class="font-medium text-gray-900 dark:text-gray-100">
             {{ conversation.contact_name || entityName || formatPhone(conversation.phone) }}
@@ -284,7 +284,7 @@ async function retry(message: WhatsAppMessage) {
 
       <div
         ref="scroller"
-        class="max-h-[32rem] min-h-64 flex-1 space-y-4 overflow-y-auto py-4"
+        class="min-h-0 flex-1 space-y-4 overflow-y-auto py-4"
         aria-live="polite"
         @scroll="onScroll"
       >
@@ -399,7 +399,7 @@ async function retry(message: WhatsAppMessage) {
 
       <form
         v-if="canSend"
-        class="flex items-end gap-2 border-t pt-3 dark:border-gray-800"
+        class="flex shrink-0 items-end gap-2 border-t pt-3 pb-[env(safe-area-inset-bottom)] dark:border-gray-800"
         @submit.prevent="send"
       >
         <label class="sr-only" for="wa-composer">Tulis pesan WhatsApp</label>
@@ -409,7 +409,7 @@ async function retry(message: WhatsAppMessage) {
           rows="2"
           :maxlength="MAX_MESSAGE_LENGTH"
           placeholder="Tulis pesan... (Enter kirim, Shift+Enter baris baru)"
-          class="min-h-11 flex-1 resize-none rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-3 focus:ring-brand-100 dark:bg-gray-950 dark:focus:ring-brand-900"
+          class="max-h-32 min-h-11 flex-1 resize-none rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-3 focus:ring-brand-100 dark:bg-gray-950 dark:focus:ring-brand-900"
           @keydown="onComposerKeydown"
         ></textarea>
         <BaseButton type="submit" :disabled="!draft.trim() || sendMutation.isPending.value">
@@ -417,7 +417,10 @@ async function retry(message: WhatsAppMessage) {
           Kirim
         </BaseButton>
       </form>
-      <p v-else class="border-t pt-3 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-400">
+      <p
+        v-else
+        class="shrink-0 border-t pt-3 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-400"
+      >
         Anda hanya bisa membaca chat ini.
       </p>
     </template>

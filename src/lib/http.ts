@@ -45,6 +45,28 @@ interface RefreshResponse {
   }
 }
 
+/**
+ * Refreshes the access token (one request shared by concurrent callers).
+ * Rejects when the session cannot be renewed; the caller decides how to react.
+ */
+export function refreshAccessToken(): Promise<string | undefined> {
+  refreshPromise ??= http
+    .post<RefreshResponse>('/auth/refresh-token', {
+      refresh_token: tokenStorage.getRefreshToken() || undefined,
+    })
+    .then(({ data }) => {
+      const nextAccessToken = data.data.access_token
+      const nextRefreshToken = data.data.refresh_token
+      tokenStorage.set(nextAccessToken)
+      tokenStorage.setRefreshToken(nextRefreshToken)
+      return nextAccessToken
+    })
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
+}
+
 http.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiErrorPayload>) => {
@@ -56,23 +78,8 @@ http.interceptors.response.use(
     }
 
     request._retry = true
-    refreshPromise ??= http
-      .post<RefreshResponse>('/auth/refresh-token', {
-        refresh_token: tokenStorage.getRefreshToken() || undefined,
-      })
-      .then(({ data }) => {
-        const nextAccessToken = data.data.access_token
-        const nextRefreshToken = data.data.refresh_token
-        tokenStorage.set(nextAccessToken)
-        tokenStorage.setRefreshToken(nextRefreshToken)
-        return nextAccessToken
-      })
-      .finally(() => {
-        refreshPromise = null
-      })
-
     try {
-      const token = await refreshPromise
+      const token = await refreshAccessToken()
       if (token) request.headers.Authorization = `Bearer ${token}`
       return http(request)
     } catch {
