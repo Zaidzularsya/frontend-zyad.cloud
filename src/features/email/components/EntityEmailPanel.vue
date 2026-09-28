@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { ArrowLeft, Download, Mail, Paperclip, Pencil, Reply } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
+import DataPagination from '@/components/ui/DataPagination.vue'
 import { useToast } from '@/components/ui/toast'
 import { emailApi } from '@/features/email/api/email.api'
 import {
@@ -49,14 +50,16 @@ const filters: { value: EmailDirection | 'all'; label: string }[] = [
   { value: 'inbound', label: 'Masuk' },
 ]
 const direction = ref<EmailDirection | 'all'>('all')
+const perPageOptions = [10, 20, 50, 100]
 const page = ref(1)
-watch([direction, () => props.email], () => {
+const perPage = ref(20)
+watch([direction, () => props.email, perPage], () => {
   page.value = 1
 })
 
 const params = computed(() => ({
   page: page.value,
-  per_page: 20,
+  per_page: perPage.value,
   participant: props.email,
   direction: direction.value === 'all' ? undefined : direction.value,
 }))
@@ -65,7 +68,7 @@ const messagesQuery = useEmailMessagesQuery(
   computed(() => Boolean(props.email) && hasMailbox.value),
 )
 const messages = computed(() => messagesQuery.data.value?.data ?? [])
-const totalPages = computed(() => messagesQuery.data.value?.meta.total_pages ?? 1)
+const total = computed(() => messagesQuery.data.value?.meta.total ?? 0)
 
 const openId = ref('')
 const messageQuery = useEmailMessageQuery(openId)
@@ -78,10 +81,42 @@ const statusStyles: Record<EmailMessage['status'], { label: string; className: s
   received: { label: 'Masuk', className: 'bg-sky-50 text-sky-700' },
 }
 
-function counterpart(message: EmailMessage) {
-  return message.direction === 'inbound'
-    ? `Dari ${message.from_name || message.from_address}`
-    : `Kepada ${message.to.join(', ')}`
+/** Sender name for inbound, first recipient (+n more) for outbound — mirrors how mail clients label a thread. */
+function counterpartName(message: EmailMessage) {
+  if (message.direction === 'inbound') return message.from_name || message.from_address
+  const [first, ...rest] = message.to
+  return rest.length ? `${first} +${rest.length}` : (first ?? '')
+}
+
+function initials(label: string) {
+  const namePart = label.includes('@') ? (label.split('@')[0] ?? label) : label
+  const letters = namePart
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+  return letters || '?'
+}
+
+// Today shows the time only, this year shows "d MMM", older shows the full date — the full
+// timestamp is always available via the title attribute.
+const timeFormatter = new Intl.DateTimeFormat('id-ID', { timeStyle: 'short' })
+const dayFormatter = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' })
+const dayYearFormatter = new Intl.DateTimeFormat('id-ID', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+function listTime(value: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  const now = new Date()
+  if (date.toDateString() === now.toDateString()) return timeFormatter.format(date)
+  return date.getFullYear() === now.getFullYear()
+    ? dayFormatter.format(date)
+    : dayYearFormatter.format(date)
 }
 
 function writeNew() {
@@ -268,9 +303,25 @@ a{color:#2563eb}img{max-width:100%;height:auto}p{margin:0 0 .75em}</style></head
           </BaseButton>
         </div>
 
-        <p v-if="messagesQuery.isPending.value" class="py-8 text-center text-sm text-gray-500">
-          Memuat email...
-        </p>
+        <ul
+          v-if="messagesQuery.isPending.value"
+          class="divide-y rounded-xl border dark:divide-gray-800 dark:border-gray-800"
+          aria-hidden="true"
+        >
+          <li v-for="i in 5" :key="i" class="flex items-start gap-3 px-4 py-3">
+            <span class="size-9 shrink-0 animate-pulse rounded-full bg-gray-100 dark:bg-gray-800" />
+            <span class="min-w-0 flex-1 space-y-2 py-0.5">
+              <span class="flex items-center justify-between gap-2">
+                <span class="h-3.5 w-28 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                <span
+                  class="h-3 w-10 shrink-0 animate-pulse rounded bg-gray-100 dark:bg-gray-800"
+                />
+              </span>
+              <span class="block h-3.5 w-3/5 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+              <span class="block h-3 w-4/5 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+            </span>
+          </li>
+        </ul>
         <p v-else-if="messagesQuery.isError.value" class="py-8 text-center text-sm text-red-700">
           Email tidak dapat dimuat.
         </p>
@@ -287,44 +338,67 @@ a{color:#2563eb}img{max-width:100%;height:auto}p{margin:0 0 .75em}</style></head
             Email masuk diperiksa secara berkala, bukan langsung saat diterima.
           </p>
         </div>
-        <ul v-else class="divide-y rounded-xl border dark:divide-gray-800 dark:border-gray-800">
-          <li v-for="message in messages" :key="message.id">
-            <button
-              type="button"
-              class="block w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-900"
-              @click="openId = message.id"
-            >
-              <div class="flex items-center gap-2 text-xs text-gray-500">
-                <span class="min-w-0 flex-1 truncate">{{ counterpart(message) }}</span>
-                <Paperclip v-if="message.attachments.length" class="size-3.5 shrink-0" />
+        <template v-else>
+          <ul
+            class="max-h-[28rem] divide-y overflow-y-auto rounded-xl border dark:divide-gray-800 dark:border-gray-800"
+          >
+            <li v-for="message in messages" :key="message.id">
+              <button
+                type="button"
+                class="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-gray-50 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500 dark:hover:bg-gray-900"
+                @click="openId = message.id"
+              >
                 <span
-                  v-if="message.status !== 'sent' && message.status !== 'received'"
-                  class="shrink-0 rounded-full px-2 py-0.5 font-medium"
+                  class="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold"
                   :class="statusStyles[message.status].className"
                 >
-                  {{ statusStyles[message.status].label }}
+                  {{ initials(counterpartName(message)) }}
                 </span>
-                <span class="shrink-0">{{
-                  formatDate(message.sent_at ?? message.created_at)
-                }}</span>
-              </div>
-              <p class="mt-1 truncate font-medium">{{ message.subject || '(tanpa subjek)' }}</p>
-              <p v-if="message.snippet" class="truncate text-sm text-gray-500">
-                {{ message.snippet }}
-              </p>
-            </button>
-          </li>
-        </ul>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-center gap-2">
+                    <span
+                      class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 dark:text-gray-100"
+                    >
+                      {{ counterpartName(message) }}
+                    </span>
+                    <Paperclip
+                      v-if="message.attachments.length"
+                      class="size-3.5 shrink-0 text-gray-400"
+                    />
+                    <span
+                      v-if="message.status !== 'sent' && message.status !== 'received'"
+                      class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                      :class="statusStyles[message.status].className"
+                    >
+                      {{ statusStyles[message.status].label }}
+                    </span>
+                    <span
+                      class="shrink-0 text-xs text-gray-500 tabular-nums"
+                      :title="formatDate(message.sent_at ?? message.created_at)"
+                    >
+                      {{ listTime(message.sent_at ?? message.created_at) }}
+                    </span>
+                  </span>
+                  <span class="mt-0.5 block truncate text-sm text-gray-700 dark:text-gray-300">
+                    {{ message.subject || '(tanpa subjek)' }}
+                  </span>
+                  <span v-if="message.snippet" class="block truncate text-xs text-gray-500">
+                    {{ message.snippet }}
+                  </span>
+                </span>
+              </button>
+            </li>
+          </ul>
 
-        <div v-if="totalPages > 1" class="flex items-center justify-end gap-2 text-sm">
-          <BaseButton variant="secondary" :disabled="page <= 1" @click="page -= 1">
-            Sebelumnya
-          </BaseButton>
-          <span class="text-gray-500">{{ page }} / {{ totalPages }}</span>
-          <BaseButton variant="secondary" :disabled="page >= totalPages" @click="page += 1">
-            Berikutnya
-          </BaseButton>
-        </div>
+          <DataPagination
+            v-if="total > 0"
+            v-model:page="page"
+            v-model:per-page="perPage"
+            :total="total"
+            :per-page-options="perPageOptions"
+            item-label="email"
+          />
+        </template>
       </template>
     </template>
   </div>
