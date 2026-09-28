@@ -11,6 +11,7 @@ export interface DealListParams {
   stage_id?: string
   status?: DealStatus
   owner_user_id?: string
+  contact_id?: string
 }
 
 export interface Deal {

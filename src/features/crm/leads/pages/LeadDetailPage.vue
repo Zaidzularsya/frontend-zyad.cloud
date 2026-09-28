@@ -1,42 +1,20 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  ArrowLeft,
-  Building2,
-  Check,
-  Download,
-  Mail,
-  Paperclip,
-  Pencil,
-  Phone,
-  Plus,
-  Search,
-  Trash2,
-  Waypoints,
-  X,
-} from 'lucide-vue-next'
+import { ArrowLeft, Building2, Mail, Pencil, Phone, Plus, Waypoints } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 
-import type {
-  Activity,
-  ActivityType,
-  ManualActivityType,
-} from '@/features/crm/activities/api/activities.api'
-import {
-  useActivitiesQuery,
-  useCancelActivityMutation,
-  useCompleteActivityMutation,
-  useCreateActivityMutation,
-} from '@/features/crm/activities/api/activities.queries'
+import AttachmentCard, { type AttachmentItem } from '@/features/crm/components/AttachmentCard.vue'
+import EntityTimeline from '@/features/crm/components/EntityTimeline.vue'
+
+import type { ManualActivityType } from '@/features/crm/activities/api/activities.api'
 import { useCompanyQuery } from '@/features/crm/companies/api/companies.queries'
 import { useDealQuery } from '@/features/crm/deals/api/deals.queries'
 import {
   leadsApi,
   type LeadAddress,
-  type LeadAttachment,
   type LeadPayload,
   type LeadStatus,
 } from '@/features/crm/leads/api/leads.api'
@@ -154,107 +132,10 @@ const leadConversationQuery = useEntityConversationQuery(
 useWhatsAppStream(canUseWhatsApp)
 const whatsappUnread = computed(() => leadConversationQuery.data.value?.unread_count ?? 0)
 
-// --- Activity ---
-const tabs: { value: ManualActivityType | 'all'; label: string }[] = [
-  { value: 'all', label: 'Activity' },
-  { value: 'note', label: 'Notes' },
-  { value: 'email', label: 'Emails' },
-  { value: 'call', label: 'Calls' },
-  { value: 'task', label: 'Task' },
-  { value: 'meeting', label: 'Meetings' },
-]
-const typeLabels: Record<ActivityType, string> = {
-  call: 'Telepon',
-  email: 'Email',
-  meeting: 'Meeting',
-  task: 'Task',
-  note: 'Catatan',
-  whatsapp: 'WhatsApp',
-}
-// The create form only offers types a user records by hand.
-const manualTypeLabels: Record<ManualActivityType, string> = {
-  call: typeLabels.call,
-  email: typeLabels.email,
-  meeting: typeLabels.meeting,
-  task: typeLabels.task,
-  note: typeLabels.note,
-}
-
-const activeTab = ref<ManualActivityType | 'all'>('all')
-const activitySearch = ref('')
-
-const activityParams = computed(() => ({
-  page: 1,
-  per_page: 100,
-  related_entity_type: 'lead' as const,
-  related_entity_id: leadId.value,
-}))
-const activitiesQuery = useActivitiesQuery(activityParams)
-
-const filteredActivities = computed(() => {
-  const keyword = activitySearch.value.trim().toLowerCase()
-  return (activitiesQuery.data.value?.data ?? []).filter((activity) => {
-    if (activity.deleted_at) return false
-    if (activeTab.value !== 'all' && activity.type !== activeTab.value) return false
-    if (!keyword) return true
-    return `${activity.subject} ${activity.description ?? ''}`.toLowerCase().includes(keyword)
-  })
-})
-
-// Catatan tidak punya konsep "jadwal", jadi selalu masuk history.
-function isUpcoming(activity: Activity) {
-  return activity.status === 'pending' && activity.type !== 'note'
-}
-const upcoming = computed(() =>
-  filteredActivities.value
-    .filter(isUpcoming)
-    .sort((a, b) => (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999')),
-)
-const history = computed(() =>
-  filteredActivities.value
-    .filter((activity) => !isUpcoming(activity))
-    .sort((a, b) => b.created_at.localeCompare(a.created_at)),
-)
-
-const createMutation = useCreateActivityMutation()
-const completeMutation = useCompleteActivityMutation()
-const cancelMutation = useCancelActivityMutation()
-
-const composerOpen = ref(false)
-const composerError = ref('')
-const composer = reactive({
-  type: 'note' as ManualActivityType,
-  subject: '',
-  description: '',
-  due_at: '',
-})
+const timelineRef = ref<InstanceType<typeof EntityTimeline> | null>(null)
 
 function openComposer(type: ManualActivityType) {
-  Object.assign(composer, { type, subject: '', description: '', due_at: '' })
-  composerError.value = ''
-  composerOpen.value = true
-}
-
-async function submitActivity() {
-  if (!lead.value) return
-  composerError.value = ''
-  if (!composer.subject.trim()) {
-    composerError.value = 'Subjek wajib diisi.'
-    return
-  }
-  try {
-    await createMutation.mutateAsync({
-      related_entity_type: 'lead',
-      related_entity_id: lead.value.id,
-      type: composer.type,
-      subject: composer.subject.trim(),
-      description: composer.description.trim() || undefined,
-      due_at: composer.due_at ? new Date(composer.due_at).toISOString() : undefined,
-    })
-    composerOpen.value = false
-  } catch (error) {
-    composerError.value = extractError(error)
-  }
+  timelineRef.value?.openComposer(type)
 }
 
 // --- Panel kanan ---
@@ -378,22 +259,9 @@ const attachments = computed(() => attachmentsQuery.data.value ?? [])
 const uploadMutation = useUploadLeadAttachmentMutation()
 const deleteAttachmentMutation = useDeleteLeadAttachmentMutation()
 const attachmentError = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
 
-// Batas mengikuti modul asset backend (allowedObjectMimeTypes & 10MB).
-const acceptedAttachmentTypes = 'image/jpeg,image/png,image/webp,application/pdf'
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-async function onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file || !lead.value) return
+async function uploadAttachment(file: File) {
+  if (!lead.value) return
   attachmentError.value = ''
   try {
     await uploadMutation.mutateAsync({ id: lead.value.id, file })
@@ -402,22 +270,22 @@ async function onFileSelected(event: Event) {
   }
 }
 
-async function downloadAttachment(attachment: LeadAttachment) {
+async function downloadAttachment(attachment: AttachmentItem) {
   attachmentError.value = ''
   try {
-    const url = await leadsApi.attachmentDownloadUrl(attachment.lead_id, attachment.id)
+    const url = await leadsApi.attachmentDownloadUrl(leadId.value, attachment.id)
     window.open(url, '_blank', 'noopener')
   } catch (error) {
     attachmentError.value = extractError(error)
   }
 }
 
-async function removeAttachment(attachment: LeadAttachment) {
+async function removeAttachment(attachment: AttachmentItem) {
   if (!confirm(`Hapus lampiran "${attachment.filename}"?`)) return
   attachmentError.value = ''
   try {
     await deleteAttachmentMutation.mutateAsync({
-      id: attachment.lead_id,
+      id: leadId.value,
       attachmentId: attachment.id,
     })
   } catch (error) {
@@ -692,157 +560,12 @@ async function removeAttachment(attachment: LeadAttachment) {
           id="lead-panel-timeline"
           role="tabpanel"
           aria-labelledby="lead-tab-timeline"
-          class="space-y-4"
         >
-          <label class="relative block">
-            <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-            <input
-              v-model="activitySearch"
-              type="search"
-              placeholder="Cari activity, notes, email..."
-              class="w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
-            />
-          </label>
-
-          <div class="flex gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 dark:bg-gray-900">
-            <button
-              v-for="tab in tabs"
-              :key="tab.value"
-              class="flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium"
-              :class="
-                activeTab === tab.value
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700'
-              "
-              @click="activeTab = tab.value"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-
-          <div class="flex justify-end">
-            <BaseButton
-              variant="outline"
-              @click="openComposer(activeTab === 'all' ? 'note' : activeTab)"
-            >
-              <Plus class="size-4" />
-              Tambah {{ activeTab === 'all' ? 'activity' : typeLabels[activeTab].toLowerCase() }}
-            </BaseButton>
-          </div>
-
-          <form
-            v-if="composerOpen"
-            class="space-y-3 rounded-xl border p-4"
-            @submit.prevent="submitActivity"
-          >
-            <div class="grid gap-3 sm:grid-cols-2">
-              <select
-                v-model="composer.type"
-                class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
-              >
-                <option v-for="(label, value) in manualTypeLabels" :key="value" :value="value">
-                  {{ label }}
-                </option>
-              </select>
-              <input
-                v-model="composer.due_at"
-                type="datetime-local"
-                class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
-                :disabled="composer.type === 'note'"
-              />
-            </div>
-            <input
-              v-model="composer.subject"
-              type="text"
-              placeholder="Subjek"
-              class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
-            />
-            <textarea
-              v-model="composer.description"
-              rows="3"
-              placeholder="Deskripsi (opsional)"
-              class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950"
-            />
-            <p v-if="composerError" class="text-sm text-red-600">{{ composerError }}</p>
-            <div class="flex justify-end gap-2">
-              <BaseButton variant="secondary" @click="composerOpen = false">Batal</BaseButton>
-              <BaseButton type="submit" :disabled="createMutation.isPending.value">
-                {{ createMutation.isPending.value ? 'Menyimpan...' : 'Simpan' }}
-              </BaseButton>
-            </div>
-          </form>
-
-          <div
-            v-if="activitiesQuery.isPending.value"
-            class="py-8 text-center text-sm text-gray-500"
-          >
-            Memuat activity...
-          </div>
-          <div
-            v-else-if="activitiesQuery.isError.value"
-            class="py-8 text-center text-sm text-red-700"
-          >
-            Activity tidak dapat dimuat.
-          </div>
-          <template v-else>
-            <section v-if="upcoming.length">
-              <h2 class="mb-2 font-semibold">Upcoming Activity</h2>
-              <ul class="space-y-2">
-                <li v-for="activity in upcoming" :key="activity.id" class="rounded-xl border p-4">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="text-xs text-gray-500">{{ typeLabels[activity.type] }}</p>
-                      <p class="font-medium">{{ activity.subject }}</p>
-                      <p v-if="activity.description" class="mt-1 text-sm text-gray-500">
-                        {{ activity.description }}
-                      </p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-1">
-                      <span v-if="activity.due_at" class="mr-2 text-xs text-gray-500">
-                        Due: {{ formatDate(activity.due_at) }}
-                      </span>
-                      <button
-                        class="grid size-8 place-items-center rounded-lg text-emerald-600 hover:bg-emerald-50"
-                        title="Tandai selesai"
-                        :disabled="completeMutation.isPending.value"
-                        @click="completeMutation.mutate(activity.id)"
-                      >
-                        <Check class="size-4" />
-                      </button>
-                      <button
-                        class="grid size-8 place-items-center rounded-lg text-red-600 hover:bg-red-50"
-                        title="Batalkan"
-                        :disabled="cancelMutation.isPending.value"
-                        @click="cancelMutation.mutate(activity.id)"
-                      >
-                        <X class="size-4" />
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 class="mb-2 font-semibold">Activity History</h2>
-              <p v-if="!history.length" class="py-4 text-sm text-gray-500">Belum ada activity.</p>
-              <ul v-else class="space-y-2 border-l pl-4">
-                <li v-for="activity in history" :key="activity.id" class="relative">
-                  <span class="absolute -left-[21px] top-1.5 size-2.5 rounded-full bg-gray-400" />
-                  <p class="text-xs text-gray-500">
-                    {{ typeLabels[activity.type] }} · {{ formatDate(activity.created_at) }}
-                    <template v-if="activity.status !== 'pending'">
-                      · {{ activity.status }}</template
-                    >
-                  </p>
-                  <p class="font-medium">{{ activity.subject }}</p>
-                  <p v-if="activity.description" class="text-sm text-gray-500">
-                    {{ activity.description }}
-                  </p>
-                </li>
-              </ul>
-            </section>
-          </template>
+          <EntityTimeline
+            ref="timelineRef"
+            related-entity-type="lead"
+            :related-entity-id="leadId"
+          />
         </div>
       </BaseCard>
 
@@ -894,70 +617,17 @@ async function removeAttachment(attachment: LeadAttachment) {
           </p>
         </BaseCard>
 
-        <BaseCard class="space-y-3 !p-5">
-          <div class="flex items-center justify-between">
-            <h2 class="font-semibold">
-              Attachment
-              <span v-if="attachments.length" class="ml-1 text-sm font-normal text-gray-500">
-                {{ attachments.length }}
-              </span>
-            </h2>
-            <button
-              v-if="!lead.deleted_at"
-              class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 disabled:opacity-60"
-              :disabled="uploadMutation.isPending.value"
-              @click="fileInput?.click()"
-            >
-              <Plus class="size-3.5" />
-              {{ uploadMutation.isPending.value ? 'Mengunggah...' : 'Unggah' }}
-            </button>
-            <input
-              ref="fileInput"
-              type="file"
-              class="hidden"
-              :accept="acceptedAttachmentTypes"
-              @change="onFileSelected"
-            />
-          </div>
-          <p v-if="attachmentError" class="text-sm text-red-600">{{ attachmentError }}</p>
-          <p v-if="attachmentsQuery.isPending.value" class="text-sm text-gray-500">Memuat...</p>
-          <p v-else-if="!attachments.length" class="text-sm text-gray-500">
-            Belum ada lampiran. JPG, PNG, WEBP, atau PDF, maks 10MB.
-          </p>
-          <ul v-else class="space-y-2">
-            <li
-              v-for="attachment in attachments"
-              :key="attachment.id"
-              class="flex items-center gap-2 rounded-xl border p-2 text-sm"
-            >
-              <Paperclip class="size-4 shrink-0 text-gray-400" />
-              <div class="min-w-0 flex-1">
-                <p class="truncate font-medium" :title="attachment.filename">
-                  {{ attachment.filename }}
-                </p>
-                <p class="text-xs text-gray-500">
-                  {{ formatSize(attachment.size_bytes) }} · {{ formatDate(attachment.created_at) }}
-                </p>
-              </div>
-              <button
-                class="grid size-8 place-items-center rounded-lg text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="Unduh"
-                @click="downloadAttachment(attachment)"
-              >
-                <Download class="size-4" />
-              </button>
-              <button
-                v-if="!lead.deleted_at"
-                class="grid size-8 place-items-center rounded-lg text-red-600 hover:bg-red-50"
-                title="Hapus"
-                :disabled="deleteAttachmentMutation.isPending.value"
-                @click="removeAttachment(attachment)"
-              >
-                <Trash2 class="size-4" />
-              </button>
-            </li>
-          </ul>
-        </BaseCard>
+        <AttachmentCard
+          :attachments="attachments"
+          :loading="attachmentsQuery.isPending.value"
+          :uploading="uploadMutation.isPending.value"
+          :deleting="deleteAttachmentMutation.isPending.value"
+          :readonly="Boolean(lead.deleted_at)"
+          :error="attachmentError"
+          @upload="uploadAttachment"
+          @download="downloadAttachment"
+          @remove="removeAttachment"
+        />
       </div>
     </div>
   </div>
