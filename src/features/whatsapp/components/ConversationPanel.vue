@@ -85,7 +85,12 @@ async function startChat() {
       related_entity_type: props.relatedEntityType,
       related_entity_id: props.relatedEntityId,
     })
-    await conversationQuery.refetch()
+    const { data } = await conversationQuery.refetch()
+    if (!data) {
+      // Start reused a chat linked to another CRM record, so this entity
+      // still has none. Say so instead of leaving the button looking dead.
+      startError.value = 'Nomor ini sudah punya percakapan yang tertaut ke data CRM lain.'
+    }
   } catch (error) {
     startError.value = whatsappErrorMessage(error)
   }

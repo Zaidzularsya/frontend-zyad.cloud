@@ -123,11 +123,16 @@ const middleTabs = [
 ] as const
 const middleTab = ref<'timeline' | 'whatsapp'>('timeline')
 const documentVisible = useDocumentVisible()
-const leadConversationQuery = useEntityConversationQuery(
-  computed(() => 'lead' as const),
-  leadId,
-  { enabled: canUseWhatsApp, visible: documentVisible },
+// Saat convert, percakapan WhatsApp lead dipindah ke contact barunya; lead
+// yang sudah converted menampilkan chat milik contact tersebut.
+const chatEntityType = computed(() =>
+  lead.value?.converted_contact_id ? ('contact' as const) : ('lead' as const),
 )
+const chatEntityId = computed(() => lead.value?.converted_contact_id || leadId.value)
+const leadConversationQuery = useEntityConversationQuery(chatEntityType, chatEntityId, {
+  enabled: canUseWhatsApp,
+  visible: documentVisible,
+})
 // Realtime chat + unread badge; queries poll slowly only while it is down.
 useWhatsAppStream(canUseWhatsApp)
 const whatsappUnread = computed(() => leadConversationQuery.data.value?.unread_count ?? 0)
@@ -546,8 +551,8 @@ async function removeAttachment(attachment: AttachmentItem) {
           class="flex h-[calc(100dvh-16rem)] min-h-[30rem] flex-col"
         >
           <ConversationPanel
-            related-entity-type="lead"
-            :related-entity-id="leadId"
+            :related-entity-type="chatEntityType"
+            :related-entity-id="chatEntityId"
             :phone="lead.phone"
             :entity-name="lead.contact_name"
             :active="middleTab === 'whatsapp'"
