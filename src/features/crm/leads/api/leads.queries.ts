@@ -3,6 +3,7 @@ import { computed, type Ref } from 'vue'
 
 import {
   leadsApi,
+  type LeadDashboardParams,
   type LeadListParams,
   type LeadPayload,
   type LeadStatus,
@@ -14,6 +15,7 @@ export const leadKeys = {
   all: ['crm', 'leads'] as const,
   lists: () => [...leadKeys.all, 'list'] as const,
   list: (params: LeadListParams) => [...leadKeys.lists(), params] as const,
+  dashboard: (params: LeadDashboardParams) => [...leadKeys.all, 'dashboard', params] as const,
   details: () => [...leadKeys.all, 'detail'] as const,
   detail: (id: string) => [...leadKeys.details(), id] as const,
   attachments: (id: string) => [...leadKeys.detail(id), 'attachments'] as const,
@@ -24,6 +26,15 @@ export function useLeadsQuery(params: Ref<LeadListParams>) {
   return useQuery({
     queryKey: computed(() => leadKeys.list(params.value)),
     queryFn: () => leadsApi.list(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+// Under leadKeys.all, so every lead mutation also refreshes the dashboard.
+export function useLeadDashboardQuery(params: Ref<LeadDashboardParams>) {
+  return useQuery({
+    queryKey: computed(() => leadKeys.dashboard(params.value)),
+    queryFn: () => leadsApi.dashboard(params.value),
     placeholderData: keepPreviousData,
   })
 }
