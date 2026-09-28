@@ -10,11 +10,13 @@ import { useToast } from '@/components/ui/toast'
 import {
   useDeleteMailboxMutation,
   useMailboxesQuery,
+  useSyncMailboxMutation,
   useTestMailboxMutation,
 } from '@/features/email/api/email.queries'
 import MailboxFormModal from '@/features/email/components/MailboxFormModal.vue'
 import type { Mailbox } from '@/features/email/types'
 import { emailErrorMessage } from '@/features/email/utils/errors'
+import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
 
 const auth = useAuthStore()
@@ -25,6 +27,8 @@ const mailboxesQuery = useMailboxesQuery()
 const mailboxes = computed(() => mailboxesQuery.data.value ?? [])
 const testMutation = useTestMailboxMutation()
 const deleteMutation = useDeleteMailboxMutation()
+const syncMutation = useSyncMailboxMutation()
+const syncingID = ref('')
 
 const statusStyles: Record<Mailbox['status'], { label: string; className: string }> = {
   active: { label: 'Terhubung', className: 'bg-emerald-50 text-emerald-700' },
@@ -56,6 +60,20 @@ async function test(mailbox: Mailbox) {
     toast.success(`Koneksi ${mailbox.email_address} berhasil.`)
   } catch (error) {
     toast.error(emailErrorMessage(error))
+  }
+}
+
+// Fire-and-poll: the sync itself runs in the background (see
+// useSyncMailboxMutation), this only confirms it started.
+async function syncNow(mailbox: Mailbox) {
+  syncingID.value = mailbox.id
+  try {
+    await syncMutation.mutateAsync(mailbox.id)
+    toast.success(`Memeriksa inbox ${mailbox.email_address}...`)
+  } catch (error) {
+    toast.error(emailErrorMessage(error))
+  } finally {
+    syncingID.value = ''
   }
 }
 
@@ -127,7 +145,21 @@ async function confirmDelete() {
           <dd class="break-all">
             {{ mailbox.imap_host ? `${mailbox.imap_host}:${mailbox.imap_port}` : 'Belum diatur' }}
           </dd>
+          <template v-if="mailbox.has_inbox_sync">
+            <dt class="text-gray-500">Inbox</dt>
+            <dd>
+              {{
+                mailbox.last_synced_at
+                  ? `Terakhir dicek ${formatDate(mailbox.last_synced_at)}`
+                  : 'Belum pernah dicek'
+              }}
+            </dd>
+          </template>
         </dl>
+        <p v-if="!mailbox.has_inbox_sync" class="text-xs text-gray-500">
+          IMAP belum diatur — email masuk tidak muncul di tab Email. Edit akun ini untuk
+          menambahkannya.
+        </p>
         <p
           v-if="mailbox.status === 'error' && mailbox.last_error"
           class="rounded-lg bg-red-50 p-3 text-sm break-words text-red-700 dark:bg-red-500/10 dark:text-red-300"
@@ -135,6 +167,14 @@ async function confirmDelete() {
           {{ mailbox.last_error }}
         </p>
         <div v-if="canManage" class="flex flex-wrap justify-end gap-2 border-t pt-3">
+          <BaseButton
+            v-if="mailbox.has_inbox_sync"
+            variant="outline"
+            :disabled="syncingID === mailbox.id"
+            @click="syncNow(mailbox)"
+          >
+            {{ syncingID === mailbox.id ? 'Memeriksa...' : 'Sync sekarang' }}
+          </BaseButton>
           <BaseButton
             variant="outline"
             :disabled="testMutation.isPending.value"

@@ -39,6 +39,9 @@ const accountsRoute = computed(() =>
 
 const mailboxesQuery = useMailboxesQuery()
 const hasMailbox = computed(() => (mailboxesQuery.data.value ?? []).length > 0)
+const hasInboxSync = computed(() =>
+  (mailboxesQuery.data.value ?? []).some((mailbox) => mailbox.has_inbox_sync),
+)
 
 const filters: { value: EmailDirection | 'all'; label: string }[] = [
   { value: 'all', label: 'Semua' },
@@ -273,8 +276,15 @@ a{color:#2563eb}img{max-width:100%;height:auto}p{margin:0 0 .75em}</style></head
         </p>
         <div v-else-if="!messages.length" class="py-10 text-center text-sm text-gray-500">
           <p>Belum ada email dengan {{ email }}.</p>
-          <p v-if="direction === 'inbound'" class="mt-1">
-            Email masuk tampil di sini setelah sinkronisasi inbox diaktifkan.
+          <p v-if="direction !== 'outbound' && !hasInboxSync" class="mt-1">
+            Email masuk belum bisa disinkronkan — atur IMAP di
+            <RouterLink :to="{ name: accountsRoute }" class="text-brand-600 hover:underline">
+              Akun Email
+            </RouterLink>
+            Anda.
+          </p>
+          <p v-else-if="direction !== 'outbound'" class="mt-1">
+            Email masuk diperiksa secara berkala, bukan langsung saat diterima.
           </p>
         </div>
         <ul v-else class="divide-y rounded-xl border dark:divide-gray-800 dark:border-gray-800">
