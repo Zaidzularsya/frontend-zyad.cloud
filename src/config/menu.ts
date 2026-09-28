@@ -22,6 +22,7 @@ import {
   Users,
   Wallet,
   Waypoints,
+  Mail,
   MessageCircle,
 } from 'lucide-vue-next'
 
@@ -218,6 +219,12 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: MessageCircle,
         permission: 'whatsapp.session.read',
       },
+      {
+        label: 'Akun Email',
+        route: 'platform-email-accounts',
+        icon: Mail,
+        permission: 'email.read',
+      },
     ],
   },
 ]
@@ -330,6 +337,12 @@ export const customerMenuGroups: MenuGroup[] = [
         route: 'whatsapp',
         icon: MessageCircle,
         permission: 'whatsapp.session.read',
+      },
+      {
+        label: 'Akun Email',
+        route: 'email-accounts',
+        icon: Mail,
+        permission: 'email.read',
       },
     ],
   },

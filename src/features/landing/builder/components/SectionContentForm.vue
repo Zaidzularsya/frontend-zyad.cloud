@@ -6,7 +6,7 @@ import ColorField from './fields/ColorField.vue'
 import ImageField from './fields/ImageField.vue'
 
 // TipTap is heavy; only pull it when a richtext field is actually rendered.
-const RichTextField = defineAsyncComponent(() => import('./RichTextField.vue'))
+const RichTextField = defineAsyncComponent(() => import('@/components/form/RichTextField.vue'))
 
 const props = defineProps<{
   content: Record<string, unknown>
