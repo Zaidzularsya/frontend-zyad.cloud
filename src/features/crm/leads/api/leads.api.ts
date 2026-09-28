@@ -17,6 +17,8 @@ export interface LeadListParams {
   status?: LeadStatus
   owner_user_id?: string
   source?: string
+  /** Lead yang di-convert menjadi contact ini. */
+  converted_contact_id?: string
   /** YYYY-MM-DD, inclusive. */
   created_from?: string
   created_to?: string

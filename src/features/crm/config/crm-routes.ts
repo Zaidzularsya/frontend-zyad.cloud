@@ -26,6 +26,12 @@ export function buildCrmRoutes(
       meta: { title: 'Contacts', permissions: ['contact.read'] },
     },
     {
+      path: `${pathPrefix}/contacts/:id`,
+      name: `${namePrefix}-contact-detail`,
+      component: () => import('@/features/crm/contacts/pages/ContactDetailPage.vue'),
+      meta: { title: 'Detail Contact', permissions: ['contact.read'] },
+    },
+    {
       path: `${pathPrefix}/leads`,
       name: `${namePrefix}-leads`,
       component: () => import('@/features/crm/leads/pages/LeadsPage.vue'),
