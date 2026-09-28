@@ -14,6 +14,9 @@ export interface Mailbox {
   imap_security: MailSecurity | ''
   status: MailboxStatus
   last_error: string
+  /** IMAP is configured, so the sync worker checks this mailbox's INBOX. */
+  has_inbox_sync: boolean
+  last_synced_at: string | null
   created_at: string
   updated_at: string
 }

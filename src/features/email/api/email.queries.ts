@@ -63,6 +63,26 @@ export function useTestMailboxMutation() {
   })
 }
 
+// The backend answers immediately (202) and syncs in the background, so
+// there's nothing to await for "done" — refetch shortly after to pick up
+// the new status/last_synced_at and any newly synced email.
+const SYNC_SETTLE_MS = 6000
+
+export function useSyncMailboxMutation() {
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() })
+    void queryClient.invalidateQueries({ queryKey: emailKeys.messages() })
+  }
+  return useMutation({
+    mutationFn: (id: string) => emailApi.syncMailbox(id),
+    onSuccess: () => {
+      invalidate()
+      setTimeout(invalidate, SYNC_SETTLE_MS)
+    },
+  })
+}
+
 export function useSendEmailMutation() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -34,6 +34,10 @@ export const emailApi = {
       .post<Envelope<Mailbox>>(`${mailboxesBase}/${id}/test`)
       .then((response) => response.data.data),
 
+  /** 202: inbox sync runs in the background — poll listMailboxes for
+   * last_synced_at/status and listMessages for new inbound email. */
+  syncMailbox: (id: string) => http.post(`${mailboxesBase}/${id}/sync`).then(() => undefined),
+
   /** 202: the message is queued and delivered in the background. */
   send: (payload: SendEmailPayload) => {
     const form = new FormData()
