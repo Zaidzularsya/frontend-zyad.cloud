@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import EmailComposeDock from '@/features/email/components/EmailComposeDock.vue'
 import { useAppStore } from '@/stores/app.store'
+import { useAuthStore } from '@/stores/auth.store'
 
 const app = useAppStore()
+const auth = useAuthStore()
 </script>
 
 <template>
@@ -20,5 +23,6 @@ const app = useAppStore()
         <RouterView />
       </main>
     </div>
+    <EmailComposeDock v-if="auth.can('email.send')" />
   </div>
 </template>

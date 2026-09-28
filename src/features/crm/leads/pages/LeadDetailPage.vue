@@ -28,6 +28,7 @@ import {
   useUploadLeadAttachmentMutation,
 } from '@/features/crm/leads/api/leads.queries'
 import { compactAddress, isValidAnnualRevenue } from '@/features/crm/leads/utils/lead-form'
+import { useEmailCompose } from '@/features/email/composables/useEmailCompose'
 import ConversationPanel from '@/features/whatsapp/components/ConversationPanel.vue'
 import { useEntityConversationQuery } from '@/features/whatsapp/api/whatsapp.queries'
 import { useDocumentVisible } from '@/features/whatsapp/composables/useDocumentVisible'
@@ -136,6 +137,19 @@ const leadConversationQuery = useEntityConversationQuery(chatEntityType, chatEnt
 // Realtime chat + unread badge; queries poll slowly only while it is down.
 useWhatsAppStream(canUseWhatsApp)
 const whatsappUnread = computed(() => leadConversationQuery.data.value?.unread_count ?? 0)
+
+const canSendEmail = computed(() => auth.can('email.send'))
+const emailCompose = useEmailCompose()
+
+// Converted leads log the email on their contact, like the WhatsApp chat.
+function composeEmail() {
+  if (!lead.value?.email) return
+  emailCompose.open({
+    to: [lead.value.email],
+    relatedEntityType: lead.value.converted_contact_id ? 'contact' : 'lead',
+    relatedEntityId: lead.value.converted_contact_id || lead.value.id,
+  })
+}
 
 const timelineRef = ref<InstanceType<typeof EntityTimeline> | null>(null)
 
@@ -345,8 +359,19 @@ async function removeAttachment(attachment: AttachmentItem) {
             /></span>
             Log
           </button>
+          <button
+            v-if="lead.email && canSendEmail"
+            type="button"
+            class="grid justify-items-center gap-1"
+            @click="composeEmail"
+          >
+            <span class="grid size-10 place-items-center rounded-full border"
+              ><Mail class="size-4"
+            /></span>
+            Email
+          </button>
           <a
-            v-if="lead.email"
+            v-else-if="lead.email"
             :href="`mailto:${lead.email}`"
             class="grid justify-items-center gap-1"
           >

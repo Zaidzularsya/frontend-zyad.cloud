@@ -23,6 +23,8 @@ import {
   useUploadContactAttachmentMutation,
 } from '@/features/crm/contacts/api/contacts.queries'
 import { useDealsQuery } from '@/features/crm/deals/api/deals.queries'
+import EntityEmailPanel from '@/features/email/components/EntityEmailPanel.vue'
+import { useEmailCompose } from '@/features/email/composables/useEmailCompose'
 import type { LeadAddress } from '@/features/crm/leads/api/leads.api'
 import { useCrmMembersQuery, useLeadsQuery } from '@/features/crm/leads/api/leads.queries'
 import { compactAddress } from '@/features/crm/leads/utils/lead-form'
@@ -109,7 +111,7 @@ const middleTabs = computed(() =>
   [
     { value: 'timeline' as const, label: 'Timeline' },
     { value: 'whatsapp' as const, label: 'Chat WhatsApp', hidden: !canUseWhatsApp.value },
-    { value: 'email' as const, label: 'Email' },
+    { value: 'email' as const, label: 'Email', hidden: !auth.can('email.read') },
   ].filter((tab) => !tab.hidden),
 )
 const middleTab = ref<MiddleTab>('timeline')
@@ -121,6 +123,18 @@ const conversationQuery = useEntityConversationQuery(
 )
 useWhatsAppStream(canUseWhatsApp)
 const whatsappUnread = computed(() => conversationQuery.data.value?.unread_count ?? 0)
+
+const canSendEmail = computed(() => auth.can('email.send'))
+const emailCompose = useEmailCompose()
+
+function composeEmail() {
+  if (!contact.value?.email) return
+  emailCompose.open({
+    to: [contact.value.email],
+    relatedEntityType: 'contact',
+    relatedEntityId: contact.value.id,
+  })
+}
 
 const timelineRef = ref<InstanceType<typeof EntityTimeline> | null>(null)
 
@@ -330,8 +344,19 @@ async function removeAttachment(attachment: AttachmentItem) {
             /></span>
             Log
           </button>
+          <button
+            v-if="contact.email && canSendEmail"
+            type="button"
+            class="grid justify-items-center gap-1"
+            @click="composeEmail"
+          >
+            <span class="grid size-10 place-items-center rounded-full border"
+              ><Mail class="size-4"
+            /></span>
+            Email
+          </button>
           <a
-            v-if="contact.email"
+            v-else-if="contact.email"
             :href="`mailto:${contact.email}`"
             class="grid justify-items-center gap-1"
           >
@@ -523,14 +548,13 @@ async function removeAttachment(attachment: AttachmentItem) {
           id="contact-panel-email"
           role="tabpanel"
           aria-labelledby="contact-tab-email"
-          class="grid place-items-center gap-2 py-16 text-center"
         >
-          <Mail class="size-8 text-gray-400" />
-          <p class="font-medium">Inbox email belum tersedia</p>
-          <p class="max-w-sm text-sm text-gray-500">
-            Kirim dan baca email langsung dari halaman ini akan hadir setelah akun email (IMAP/SMTP)
-            bisa dihubungkan. Sementara ini gunakan tombol Email di panel kiri.
-          </p>
+          <EntityEmailPanel
+            :email="contact.email"
+            entity-type="contact"
+            :entity-id="contactId"
+            :entity-name="fullName"
+          />
         </div>
 
         <div
