@@ -2,14 +2,97 @@ import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 import type { Company } from '@/features/crm/companies/api/companies.api'
 import type { Contact } from '@/features/crm/contacts/api/contacts.api'
+import type { Activity, ActivityType } from '@/features/crm/activities/api/activities.api'
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted'
+
+export type LeadSortKey = 'created_at' | 'updated_at' | 'contact_name' | 'score' | 'status'
+/** Sort key, "-" prefix = descending. */
+export type LeadSort = LeadSortKey | `-${LeadSortKey}`
 
 export interface LeadListParams {
   page: number
   per_page: number
   search?: string
   status?: LeadStatus
+  owner_user_id?: string
+  source?: string
+  /** YYYY-MM-DD, inclusive. */
+  created_from?: string
+  created_to?: string
+  sort?: LeadSort
+}
+
+export type LeadDashboardGranularity = 'day' | 'month'
+
+export interface LeadDashboardParams {
+  /** YYYY-MM-DD, inclusive (Asia/Jakarta). */
+  from: string
+  to: string
+  granularity?: LeadDashboardGranularity
+}
+
+/** Count in the selected range vs the previous range of equal length. */
+export interface LeadPeriodCount {
+  current: number
+  previous: number
+}
+
+export type LeadActivityKind =
+  | 'created'
+  | 'status_changed'
+  | 'assigned'
+  | 'converted'
+  | 'deleted'
+  | 'restored'
+  | 'activity_created'
+  | 'activity_completed'
+
+export interface LeadActivityItem {
+  kind: LeadActivityKind
+  occurred_at: string
+  lead_id: string
+  lead_name: string
+  actor_user_id?: string
+  actor_name?: string
+  from_value?: string
+  to_value?: string
+  from_name?: string
+  to_name?: string
+  activity_id?: string
+  activity_type?: ActivityType
+  subject?: string
+}
+
+export interface LeadFollowUp extends Activity {
+  lead_name: string
+  company_name?: string
+  assignee_name?: string
+}
+
+export interface LeadDashboard {
+  range: {
+    from: string
+    to: string
+    previous_from: string
+    previous_to: string
+    granularity: LeadDashboardGranularity
+  }
+  status_counts: Record<LeadStatus, number>
+  status_entered: Record<LeadStatus, LeadPeriodCount>
+  created: LeadPeriodCount
+  converted: LeadPeriodCount
+  series: { bucket: string; created: number; converted: number }[]
+  /** source "" = lead without a source. */
+  by_source: { source: string; count: number }[]
+  follow_up_summary: {
+    pending: number
+    overdue: number
+    due_today: number
+    due_next_7_days: number
+  }
+  upcoming_follow_ups: LeadFollowUp[]
+  recent_activity: LeadActivityItem[]
 }
 
 // Bentuk bebas (jsonb) — sama seperti crm_contacts.address; field di bawah
@@ -94,6 +177,11 @@ export const leadsApi = {
 
     return { data: response.data.data, meta: response.data.meta }
   },
+
+  dashboard: (params: LeadDashboardParams) =>
+    http
+      .get<{ success: boolean; data: LeadDashboard }>('/app/crm/leads/dashboard', { params })
+      .then((response) => response.data.data),
 
   detail: (id: string) =>
     http
