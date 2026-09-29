@@ -31,6 +31,15 @@ export function feedSegments(item: LeadActivityItem): FeedSegment[] {
   const typeLabel = item.activity_type ? activityTypeLabels[item.activity_type] : 'Aktivitas'
   const subject = item.subject ? ` “${item.subject}”` : ''
 
+  // The chat flow creates WhatsApp activities already completed, so neither
+  // "menyelesaikan" nor "menjadwalkan" is true: it is just a conversation.
+  if (
+    item.activity_type === 'whatsapp' &&
+    (item.kind === 'activity_created' || item.kind === 'activity_completed')
+  ) {
+    return [{ text: 'Percakapan WhatsApp dengan ' }, lead]
+  }
+
   switch (item.kind) {
     case 'created':
       return actor ? [actor, { text: ' menambahkan lead ' }, lead] : [{ text: 'Lead baru ' }, lead]
@@ -68,9 +77,6 @@ export function feedSegments(item: LeadActivityItem): FeedSegment[] {
         lead,
       ]
     case 'activity_created':
-      if (item.activity_type === 'whatsapp') {
-        return [{ text: 'Percakapan WhatsApp dengan ' }, lead]
-      }
       return [
         ...(actor ? [actor, { text: ' menjadwalkan ' }] : [{ text: 'Dijadwalkan: ' }]),
         { text: `${typeLabel.toLowerCase()}${subject} untuk ` },
