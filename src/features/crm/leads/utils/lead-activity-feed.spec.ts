@@ -63,6 +63,21 @@ describe('feedSegments', () => {
     )
   })
 
+  it('describes WhatsApp activities as a conversation, never as something the actor completed', () => {
+    // WhatsApp activities are created already completed by the chat flow.
+    for (const kind of ['activity_created', 'activity_completed'] as const) {
+      expect(
+        sentence({
+          ...base,
+          kind,
+          actor_name: 'Yulianto',
+          activity_type: 'whatsapp',
+          subject: 'Chat WhatsApp +6281234',
+        }),
+      ).toBe('Percakapan WhatsApp dengan Maya Kusuma')
+    }
+  })
+
   it('marks names as strong and never returns markup', () => {
     const segments = feedSegments({ ...base, lead_name: '<img src=x>', actor_name: 'Rizky' })
     expect(segments.filter((segment) => segment.strong).map((segment) => segment.text)).toEqual([
