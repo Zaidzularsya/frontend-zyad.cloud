@@ -4,6 +4,7 @@ import { computed, type Ref } from 'vue'
 import {
   activitiesApi,
   type ActivityListParams,
+  type CompleteActivityPayload,
   type ActivityPayload,
 } from '@/features/crm/activities/api/activities.api'
 
@@ -57,6 +58,18 @@ export function useCancelActivityMutation() {
     mutationFn: (id: string) => activitiesApi.cancel(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: activityKeys.all })
+    },
+  })
+}
+
+export function useCompleteWithOutcomeMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CompleteActivityPayload }) =>
+      activitiesApi.completeWithOutcome(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: activityKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] })
     },
   })
 }

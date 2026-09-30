@@ -29,10 +29,13 @@ import type {
   LeadActivityKind,
   LeadDashboardGranularity,
   LeadDashboardParams,
+  LeadFollowUp,
   LeadStatus,
 } from '@/features/crm/leads/api/leads.api'
 import { leadKeys, useLeadDashboardQuery } from '@/features/crm/leads/api/leads.queries'
+import PlaybookOutcomeDialog from '@/features/crm/components/PlaybookOutcomeDialog.vue'
 import LeadGrowthChart from '@/features/crm/leads/components/LeadGrowthChart.vue'
+import { stepLabel } from '@/features/crm/leads/utils/lead-playbook'
 import { activityTypeLabels, feedSegments } from '@/features/crm/leads/utils/lead-activity-feed'
 import {
   daysBetweenInclusive,
@@ -45,6 +48,7 @@ import {
   relativeTime,
   toIsoDate,
   type LeadRangePreset,
+  dueToneClass,
 } from '@/features/crm/leads/utils/lead-dashboard'
 import { leadStatusLabels, leadStatusTone } from '@/features/crm/leads/utils/lead-status'
 
@@ -119,7 +123,7 @@ const rangeLabel = computed(() => {
 })
 
 // --- Status cards ---
-const cardStatuses: LeadStatus[] = ['new', 'contacted', 'qualified', 'converted']
+const cardStatuses: LeadStatus[] = ['new', 'attempting', 'contacted', 'qualified', 'converted']
 
 function trend(current: number, previous: number) {
   const delta = percentDelta(current, previous)
@@ -192,19 +196,14 @@ const activityIcons: Record<ActivityType, typeof Phone> = {
   whatsapp: MessageCircle,
 }
 
-const dueToneClass = {
-  overdue: 'text-red-600 dark:text-red-400',
-  today: 'text-amber-600 dark:text-amber-400',
-  later: 'text-gray-700 dark:text-gray-300 font-medium',
-  none: 'text-gray-400',
-}
-
 const followUps = computed(() =>
   (dashboard.value?.upcoming_follow_ups ?? []).map((item) => ({
     ...item,
     due: dueLabel(item.due_at),
     icon: activityIcons[item.type] ?? ListTodo,
-    typeLabel: activityTypeLabels[item.type] ?? item.type,
+    typeLabel: item.playbook
+      ? stepLabel(item.playbook)
+      : (activityTypeLabels[item.type] ?? item.type),
   })),
 )
 
@@ -220,6 +219,15 @@ function initials(name?: string) {
 
 const completeMutation = useCompleteActivityMutation()
 const completingId = ref<string | null>(null)
+
+// Langkah SOP selesai lewat dialog hasil, bukan complete langsung.
+const outcomeActivity = ref<LeadFollowUp | null>(null)
+
+async function onOutcomeCompleted() {
+  outcomeActivity.value = null
+  await queryClient.invalidateQueries({ queryKey: leadKeys.all })
+  toast.success('Hasil langkah SOP tersimpan.')
+}
 
 async function completeFollowUp(id: string) {
   completingId.value = id
@@ -254,6 +262,14 @@ const feedIcons: Record<LeadActivityKind, { icon: typeof Plus; class: string }> 
   deleted: { icon: Trash2, class: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' },
   restored: {
     icon: RotateCcw,
+    class: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+  },
+  playbook_started: {
+    icon: ListTodo,
+    class: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+  },
+  playbook_ended: {
+    icon: CheckCircle2,
     class: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
   },
   activity_created: {
@@ -385,7 +401,7 @@ const today = toIsoDate(new Date())
 
     <template v-else>
       <!-- Status cards -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <button
           v-for="card in statusCards"
           :key="card.status"
@@ -625,7 +641,7 @@ const today = toIsoDate(new Date())
                       type="button"
                       class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                       :disabled="completingId === item.id"
-                      @click="completeFollowUp(item.id)"
+                      @click="item.playbook ? (outcomeActivity = item) : completeFollowUp(item.id)"
                     >
                       <Check class="size-3.5" />
                       {{ completingId === item.id ? 'Menyimpan...' : 'Selesai' }}
@@ -689,5 +705,11 @@ const today = toIsoDate(new Date())
         </BaseCard>
       </div>
     </template>
+
+    <PlaybookOutcomeDialog
+      :activity="outcomeActivity"
+      @close="outcomeActivity = null"
+      @completed="onOutcomeCompleted"
+    />
   </div>
 </template>

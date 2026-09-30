@@ -85,4 +85,16 @@ describe('feedSegments', () => {
       '<img src=x>',
     ])
   })
+
+  it('describes the lead playbook lifecycle', () => {
+    expect(sentence({ ...base, kind: 'playbook_started', to_value: 'first_contact' })).toBe(
+      'SOP penanganan dimulai untuk Maya Kusuma',
+    )
+    expect(sentence({ ...base, kind: 'playbook_ended', to_value: 'qualified' })).toBe(
+      'SOP Maya Kusuma selesai: qualified',
+    )
+    expect(sentence({ ...base, kind: 'playbook_ended', to_value: 'disqualified' })).toBe(
+      'SOP Maya Kusuma selesai: unqualified',
+    )
+  })
 })

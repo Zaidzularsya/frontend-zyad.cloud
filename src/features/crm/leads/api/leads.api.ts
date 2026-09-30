@@ -4,7 +4,23 @@ import type { Company } from '@/features/crm/companies/api/companies.api'
 import type { Contact } from '@/features/crm/contacts/api/contacts.api'
 import type { Activity, ActivityType } from '@/features/crm/activities/api/activities.api'
 
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted'
+export type LeadStatus =
+  | 'new'
+  | 'attempting'
+  | 'contacted'
+  | 'qualified'
+  | 'unqualified'
+  | 'converted'
+
+export type DisqualifyReason =
+  | 'unresponsive'
+  | 'not_interested'
+  | 'not_fit'
+  | 'budget'
+  | 'competitor'
+  | 'bad_data'
+  | 'duplicate'
+  | 'bad_timing'
 
 export type LeadSortKey = 'created_at' | 'updated_at' | 'contact_name' | 'score' | 'status'
 /** Sort key, "-" prefix = descending. */
@@ -47,6 +63,8 @@ export type LeadActivityKind =
   | 'converted'
   | 'deleted'
   | 'restored'
+  | 'playbook_started'
+  | 'playbook_ended'
   | 'activity_created'
   | 'activity_completed'
 
@@ -67,6 +85,7 @@ export interface LeadActivityItem {
 }
 
 export interface LeadFollowUp extends Activity {
+  step_name?: string
   lead_name: string
   company_name?: string
   assignee_name?: string
@@ -107,6 +126,30 @@ export interface LeadAddress {
   country?: string
 }
 
+export interface LeadPlaybookRun {
+  run_id: string
+  status: 'active' | 'completed' | 'cancelled'
+  result?: string
+  step_key?: string
+  step_name?: string
+  due_at?: string | null
+  attempt_no?: number
+  final_review: boolean
+}
+
+export interface LeadEvent {
+  id: string
+  lead_id: string
+  event_type: LeadActivityKind
+  from_value?: string
+  to_value?: string
+  actor_user_id?: string
+  actor_name?: string
+  from_name?: string
+  to_name?: string
+  created_at: string
+}
+
 export interface Lead {
   id: string
   contact_name: string
@@ -126,6 +169,13 @@ export interface Lead {
   converted_company_id?: string | null
   converted_deal_id?: string | null
   converted_at?: string | null
+  requirement_summary?: string
+  budget_estimate?: string | null
+  target_date?: string | null
+  decision_maker?: string
+  disqualify_reason?: DisqualifyReason
+  disqualify_note?: string
+  playbook_run?: LeadPlaybookRun | null
   created_at: string
   updated_at: string
   deleted_at?: string | null
@@ -144,6 +194,11 @@ export interface LeadPayload {
   /** String desimal; "" mengosongkan nilai. */
   annual_revenue?: string
   address?: LeadAddress
+  /** Form kebutuhan; "" mengosongkan nilai. */
+  requirement_summary?: string
+  budget_estimate?: string
+  target_date?: string
+  decision_maker?: string
 }
 
 export interface LeadAttachment {
@@ -247,6 +302,28 @@ export const leadsApi = {
     http
       .get<{ success: boolean; data: CrmMember[] }>('/app/crm/members')
       .then((response) => response.data.data),
+
+  disqualify: (id: string, payload: { reason: DisqualifyReason; note?: string }) =>
+    http
+      .post<{ success: boolean; data: Lead }>(`/app/crm/leads/${id}/disqualify`, payload)
+      .then((response) => response.data.data),
+
+  startPlaybook: (id: string) =>
+    http
+      .post<{
+        success: boolean
+        data: { id: string; status: string }
+      }>(`/app/crm/leads/${id}/playbook/start`)
+      .then((response) => response.data.data),
+
+  events: async (id: string, params: { page: number; per_page: number }) => {
+    const response = await http.get<{
+      success: boolean
+      data: LeadEvent[]
+      meta: PaginatedResponse<LeadEvent>['meta']
+    }>(`/app/crm/leads/${id}/events`, { params })
+    return { data: response.data.data, meta: response.data.meta }
+  },
 
   convert: (id: string, payload: { create_company: boolean; owner_user_id?: string }) =>
     http

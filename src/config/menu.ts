@@ -24,6 +24,7 @@ import {
   Waypoints,
   Mail,
   MessageCircle,
+  Settings2,
 } from 'lucide-vue-next'
 
 import { buildFinanceMenuItems } from '@/features/finance/config/finance-menu'
@@ -220,6 +221,12 @@ export const platformMenuGroups: MenuGroup[] = [
         permission: 'whatsapp.session.read',
       },
       {
+        label: 'Pengaturan CRM',
+        route: 'platform-crm-settings',
+        icon: Settings2,
+        permission: 'crm_settings.update',
+      },
+      {
         label: 'Akun Email',
         route: 'platform-email-accounts',
         icon: Mail,
@@ -337,6 +344,12 @@ export const customerMenuGroups: MenuGroup[] = [
         route: 'whatsapp',
         icon: MessageCircle,
         permission: 'whatsapp.session.read',
+      },
+      {
+        label: 'Pengaturan CRM',
+        route: 'crm-settings',
+        icon: Settings2,
+        permission: 'crm_settings.update',
       },
       {
         label: 'Akun Email',

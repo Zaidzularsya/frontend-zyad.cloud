@@ -9,11 +9,15 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import AttachmentCard, { type AttachmentItem } from '@/features/crm/components/AttachmentCard.vue'
 import EntityTimeline from '@/features/crm/components/EntityTimeline.vue'
 
-import type { ManualActivityType } from '@/features/crm/activities/api/activities.api'
+import type { ChannelAction } from '@/features/crm/activities/api/activities.api'
+import LeadDisqualifyDialog from '@/features/crm/components/LeadDisqualifyDialog.vue'
+import LeadRequirementsForm from '@/features/crm/components/LeadRequirementsForm.vue'
+import PlaybookStepCard from '@/features/crm/components/PlaybookStepCard.vue'
 import { useCompanyQuery } from '@/features/crm/companies/api/companies.queries'
 import { useDealQuery } from '@/features/crm/deals/api/deals.queries'
 import {
   leadsApi,
+  type Lead,
   type LeadAddress,
   type LeadPayload,
   type LeadStatus,
@@ -23,11 +27,14 @@ import {
   useCrmMembersQuery,
   useDeleteLeadAttachmentMutation,
   useLeadAttachmentsQuery,
+  useLeadEventsQuery,
   useLeadQuery,
   useUpdateLeadMutation,
   useUploadLeadAttachmentMutation,
 } from '@/features/crm/leads/api/leads.queries'
 import { compactAddress, isValidAnnualRevenue } from '@/features/crm/leads/utils/lead-form'
+import { leadStatusLabels } from '@/features/crm/leads/utils/lead-status'
+import EntityEmailPanel from '@/features/email/components/EntityEmailPanel.vue'
 import { useEmailCompose } from '@/features/email/composables/useEmailCompose'
 import ConversationPanel from '@/features/whatsapp/components/ConversationPanel.vue'
 import { useEntityConversationQuery } from '@/features/whatsapp/api/whatsapp.queries'
@@ -49,14 +56,6 @@ const lead = computed(() => leadQuery.data.value)
 
 const updateMutation = useUpdateLeadMutation()
 const convertMutation = useConvertLeadMutation()
-
-const statusLabels: Record<LeadStatus, string> = {
-  new: 'Baru',
-  contacted: 'Dihubungi',
-  qualified: 'Qualified',
-  unqualified: 'Unqualified',
-  converted: 'Converted',
-}
 
 function scoreLabel(score: number) {
   if (score >= 67) return 'HIGH'
@@ -116,13 +115,18 @@ async function convert() {
 // --- Panel tengah: Timeline | WhatsApp ---
 const auth = useAuthStore()
 const canUseWhatsApp = computed(() => auth.can('whatsapp.conversation.read'))
-const middleTabs = [
-  { value: 'timeline', label: 'Timeline' },
-  // "Chat" makes clear this opens the conversation; the timeline still lists
-  // the daily 'whatsapp' activities under "Activity".
-  { value: 'whatsapp', label: 'Chat WhatsApp' },
-] as const
-const middleTab = ref<'timeline' | 'whatsapp'>('timeline')
+const canReadEmail = computed(() => auth.can('email.read'))
+type MiddleTab = 'timeline' | 'whatsapp' | 'email'
+const middleTabs = computed(() =>
+  [
+    { value: 'timeline' as const, label: 'Timeline', hidden: false },
+    // "Chat" makes clear this opens the conversation; the timeline still lists
+    // the daily 'whatsapp' activities in its history.
+    { value: 'whatsapp' as const, label: 'Chat WhatsApp', hidden: !canUseWhatsApp.value },
+    { value: 'email' as const, label: 'Email', hidden: !canReadEmail.value },
+  ].filter((tab) => !tab.hidden),
+)
+const middleTab = ref<MiddleTab>('timeline')
 const documentVisible = useDocumentVisible()
 // Saat convert, percakapan WhatsApp lead dipindah ke contact barunya; lead
 // yang sudah converted menampilkan chat milik contact tersebut.
@@ -153,8 +157,24 @@ function composeEmail() {
 
 const timelineRef = ref<InstanceType<typeof EntityTimeline> | null>(null)
 
-function openComposer(type: ManualActivityType) {
-  timelineRef.value?.openComposer(type)
+function openComposer(kind: 'note' | 'log' | 'followup') {
+  middleTab.value = 'timeline'
+  timelineRef.value?.openComposer(kind)
+}
+
+// Riwayat lead (event) digabung dengan activity di timeline.
+const eventsQuery = useLeadEventsQuery(leadId)
+const leadEvents = computed(() => eventsQuery.data.value?.data ?? [])
+
+const showRequirements = ref(false)
+const disqualifyTarget = ref<Lead | null>(null)
+
+function onChannel(action: ChannelAction) {
+  if (action === 'whatsapp') middleTab.value = 'whatsapp'
+  else if (action === 'email') composeEmail()
+  else if (action === 'call' && lead.value?.phone) window.location.href = `tel:${lead.value.phone}`
+  else if (action === 'schedule_meeting') openComposer('followup')
+  else if (action === 'requirements_form') showRequirements.value = true
 }
 
 // --- Panel kanan ---
@@ -353,7 +373,12 @@ async function removeAttachment(attachment: AttachmentItem) {
         </div>
 
         <div class="flex justify-center gap-4 text-xs text-gray-600">
-          <button class="grid justify-items-center gap-1" @click="openComposer('note')">
+          <button
+            type="button"
+            class="grid justify-items-center gap-1"
+            aria-label="Log aktivitas"
+            @click="openComposer('log')"
+          >
             <span class="grid size-10 place-items-center rounded-full border"
               ><Plus class="size-4"
             /></span>
@@ -396,6 +421,14 @@ async function removeAttachment(attachment: AttachmentItem) {
         >
           Convert to contact
         </BaseButton>
+        <BaseButton
+          v-if="lead.status !== 'converted' && lead.status !== 'unqualified' && !lead.deleted_at"
+          class="w-full"
+          variant="outline"
+          @click="disqualifyTarget = lead"
+        >
+          Unqualify
+        </BaseButton>
         <p v-if="actionError" class="text-sm text-red-600">{{ actionError }}</p>
 
         <div>
@@ -408,10 +441,10 @@ async function removeAttachment(attachment: AttachmentItem) {
             @change="changeStatus"
           >
             <option
-              v-for="(label, value) in statusLabels"
+              v-for="(label, value) in leadStatusLabels"
               :key="value"
               :value="value"
-              :disabled="value === 'converted'"
+              :disabled="value === 'converted' || value === 'unqualified'"
             >
               {{ label }}
             </option>
@@ -536,7 +569,7 @@ async function removeAttachment(attachment: AttachmentItem) {
       <!-- Panel tengah: timeline activity | chat WhatsApp -->
       <BaseCard class="space-y-4 !p-5">
         <div
-          v-if="canUseWhatsApp"
+          v-if="middleTabs.length > 1"
           role="tablist"
           aria-label="Panel lead"
           class="flex gap-1 border-b dark:border-gray-800"
@@ -586,7 +619,21 @@ async function removeAttachment(attachment: AttachmentItem) {
         </div>
 
         <div
-          v-show="!canUseWhatsApp || middleTab === 'timeline'"
+          v-if="canReadEmail && middleTab === 'email'"
+          id="lead-panel-email"
+          role="tabpanel"
+          aria-labelledby="lead-tab-email"
+        >
+          <EntityEmailPanel
+            :email="lead.email"
+            :entity-type="lead.converted_contact_id ? 'contact' : 'lead'"
+            :entity-id="lead.converted_contact_id || lead.id"
+            :entity-name="lead.contact_name"
+          />
+        </div>
+
+        <div
+          v-show="middleTab === 'timeline'"
           id="lead-panel-timeline"
           role="tabpanel"
           aria-labelledby="lead-tab-timeline"
@@ -595,7 +642,28 @@ async function removeAttachment(attachment: AttachmentItem) {
             ref="timelineRef"
             related-entity-type="lead"
             :related-entity-id="leadId"
-          />
+            :readonly="Boolean(lead.deleted_at)"
+            :events="leadEvents"
+            :lead-name="lead.contact_name"
+            :default-assignee-id="lead.owner_user_id"
+            @open-channel="middleTab = $event"
+          >
+            <template #header="{ playbookStep }">
+              <PlaybookStepCard
+                :lead="lead"
+                :step="playbookStep"
+                :readonly="Boolean(lead.deleted_at)"
+                @channel="onChannel"
+                @qualified="convert"
+              />
+              <LeadRequirementsForm
+                v-if="showRequirements"
+                :lead="lead"
+                @saved="showRequirements = false"
+                @cancel="showRequirements = false"
+              />
+            </template>
+          </EntityTimeline>
         </div>
       </BaseCard>
 
@@ -660,5 +728,11 @@ async function removeAttachment(attachment: AttachmentItem) {
         />
       </div>
     </div>
+
+    <LeadDisqualifyDialog
+      :lead="disqualifyTarget"
+      @close="disqualifyTarget = null"
+      @done="disqualifyTarget = null"
+    />
   </div>
 </template>

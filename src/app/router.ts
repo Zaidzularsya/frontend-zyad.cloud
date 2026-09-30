@@ -131,6 +131,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'WhatsApp', permissions: ['whatsapp.session.read'] },
       },
       {
+        path: 'crm/settings',
+        name: 'crm-settings',
+        component: () => import('@/features/crm/settings/pages/CrmSettingsPage.vue'),
+        meta: { title: 'Pengaturan CRM', permissions: ['crm_settings.update'] },
+      },
+      {
         path: 'email-accounts',
         name: 'email-accounts',
         component: () => import('@/features/email/pages/EmailAccountsPage.vue'),
@@ -389,6 +395,12 @@ const routes: RouteRecordRaw[] = [
         name: 'platform-whatsapp',
         component: () => import('@/features/whatsapp/pages/WhatsAppConnectionsPage.vue'),
         meta: { title: 'WhatsApp', permissions: ['whatsapp.session.read'] },
+      },
+      {
+        path: 'crm/settings',
+        name: 'platform-crm-settings',
+        component: () => import('@/features/crm/settings/pages/CrmSettingsPage.vue'),
+        meta: { title: 'Pengaturan CRM', permissions: ['crm_settings.update'] },
       },
       {
         path: 'email-accounts',

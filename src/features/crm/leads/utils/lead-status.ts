@@ -2,6 +2,7 @@ import type { LeadStatus } from '@/features/crm/leads/api/leads.api'
 
 export const leadStatusOrder: LeadStatus[] = [
   'new',
+  'attempting',
   'contacted',
   'qualified',
   'unqualified',
@@ -10,6 +11,7 @@ export const leadStatusOrder: LeadStatus[] = [
 
 export const leadStatusLabels: Record<LeadStatus, string> = {
   new: 'Baru',
+  attempting: 'Dicoba dihubungi',
   contacted: 'Dihubungi',
   qualified: 'Qualified',
   unqualified: 'Unqualified',
@@ -18,6 +20,7 @@ export const leadStatusLabels: Record<LeadStatus, string> = {
 
 export const leadStatusTone: Record<LeadStatus, string> = {
   new: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  attempting: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
   contacted: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
   qualified: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
   unqualified: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300',

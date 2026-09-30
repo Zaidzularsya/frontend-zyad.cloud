@@ -3,6 +3,7 @@ import { computed, type Ref } from 'vue'
 
 import {
   leadsApi,
+  type DisqualifyReason,
   type LeadDashboardParams,
   type LeadListParams,
   type LeadPayload,
@@ -153,5 +154,36 @@ export function useCrmMembersQuery() {
     queryKey: leadKeys.members(),
     queryFn: () => leadsApi.members(),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useDisqualifyLeadMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason, note }: { id: string; reason: DisqualifyReason; note?: string }) =>
+      leadsApi.disqualify(id, { reason, note }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['crm', 'activities'] })
+    },
+  })
+}
+
+export function useStartLeadPlaybookMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.startPlaybook(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['crm', 'activities'] })
+    },
+  })
+}
+
+export function useLeadEventsQuery(leadId: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => [...leadKeys.all, 'events', leadId.value]),
+    queryFn: () => leadsApi.events(leadId.value, { page: 1, per_page: 100 }),
+    enabled: computed(() => Boolean(leadId.value)),
   })
 }
