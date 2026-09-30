@@ -6,7 +6,6 @@ import { ArrowLeft, Building2, Mail, Pencil, Phone, Plus, Target, Waypoints } fr
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 
-import type { ManualActivityType } from '@/features/crm/activities/api/activities.api'
 import { useCompaniesQuery } from '@/features/crm/companies/api/companies.queries'
 import AttachmentCard, { type AttachmentItem } from '@/features/crm/components/AttachmentCard.vue'
 import EntityTimeline from '@/features/crm/components/EntityTimeline.vue'
@@ -138,9 +137,9 @@ function composeEmail() {
 
 const timelineRef = ref<InstanceType<typeof EntityTimeline> | null>(null)
 
-function openComposer(type: ManualActivityType) {
+function openComposer(kind: 'note' | 'log' | 'followup') {
   middleTab.value = 'timeline'
-  timelineRef.value?.openComposer(type)
+  timelineRef.value?.openComposer(kind)
 }
 
 // --- Info contact & address (panel kiri) ---
@@ -337,7 +336,8 @@ async function removeAttachment(attachment: AttachmentItem) {
           <button
             v-if="!isDeleted"
             class="grid justify-items-center gap-1"
-            @click="openComposer('note')"
+            aria-label="Log aktivitas"
+            @click="openComposer('log')"
           >
             <span class="grid size-10 place-items-center rounded-full border"
               ><Plus class="size-4"

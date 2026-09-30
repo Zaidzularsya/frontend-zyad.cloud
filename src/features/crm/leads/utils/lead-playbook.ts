@@ -102,3 +102,15 @@ export function stepLabel(p: { step_name?: string; attempt_no?: number; final_re
   const name = p.step_name ?? ''
   return p.attempt_no && p.attempt_no > 1 ? `${name} · percobaan ${p.attempt_no}` : name
 }
+
+/** Label of a completed step's outcome (the activity no longer lists options). */
+export const outcomeLabels: Record<string, string> = {
+  connected: 'Terhubung',
+  no_response: 'Tidak respon',
+  call_back_later: 'Minta dihubungi nanti',
+  bad_data: 'Data salah',
+  give_up: 'Unqualify — tidak responsif',
+  qualified: 'Qualified',
+  bad_timing: 'Belum waktunya',
+  not_fit: 'Tidak cocok / tidak tertarik',
+}

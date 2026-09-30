@@ -63,6 +63,8 @@ export type LeadActivityKind =
   | 'converted'
   | 'deleted'
   | 'restored'
+  | 'playbook_started'
+  | 'playbook_ended'
   | 'activity_created'
   | 'activity_completed'
 
@@ -138,7 +140,7 @@ export interface LeadPlaybookRun {
 export interface LeadEvent {
   id: string
   lead_id: string
-  event_type: LeadActivityKind | 'playbook_started' | 'playbook_ended'
+  event_type: LeadActivityKind
   from_value?: string
   to_value?: string
   actor_user_id?: string

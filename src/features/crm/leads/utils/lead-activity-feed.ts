@@ -21,6 +21,16 @@ function statusLabel(value?: string) {
   return value && value in leadStatusLabels ? leadStatusLabels[value as LeadStatus] : (value ?? '')
 }
 
+const playbookResultLabels: Record<string, string> = {
+  qualified: 'qualified',
+  converted: 'converted',
+  disqualified: 'unqualified',
+}
+
+function playbookResultLabel(value?: string) {
+  return (value && playbookResultLabels[value]) || value || ''
+}
+
 /**
  * Builds the sentence for one recent-activity item as plain segments (no
  * HTML), e.g. [Rizky S.] memindahkan [Maya] ke [Qualified].
@@ -70,6 +80,12 @@ export function feedSegments(item: LeadActivityItem): FeedSegment[] {
       return actor ? [actor, { text: ' menghapus ' }, lead] : [lead, { text: ' dihapus' }]
     case 'restored':
       return actor ? [actor, { text: ' memulihkan ' }, lead] : [lead, { text: ' dipulihkan' }]
+    case 'playbook_started':
+      return [{ text: 'SOP penanganan dimulai untuk ' }, lead]
+    case 'playbook_ended':
+      return item.to_value === 'cancelled'
+        ? [{ text: 'SOP ' }, lead, { text: ' dihentikan' }]
+        : [{ text: 'SOP ' }, lead, { text: ` selesai: ${playbookResultLabel(item.to_value)}` }]
     case 'activity_completed':
       return [
         ...(actor ? [actor, { text: ' menyelesaikan ' }] : [{ text: 'Selesai: ' }]),

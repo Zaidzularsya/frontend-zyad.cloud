@@ -256,6 +256,14 @@ const feedIcons: Record<LeadActivityKind, { icon: typeof Plus; class: string }> 
     icon: RotateCcw,
     class: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
   },
+  playbook_started: {
+    icon: ListTodo,
+    class: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+  },
+  playbook_ended: {
+    icon: CheckCircle2,
+    class: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+  },
   activity_created: {
     icon: ListTodo,
     class: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
