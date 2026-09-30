@@ -52,6 +52,7 @@ const convertMutation = useConvertLeadMutation()
 
 const statusLabels: Record<LeadStatus, string> = {
   new: 'Baru',
+  attempting: 'Dicoba dihubungi',
   contacted: 'Dihubungi',
   qualified: 'Qualified',
   unqualified: 'Unqualified',
