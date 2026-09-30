@@ -7,15 +7,16 @@ vi.mock('@/features/crm/activities/api/activities.api', () => ({
   activitiesApi: { completeWithOutcome: (...args: unknown[]) => completeWithOutcome(...args) },
 }))
 
+import type { Activity } from '@/features/crm/activities/api/activities.api'
 import PlaybookOutcomeDialog from './PlaybookOutcomeDialog.vue'
 
-const activity = {
+const activity: Activity = {
   id: 'a1',
-  related_entity_type: 'lead',
+  related_entity_type: 'lead' as const,
   related_entity_id: 'l1',
-  type: 'meeting',
+  type: 'meeting' as const,
   subject: 'Gali kebutuhan',
-  status: 'pending',
+  status: 'pending' as const,
   created_at: '',
   updated_at: '',
   playbook: {
