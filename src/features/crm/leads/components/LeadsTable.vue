@@ -34,7 +34,13 @@ import {
   useDeleteLeadMutation,
   useLeadsQuery,
 } from '@/features/crm/leads/api/leads.queries'
-import { presetRange, toIsoDate } from '@/features/crm/leads/utils/lead-dashboard'
+import {
+  dueLabel,
+  dueToneClass,
+  presetRange,
+  toIsoDate,
+} from '@/features/crm/leads/utils/lead-dashboard'
+import { stepLabel } from '@/features/crm/leads/utils/lead-playbook'
 import {
   leadScoreTone,
   leadStatusLabels,
@@ -548,6 +554,7 @@ const sourceSuggestions = ['website', 'whatsapp', 'referral', 'instagram', 'even
                 <ArrowUpDown v-else class="size-3.5 opacity-40" />
               </button>
             </th>
+            <th class="px-4 py-3">Langkah berikutnya</th>
             <th class="px-4 py-3" :aria-sort="ariaSort('score')">
               <button
                 type="button"
@@ -629,6 +636,18 @@ const sourceSuggestions = ['website', 'whatsapp', 'referral', 'instagram', 'even
               >
                 {{ leadStatusLabels[lead.status] }}
               </span>
+            </td>
+            <td class="px-4 py-3">
+              <template v-if="lead.playbook_run?.status === 'active'">
+                <p class="whitespace-nowrap font-medium">{{ stepLabel(lead.playbook_run) }}</p>
+                <p
+                  class="text-xs whitespace-nowrap"
+                  :class="dueToneClass[dueLabel(lead.playbook_run.due_at).tone]"
+                >
+                  {{ dueLabel(lead.playbook_run.due_at).text }}
+                </p>
+              </template>
+              <span v-else class="text-gray-400">—</span>
             </td>
             <td class="px-4 py-3">
               <span

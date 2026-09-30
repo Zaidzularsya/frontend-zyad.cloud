@@ -68,6 +68,14 @@ const dayMonthFormat = new Intl.DateTimeFormat('id-ID', {
 
 export type DueTone = 'overdue' | 'today' | 'later' | 'none'
 
+/** Text color per due tone (dashboard follow-ups, lead list next step). */
+export const dueToneClass: Record<DueTone, string> = {
+  overdue: 'text-red-600 dark:text-red-400',
+  today: 'text-amber-600 dark:text-amber-400',
+  later: 'text-gray-700 dark:text-gray-300 font-medium',
+  none: 'text-gray-400',
+}
+
 /** Human label for an activity due date relative to now (local days). */
 export function dueLabel(
   dueAt: string | null | undefined,
