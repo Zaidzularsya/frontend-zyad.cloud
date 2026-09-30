@@ -114,6 +114,7 @@ export type Permission =
   | 'whatsapp.conversation.read_all'
   | 'whatsapp.conversation.assign'
   | 'whatsapp.message.send'
+  | 'crm_settings.update'
   | 'email.read'
   | 'email.send'
   | 'platform.organization.manage'
