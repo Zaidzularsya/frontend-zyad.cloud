@@ -14,12 +14,12 @@ describe('DealStageTrack', () => {
     const w = mount(DealStageTrack, { props: { stages, currentStageId: 'b' } })
     const items = w.findAll('li')
     expect(items.map((i) => i.text())).toEqual(['Baru', 'Survei', 'Won'])
-    expect(items[1].attributes('aria-current')).toBe('step')
+    expect(items[1]?.attributes('aria-current')).toBe('step')
   })
 
   it('emits select only for open stages when clickable', async () => {
     const w = mount(DealStageTrack, { props: { stages, currentStageId: 'a', clickable: true } })
-    await w.findAll('button')[1].trigger('click')
+    await w.findAll('button')[1]?.trigger('click')
     expect(w.emitted('select')).toEqual([['b']])
     expect(w.findAll('button')).toHaveLength(2)
   })

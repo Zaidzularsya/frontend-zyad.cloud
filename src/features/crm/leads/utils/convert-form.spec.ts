@@ -105,7 +105,7 @@ describe('prefillConvertForm', () => {
   })
 
   it('disables deal creation when there is no active pipeline', () => {
-    const f = prefillConvertForm(lead, [pipelines[0]])
+    const f = prefillConvertForm(lead, pipelines.slice(0, 1))
     expect(f.createDeal).toBe(false)
     expect(f.deal.pipelineId).toBe('')
   })
