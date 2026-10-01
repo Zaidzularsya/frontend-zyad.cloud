@@ -11,6 +11,7 @@ import EntityTimeline from '@/features/crm/components/EntityTimeline.vue'
 
 import type { ChannelAction } from '@/features/crm/activities/api/activities.api'
 import LeadDisqualifyDialog from '@/features/crm/components/LeadDisqualifyDialog.vue'
+import LeadRequirementsCard from '@/features/crm/components/LeadRequirementsCard.vue'
 import LeadRequirementsForm from '@/features/crm/components/LeadRequirementsForm.vue'
 import PlaybookStepCard from '@/features/crm/components/PlaybookStepCard.vue'
 import { useCompanyQuery } from '@/features/crm/companies/api/companies.queries'
@@ -168,6 +169,11 @@ const leadEvents = computed(() => eventsQuery.data.value?.data ?? [])
 
 const showRequirements = ref(false)
 const disqualifyTarget = ref<Lead | null>(null)
+
+function editRequirements() {
+  middleTab.value = 'timeline'
+  showRequirements.value = true
+}
 
 function onChannel(action: ChannelAction) {
   if (action === 'whatsapp') middleTab.value = 'whatsapp'
@@ -430,6 +436,12 @@ async function removeAttachment(attachment: AttachmentItem) {
           Unqualify
         </BaseButton>
         <p v-if="actionError" class="text-sm text-red-600">{{ actionError }}</p>
+
+        <LeadRequirementsCard
+          :lead="lead"
+          :readonly="Boolean(lead.deleted_at) || lead.status === 'converted'"
+          @edit="editRequirements"
+        />
 
         <div>
           <label class="text-xs text-gray-500" for="lead-status">Status</label>
