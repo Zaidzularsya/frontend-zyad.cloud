@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   CircleDollarSign,
   Plus,
@@ -26,6 +27,12 @@ import {
   useDeleteDealMutation,
   useMoveDealStageMutation,
 } from '@/features/crm/deals/api/deals.queries'
+
+// Halaman ini di-mount di dua prefix (tenant & platform); nama route detail mengikuti prefix route list.
+const route = useRoute()
+const dealDetailRouteName = computed(() =>
+  String(route.name ?? '').replace(/-deals$/, '-deal-detail'),
+)
 
 const pipelinesParams = computed(() => ({ page: 1, per_page: 50 }))
 const pipelinesQuery = usePipelinesQuery(pipelinesParams)
@@ -357,7 +364,12 @@ async function submitForm() {
                   @change="toggleSelectDeal(deal.id)"
                 />
                 <div class="min-w-0 flex-1">
-                  <p class="font-medium">{{ deal.title }}</p>
+                  <RouterLink
+                    :to="{ name: dealDetailRouteName, params: { id: deal.id } }"
+                    class="font-medium hover:underline"
+                  >
+                    {{ deal.title }}
+                  </RouterLink>
                   <p class="text-xs text-gray-500">{{ formatValue(deal) }}</p>
                 </div>
               </div>
