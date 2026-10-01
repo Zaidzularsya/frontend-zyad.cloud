@@ -15,6 +15,16 @@ export const companyKeys = {
   detail: (id: string) => [...companyKeys.details(), id] as const,
 }
 
+export function useCompanyLookupQuery(name: Ref<string>) {
+  const trimmed = computed(() => name.value.trim())
+  return useQuery({
+    queryKey: computed(() => [...companyKeys.all, 'lookup', trimmed.value] as const),
+    queryFn: () => companiesApi.lookup(trimmed.value),
+    enabled: computed(() => trimmed.value.length >= 3),
+    staleTime: 30_000,
+  })
+}
+
 export function useCompanyQuery(id: Ref<string | undefined>) {
   return useQuery({
     queryKey: computed(() => companyKeys.detail(id.value ?? '')),

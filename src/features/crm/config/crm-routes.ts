@@ -56,6 +56,12 @@ export function buildCrmRoutes(
       meta: { title: 'Deals', permissions: ['deal.read'] },
     },
     {
+      path: `${pathPrefix}/deals/:id`,
+      name: `${namePrefix}-deal-detail`,
+      component: () => import('@/features/crm/deals/pages/DealDetailPage.vue'),
+      meta: { title: 'Detail Deal', permissions: ['deal.read'] },
+    },
+    {
       path: `${pathPrefix}/activities`,
       name: `${namePrefix}-activities`,
       component: () => import('@/features/crm/activities/pages/ActivitiesPage.vue'),

@@ -1,4 +1,5 @@
 import { http } from '@/lib/http'
+import type { Pipeline } from '@/features/crm/pipelines/api/pipelines.api'
 import type { PaginatedResponse } from '@/types/api'
 
 export type DealStatus = 'open' | 'won' | 'lost'
@@ -26,6 +27,8 @@ export interface Deal {
   expected_close_date?: string | null
   status: DealStatus
   lost_reason?: string
+  description?: string
+  decision_maker?: string
   owner_user_id?: string
   discount_percent?: string | null
   discount_approved_by?: string
@@ -33,6 +36,11 @@ export interface Deal {
   created_at: string
   updated_at: string
   deleted_at?: string | null
+}
+
+export interface DealDetail extends Deal {
+  pipeline: Pipeline
+  source_lead: { id: string; contact_name: string } | null
 }
 
 export interface DealPayload {
@@ -45,6 +53,8 @@ export interface DealPayload {
   currency?: string
   expected_close_date?: string
   owner_user_id?: string
+  description?: string
+  decision_maker?: string
 }
 
 export const dealsApi = {
@@ -60,7 +70,7 @@ export const dealsApi = {
 
   detail: (id: string) =>
     http
-      .get<{ success: boolean; data: Deal }>(`/app/crm/deals/${id}`)
+      .get<{ success: boolean; data: DealDetail }>(`/app/crm/deals/${id}`)
       .then((response) => response.data.data),
 
   create: (payload: DealPayload) =>

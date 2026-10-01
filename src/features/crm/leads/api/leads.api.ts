@@ -1,6 +1,7 @@
 import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 import type { Company } from '@/features/crm/companies/api/companies.api'
+import type { Deal } from '@/features/crm/deals/api/deals.api'
 import type { Contact } from '@/features/crm/contacts/api/contacts.api'
 import type { Activity, ActivityType } from '@/features/crm/activities/api/activities.api'
 
@@ -218,10 +219,38 @@ export interface CrmMember {
   email: string
 }
 
+export interface ConvertCompanyInput {
+  mode: 'none' | 'existing' | 'new'
+  company_id?: string
+  name?: string
+  industry?: string
+  website?: string
+  phone?: string
+}
+
+export interface ConvertDealInput {
+  pipeline_id: string
+  stage_id: string
+  title: string
+  value?: string
+  expected_close_date?: string
+  description?: string
+  decision_maker?: string
+  owner_user_id?: string
+}
+
+export interface ConvertLeadPayload {
+  owner_user_id?: string
+  company?: ConvertCompanyInput
+  deal?: ConvertDealInput
+  create_company?: boolean
+}
+
 export interface LeadConversionResult {
   lead: Lead
   contact: Contact
   company?: Company
+  deal?: Deal
 }
 
 export const leadsApi = {
@@ -325,11 +354,19 @@ export const leadsApi = {
     return { data: response.data.data, meta: response.data.meta }
   },
 
-  convert: (id: string, payload: { create_company: boolean; owner_user_id?: string }) =>
+  convert: (id: string, payload: ConvertLeadPayload) =>
     http
       .post<{
         success: boolean
         data: LeadConversionResult
       }>(`/app/crm/leads/${id}/convert`, payload)
+      .then((response) => response.data.data),
+
+  createDeal: (id: string, payload: ConvertDealInput) =>
+    http
+      .post<{
+        success: boolean
+        data: { lead: Lead; deal: Deal }
+      }>(`/app/crm/leads/${id}/deal`, payload)
       .then((response) => response.data.data),
 }
