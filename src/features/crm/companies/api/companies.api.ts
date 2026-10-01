@@ -48,6 +48,11 @@ export const companiesApi = {
     return { data: response.data.data, meta: response.data.meta }
   },
 
+  lookup: (name: string) =>
+    http
+      .get<{ success: boolean; data: Company[] }>('/app/crm/companies/lookup', { params: { name } })
+      .then((response) => response.data.data),
+
   detail: (id: string) =>
     http
       .get<{ success: boolean; data: Company }>(`/app/crm/companies/${id}`)

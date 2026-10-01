@@ -3,6 +3,8 @@ import { computed, type Ref } from 'vue'
 
 import {
   leadsApi,
+  type ConvertDealInput,
+  type ConvertLeadPayload,
   type DisqualifyReason,
   type LeadDashboardParams,
   type LeadListParams,
@@ -11,6 +13,7 @@ import {
 } from '@/features/crm/leads/api/leads.api'
 import { companyKeys } from '@/features/crm/companies/api/companies.queries'
 import { contactKeys } from '@/features/crm/contacts/api/contacts.queries'
+import { dealKeys } from '@/features/crm/deals/api/deals.queries'
 
 export const leadKeys = {
   all: ['crm', 'leads'] as const,
@@ -108,12 +111,25 @@ export function useAssignLeadMutation() {
 export function useConvertLeadMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, createCompany }: { id: string; createCompany: boolean }) =>
-      leadsApi.convert(id, { create_company: createCompany }),
+    mutationFn: ({ id, payload }: { id: string; payload: ConvertLeadPayload }) =>
+      leadsApi.convert(id, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
       void queryClient.invalidateQueries({ queryKey: companyKeys.all })
+      void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+    },
+  })
+}
+
+export function useCreateLeadDealMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: ConvertDealInput }) =>
+      leadsApi.createDeal(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      void queryClient.invalidateQueries({ queryKey: dealKeys.all })
     },
   })
 }

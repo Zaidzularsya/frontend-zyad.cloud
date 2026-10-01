@@ -107,7 +107,10 @@ async function convert() {
     return
   actionError.value = ''
   try {
-    await convertMutation.mutateAsync({ id: lead.value.id, createCompany: withCompany })
+    await convertMutation.mutateAsync({
+      id: lead.value.id,
+      payload: { create_company: withCompany },
+    })
   } catch (error) {
     actionError.value = extractError(error)
   }

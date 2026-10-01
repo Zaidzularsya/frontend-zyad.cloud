@@ -293,7 +293,10 @@ async function bulkConvert() {
   await runBulk(
     items,
     (lead) =>
-      convertMutation.mutateAsync({ id: lead.id, createCompany: Boolean(lead.company_name) }),
+      convertMutation.mutateAsync({
+        id: lead.id,
+        payload: { create_company: Boolean(lead.company_name) },
+      }),
     `${items.length} lead dikonversi.`,
   )
 }
@@ -375,7 +378,10 @@ async function handleConvert(lead: Lead) {
     return
   }
   try {
-    await convertMutation.mutateAsync({ id: lead.id, createCompany: Boolean(lead.company_name) })
+    await convertMutation.mutateAsync({
+      id: lead.id,
+      payload: { create_company: Boolean(lead.company_name) },
+    })
     toast.success('Lead dikonversi.')
   } catch (error) {
     toast.error(extractError(error))
