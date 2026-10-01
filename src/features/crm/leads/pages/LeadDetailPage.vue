@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Building2, Mail, Pencil, Phone, Plus, Waypoints } from 'lucide-vue-next'
+import { ArrowLeft, Building2, Mail, Pencil, Phone, Plus } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -10,6 +10,9 @@ import AttachmentCard, { type AttachmentItem } from '@/features/crm/components/A
 import EntityTimeline from '@/features/crm/components/EntityTimeline.vue'
 
 import type { ChannelAction } from '@/features/crm/activities/api/activities.api'
+import LeadConvertDialog from '@/features/crm/components/LeadConvertDialog.vue'
+import LeadCreateDealDialog from '@/features/crm/components/LeadCreateDealDialog.vue'
+import LeadDealCard from '@/features/crm/components/LeadDealCard.vue'
 import LeadDisqualifyDialog from '@/features/crm/components/LeadDisqualifyDialog.vue'
 import LeadRequirementsCard from '@/features/crm/components/LeadRequirementsCard.vue'
 import LeadRequirementsForm from '@/features/crm/components/LeadRequirementsForm.vue'
@@ -20,6 +23,7 @@ import {
   leadsApi,
   type Lead,
   type LeadAddress,
+  type LeadConversionResult,
   type LeadPayload,
   type LeadStatus,
 } from '@/features/crm/leads/api/leads.api'
@@ -96,28 +100,23 @@ async function changeStatus(event: Event) {
   }
 }
 
-async function convert() {
-  if (!lead.value) return
-  const withCompany = Boolean(lead.value.company_name)
-  if (
-    !confirm(
-      `Convert lead "${lead.value.contact_name}" menjadi contact${withCompany ? ' + company' : ''}?`,
-    )
-  )
-    return
-  actionError.value = ''
-  try {
-    await convertMutation.mutateAsync({
-      id: lead.value.id,
-      payload: { create_company: withCompany },
-    })
-  } catch (error) {
-    actionError.value = extractError(error)
-  }
+const convertTarget = ref<Lead | null>(null)
+const createDealTarget = ref<Lead | null>(null)
+
+function convert() {
+  if (lead.value) convertTarget.value = lead.value
+}
+
+function onConverted(result: LeadConversionResult) {
+  convertTarget.value = null
+  const base = route.path.replace(/leads\/[^/]+$/, '')
+  if (result.deal) void router.push(`${base}deals/${result.deal.id}`)
+  else void router.push(`${base}contacts/${result.contact.id}`)
 }
 
 // --- Panel tengah: Timeline | WhatsApp ---
 const auth = useAuthStore()
+const canCreateDeal = computed(() => auth.can('deal.create'))
 const canUseWhatsApp = computed(() => auth.can('whatsapp.conversation.read'))
 const canReadEmail = computed(() => auth.can('email.read'))
 type MiddleTab = 'timeline' | 'whatsapp' | 'email'
@@ -710,24 +709,14 @@ async function removeAttachment(attachment: AttachmentItem) {
           </div>
         </BaseCard>
 
-        <BaseCard class="space-y-3 !p-5">
-          <h2 class="font-semibold">Deals</h2>
-          <div v-if="deal" class="rounded-xl border p-3">
-            <div class="flex items-center gap-2 text-xs text-gray-500">
-              <Waypoints class="size-3.5" />
-              <span class="uppercase">{{ deal.status }}</span>
-              <span v-if="deal.expected_close_date">
-                · Closing: {{ formatDate(deal.expected_close_date) }}
-              </span>
-            </div>
-            <p class="mt-1 font-medium">{{ deal.title }}</p>
-            <p class="text-sm font-semibold">
-              {{ formatCurrency(Number(deal.value), deal.currency) }}
-            </p>
-          </div>
-          <p v-else class="text-sm text-gray-500">
-            {{ dealId ? 'Memuat deal...' : 'Belum ada deal untuk lead ini.' }}
-          </p>
+        <BaseCard class="!p-5">
+          <LeadDealCard
+            :lead="lead"
+            :deal="deal"
+            :loading="Boolean(dealId) && dealQuery.isPending.value"
+            :can-create="canCreateDeal && !lead.deleted_at"
+            @create="createDealTarget = lead"
+          />
         </BaseCard>
 
         <AttachmentCard
@@ -744,6 +733,16 @@ async function removeAttachment(attachment: AttachmentItem) {
       </div>
     </div>
 
+    <LeadConvertDialog
+      :lead="convertTarget"
+      @close="convertTarget = null"
+      @converted="onConverted"
+    />
+    <LeadCreateDealDialog
+      :lead="createDealTarget"
+      @close="createDealTarget = null"
+      @created="createDealTarget = null"
+    />
     <LeadDisqualifyDialog
       :lead="disqualifyTarget"
       @close="disqualifyTarget = null"
