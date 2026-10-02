@@ -64,6 +64,36 @@ export interface Quotation {
   deleted_at?: string | null
 }
 
+export type SendChannel = 'email' | 'whatsapp'
+export type SendMode = 'text' | 'pdf' | 'text_pdf'
+
+export interface QuotationSend {
+  id: string
+  channel: SendChannel
+  mode: SendMode
+  recipient: string
+  status: 'sent' | 'failed'
+  error?: string
+  sent_by_name?: string
+  sent_at: string
+}
+
+export interface SendQuotationPayload {
+  channel: SendChannel
+  mode: SendMode
+  client_request_id: string
+  recipient?: string
+  message?: string
+  mailbox_id?: string
+  wa_session_id?: string
+}
+
+export interface QuotationSummary {
+  subject: string
+  text: string
+  html: string
+}
+
 export type QuotationDecision = Quotation & { suggest_deal_status: string }
 
 export interface QuotationPayload {
@@ -121,6 +151,26 @@ export const quotationsApi = {
       .post<{ success: boolean; data: Quotation }>(`/app/crm/quotations/${id}/send`, {
         channel: 'manual',
       })
+      .then((response) => response.data.data),
+
+  sendVia: (id: string, payload: SendQuotationPayload) =>
+    http
+      .post<{
+        success: boolean
+        data: { quotation: Quotation; send: QuotationSend }
+      }>(`/app/crm/quotations/${id}/send`, payload)
+      .then((response) => response.data.data),
+
+  summary: (id: string, message?: string) =>
+    http
+      .get<{ success: boolean; data: QuotationSummary }>(`/app/crm/quotations/${id}/summary`, {
+        params: { message: message || undefined },
+      })
+      .then((response) => response.data.data),
+
+  sends: (id: string) =>
+    http
+      .get<{ success: boolean; data: QuotationSend[] }>(`/app/crm/quotations/${id}/sends`)
       .then((response) => response.data.data),
 
   create: (payload: QuotationPayload) =>
