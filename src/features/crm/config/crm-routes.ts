@@ -74,6 +74,12 @@ export function buildCrmRoutes(
       meta: { title: 'Quotations', permissions: ['quotation.read'] },
     },
     {
+      path: `${pathPrefix}/quotations/:id`,
+      name: `${namePrefix}-quotation-editor`,
+      component: () => import('@/features/crm/quotations/pages/QuotationEditorPage.vue'),
+      meta: { title: 'Quotation', permissions: ['quotation.read'] },
+    },
+    {
       path: `${pathPrefix}/products`,
       name: `${namePrefix}-products`,
       component: () => import('@/features/catalog/pages/ProductsPage.vue'),
