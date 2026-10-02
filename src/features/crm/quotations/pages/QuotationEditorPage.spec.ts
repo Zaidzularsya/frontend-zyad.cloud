@@ -3,8 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-const { update, sentQuotation } = vi.hoisted(() => ({
+const { update, get, sentQuotation } = vi.hoisted(() => ({
   update: vi.fn(),
+  get: vi.fn(),
   sentQuotation: {
     id: 'q1',
     quotation_number: 'QUO-2026-0001',
@@ -35,7 +36,7 @@ const { update, sentQuotation } = vi.hoisted(() => ({
 }))
 vi.mock('@/features/crm/quotations/api/quotations.api', () => ({
   quotationsApi: {
-    get: vi.fn().mockResolvedValue(sentQuotation),
+    get,
     update,
     list: vi.fn().mockResolvedValue({ data: [], meta: {} }),
   },
@@ -63,6 +64,7 @@ describe('QuotationEditorPage', () => {
       history: createMemoryHistory(),
       routes: [{ path: '/crm/quotations/:id', component: QuotationEditorPage }],
     })
+    get.mockResolvedValue(sentQuotation)
     await router.push('/crm/quotations/q1')
     const w = mount(QuotationEditorPage, {
       global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
@@ -73,5 +75,25 @@ describe('QuotationEditorPage', () => {
     expect(w.find('input[name="item-description"]').exists()).toBe(false)
     expect(w.text()).toContain('Buat revisi')
     expect(w.text()).toContain('Rp 111')
+  })
+
+  it('tells the user to revise when saving a draft that was sent in another tab', async () => {
+    get.mockResolvedValue({ ...sentQuotation, status: 'draft', sent_at: null })
+    update.mockRejectedValue({ response: { status: 409, data: { code: 'QUOTATION_LOCKED' } } })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/crm/quotations/:id', component: QuotationEditorPage }],
+    })
+    await router.push('/crm/quotations/q1')
+    const w = mount(QuotationEditorPage, {
+      global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    })
+    await flushPromises()
+    await w.get('input[name="item-description"]').setValue('Internet 100 Mbps')
+    const saveButton = w.findAll('button').find((b) => b.text() === 'Simpan draft')
+    await saveButton!.trigger('click')
+    await flushPromises()
+    expect(update).toHaveBeenCalled()
+    expect(w.text()).toContain('Quotation sudah terkirim. Buat revisi untuk mengubah.')
   })
 })

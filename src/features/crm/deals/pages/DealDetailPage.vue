@@ -15,6 +15,7 @@ import {
   useDealQuery,
   useMoveDealStageMutation,
 } from '@/features/crm/deals/api/deals.queries'
+import DealQuotationsPanel from '@/features/crm/quotations/components/DealQuotationsPanel.vue'
 import EntityEmailPanel from '@/features/email/components/EntityEmailPanel.vue'
 import ConversationPanel from '@/features/whatsapp/components/ConversationPanel.vue'
 import { formatCurrency } from '@/lib/utils'
@@ -67,11 +68,12 @@ async function markLost() {
   await closeLost.mutateAsync({ id: deal.value.id, lostReason: reason })
 }
 
-type Tab = 'timeline' | 'whatsapp' | 'email'
+type Tab = 'timeline' | 'quotations' | 'whatsapp' | 'email'
 const tab = ref<Tab>('timeline')
 const tabs = computed(() =>
   [
     { value: 'timeline' as const, label: 'Timeline', show: true },
+    { value: 'quotations' as const, label: 'Quotation', show: auth.can('quotation.read') },
     {
       value: 'whatsapp' as const,
       label: 'Chat WhatsApp',
@@ -194,6 +196,7 @@ const closeDate = computed(() =>
             :related-entity-id="deal.id"
             :default-assignee-id="deal.owner_user_id"
           />
+          <DealQuotationsPanel v-else-if="tab === 'quotations'" :deal-id="deal.id" />
           <ConversationPanel
             v-else-if="tab === 'whatsapp' && contact"
             related-entity-type="contact"
