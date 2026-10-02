@@ -39,6 +39,7 @@ vi.mock('@/features/crm/quotations/api/quotations.api', () => ({
     get,
     update,
     list: vi.fn().mockResolvedValue({ data: [], meta: {} }),
+    sends: vi.fn().mockResolvedValue([]),
   },
 }))
 vi.mock('@/features/crm/deals/api/deals.api', () => ({
@@ -53,6 +54,17 @@ vi.mock('@/features/crm/deals/api/deals.api', () => ({
 }))
 vi.mock('@/features/catalog/api/catalog.api', () => ({
   catalogApi: { products: vi.fn().mockResolvedValue({ data: [], meta: {} }) },
+}))
+vi.mock('@/features/crm/contacts/api/contacts.api', () => ({
+  contactsApi: {
+    detail: vi.fn().mockResolvedValue({ id: 'c1', first_name: 'Budi', email: 'budi@example.com' }),
+  },
+}))
+vi.mock('@/features/email/api/email.api', () => ({
+  emailApi: { listMailboxes: vi.fn().mockResolvedValue([]) },
+}))
+vi.mock('@/features/whatsapp/api/whatsapp.api', () => ({
+  whatsappApi: { listSessions: vi.fn().mockResolvedValue([]) },
 }))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => ({ can: () => true }) }))
 

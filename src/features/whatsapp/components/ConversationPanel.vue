@@ -344,6 +344,9 @@ async function retry(message: WhatsAppMessage) {
               "
               :data-direction="message.direction"
             >
+              <p v-if="message.attachment_name" class="text-sm font-medium">
+                Dokumen: {{ message.attachment_name }}
+              </p>
               <p v-if="message.body" class="whitespace-pre-wrap break-words">{{ message.body }}</p>
               <p v-else-if="message.has_media" class="italic text-gray-600 dark:text-gray-400">
                 [media] Lampiran belum didukung

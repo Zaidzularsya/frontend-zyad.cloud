@@ -6,6 +6,7 @@ import { ArrowLeft, Download, Eye, FileText, Send, Trash2 } from 'lucide-vue-nex
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import type { CatalogProduct } from '@/features/catalog/api/catalog.api'
+import { useContactQuery } from '@/features/crm/contacts/api/contacts.queries'
 import { useDealQuery } from '@/features/crm/deals/api/deals.queries'
 import {
   quotationsApi,
@@ -23,6 +24,11 @@ import {
 import ProductPicker from '@/features/crm/quotations/components/ProductPicker.vue'
 import QuotationDecisionDialogs from '@/features/crm/quotations/components/QuotationDecisionDialogs.vue'
 import QuotationItemsTable from '@/features/crm/quotations/components/QuotationItemsTable.vue'
+import QuotationSendHistory from '@/features/crm/quotations/components/QuotationSendHistory.vue'
+import SendQuotationDialog from '@/features/crm/quotations/components/SendQuotationDialog.vue'
+import { channelAvailability } from '@/features/crm/quotations/utils/send-quotation'
+import { useMailboxesQuery } from '@/features/email/api/email.queries'
+import { useSessionsQuery } from '@/features/whatsapp/api/whatsapp.queries'
 import { quotationErrorCode, quotationErrorMessage } from '@/features/crm/quotations/utils/errors'
 import {
   buildItemsPayload,
@@ -304,6 +310,39 @@ onBeforeUnmount(() => {
   removeGuard?.()
 })
 
+// --- Kirim via Email / WhatsApp ---
+const sendOpen = ref(false)
+const contactQuery = useContactQuery(computed(() => quotation.value?.contact_id ?? ''))
+const contact = computed(() => contactQuery.data.value ?? null)
+const mailboxesQuery = useMailboxesQuery(computed(() => !isNew.value && auth.can('email.send')))
+const activeMailboxes = computed(() =>
+  (mailboxesQuery.data.value ?? []).filter((mb) => mb.status === 'active'),
+)
+const canReadSessions = computed(() => auth.can('whatsapp.session.read'))
+const sessionsQuery = useSessionsQuery(computed(() => !isNew.value && canReadSessions.value))
+const connectedSessions = computed(() =>
+  (sessionsQuery.data.value ?? []).filter((session) => session.status === 'WORKING'),
+)
+const availability = computed(() =>
+  channelAvailability({
+    contactEmail: contact.value?.email,
+    contactPhone: contact.value?.phone,
+    hasActiveMailbox: activeMailboxes.value.length > 0,
+    // Tanpa izin baca session, anggap tersedia dan biarkan server yang memvalidasi.
+    hasConnectedSession: !canReadSessions.value || connectedSessions.value.length > 0,
+    canEmail: auth.can('email.send'),
+    canWhatsApp: auth.can('whatsapp.message.send'),
+  }),
+)
+const canSend = computed(
+  () => !isNew.value && ['draft', 'sent'].includes(status.value) && auth.can('quotation.send'),
+)
+
+async function openSend() {
+  if (dirty.value && editable.value && !(await save())) return
+  sendOpen.value = true
+}
+
 const busy = computed(
   () =>
     createMutation.isPending.value ||
@@ -379,15 +418,29 @@ const busy = computed(
                 <Eye class="size-4" />
                 Preview PDF
               </BaseButton>
-              <BaseButton
-                v-if="!isNew && auth.can('quotation.send')"
-                variant="outline"
-                :disabled="busy"
-                @click="markSent"
-              >
+              <BaseButton v-if="canSend" :disabled="busy" @click="openSend">
                 <Send class="size-4" />
-                Tandai terkirim
+                Kirim…
               </BaseButton>
+              <details v-if="canSend" class="relative">
+                <summary
+                  class="cursor-pointer list-none rounded-lg border px-3 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200"
+                >
+                  Lainnya
+                </summary>
+                <div
+                  class="absolute right-0 z-10 mt-1 w-56 rounded-lg border bg-white p-1 shadow-lg dark:bg-gray-900"
+                >
+                  <button
+                    type="button"
+                    class="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                    :disabled="busy"
+                    @click="markSent"
+                  >
+                    Tandai terkirim (manual)
+                  </button>
+                </div>
+              </details>
               <BaseButton
                 v-if="!isNew && auth.can('quotation.delete')"
                 variant="danger"
@@ -399,6 +452,10 @@ const busy = computed(
               </BaseButton>
             </template>
             <template v-else>
+              <BaseButton v-if="canSend" :disabled="busy" @click="openSend">
+                <Send class="size-4" />
+                Kirim…
+              </BaseButton>
               <BaseButton variant="outline" :disabled="busy" @click="downloadPdf">
                 <Download class="size-4" />
                 Download PDF
@@ -528,11 +585,24 @@ const busy = computed(
           <p v-if="!readonly" class="text-xs text-gray-500">
             Angka final dihitung server saat disimpan.
           </p>
+          <div v-if="!isNew && quotation" class="border-t pt-3">
+            <QuotationSendHistory :quotation-id="quotation.id" />
+          </div>
         </BaseCard>
       </div>
     </template>
 
     <ProductPicker :open="pickerOpen" @close="pickerOpen = false" @pick="addProduct" />
+    <SendQuotationDialog
+      v-if="quotation"
+      :open="sendOpen"
+      :quotation="quotation"
+      :contact="contact"
+      :availability="availability"
+      :mailboxes="activeMailboxes"
+      :sessions="connectedSessions"
+      @close="sendOpen = false"
+    />
     <QuotationDecisionDialogs
       v-if="quotation"
       :quotation="quotation"

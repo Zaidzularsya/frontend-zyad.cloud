@@ -38,10 +38,11 @@ const CONVERSATION_POLL_MS = 15000
 const MESSAGES_POLL_MS = 5000
 const MESSAGES_PAGE_SIZE = 30
 
-export function useSessionsQuery() {
+export function useSessionsQuery(enabled: Ref<boolean> = computed(() => true)) {
   return useQuery({
     queryKey: whatsappKeys.sessions(),
     queryFn: whatsappApi.listSessions,
+    enabled,
   })
 }
 

@@ -6,6 +6,7 @@ import {
   quotationsApi,
   type QuotationListParams,
   type QuotationPayload,
+  type SendQuotationPayload,
   type QuotationUpdatePayload,
 } from '@/features/crm/quotations/api/quotations.api'
 
@@ -14,6 +15,8 @@ export const quotationKeys = {
   lists: () => [...quotationKeys.all, 'list'] as const,
   list: (params: QuotationListParams) => [...quotationKeys.lists(), params] as const,
   detail: (id: string) => [...quotationKeys.all, 'detail', id] as const,
+  summary: (id: string, message: string) => [...quotationKeys.all, 'summary', id, message] as const,
+  sends: (id: string) => [...quotationKeys.all, 'sends', id] as const,
 }
 
 // Quotation tampil juga di tab Deal Detail, jadi mutation menyegarkan keduanya.
@@ -103,5 +106,35 @@ export function useRejectQuotationMutation() {
   return useMutation({
     mutationFn: (id: string) => quotationsApi.reject(id),
     onSuccess: invalidate,
+  })
+}
+
+export function useSendQuotationViaMutation() {
+  const invalidate = useInvalidateQuotations()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: SendQuotationPayload }) =>
+      quotationsApi.sendVia(id, payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useQuotationSummaryQuery(
+  id: Ref<string>,
+  message: Ref<string>,
+  enabled: Ref<boolean> = computed(() => true),
+) {
+  return useQuery({
+    queryKey: computed(() => quotationKeys.summary(id.value, message.value)),
+    queryFn: () => quotationsApi.summary(id.value, message.value),
+    enabled: computed(() => Boolean(id.value) && enabled.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useQuotationSendsQuery(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => quotationKeys.sends(id.value)),
+    queryFn: () => quotationsApi.sends(id.value),
+    enabled: computed(() => Boolean(id.value)),
   })
 }

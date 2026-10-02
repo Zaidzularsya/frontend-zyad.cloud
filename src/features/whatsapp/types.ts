@@ -74,6 +74,8 @@ export interface WhatsAppMessage {
   direction: MessageDirection
   body: string
   has_media: boolean
+  /** Nama file untuk pesan dokumen keluar (mis. PDF penawaran). */
+  attachment_name?: string
   status: MessageStatus
   error?: string
   sent_by_user_id?: string
