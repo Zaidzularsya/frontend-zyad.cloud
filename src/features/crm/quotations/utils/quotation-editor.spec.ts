@@ -4,6 +4,7 @@ import {
   blankLine,
   buildItemsPayload,
   computeTotals,
+  formatRupiah,
   lineFromProduct,
   validateLines,
 } from './quotation-editor'
@@ -90,5 +91,13 @@ describe('validate & payload', () => {
         unit: undefined,
       },
     ])
+  })
+})
+
+describe('formatRupiah', () => {
+  it('formats decimal strings like the PDF', () => {
+    expect(formatRupiah('1500000.00')).toBe('Rp 1.500.000')
+    expect(formatRupiah('1500000.50')).toBe('Rp 1.500.000,50')
+    expect(formatRupiah('0')).toBe('Rp 0')
   })
 })

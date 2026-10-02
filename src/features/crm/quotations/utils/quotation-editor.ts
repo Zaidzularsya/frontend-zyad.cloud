@@ -80,7 +80,15 @@ function mulDivRound(a: bigint, b: bigint, div: bigint): bigint {
   return (a * b * 2n + div) / (2n * div)
 }
 
-export function computeTotals(lines: EditorLine[]) {
+export interface EditorTotals {
+  lines: { gross: string; discount: string; net: string; tax: string }[]
+  subtotal: string
+  discountTotal: string
+  taxTotal: string
+  grandTotal: string
+}
+
+export function computeTotals(lines: EditorLine[]): EditorTotals {
   let subtotal = 0n
   let discountTotal = 0n
   let taxTotal = 0n
@@ -137,4 +145,12 @@ export function buildItemsPayload(lines: EditorLine[]): LineItemInput[] {
     tax_percent: percent(l.taxPercent) ?? '0',
     unit: l.unit.trim() || undefined,
   }))
+}
+
+/** "1500000.50" → "Rp 1.500.000,50"; nol pecahan dihilangkan (sama dengan PDF). */
+export function formatRupiah(decimal: string): string {
+  const [whole = '0', frac = ''] = (decimal || '0').split('.')
+  const grouped = whole.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const cents = frac.padEnd(2, '0').slice(0, 2)
+  return cents === '00' ? `Rp ${grouped}` : `Rp ${grouped},${cents}`
 }
