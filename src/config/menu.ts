@@ -138,6 +138,12 @@ export const platformMenuGroups: MenuGroup[] = [
     label: 'Sales',
     items: [
       {
+        label: 'Produk',
+        route: 'platform-crm-products',
+        icon: Package,
+        permission: 'catalog_product.read',
+      },
+      {
         label: 'Quotations',
         route: 'platform-crm-quotations',
         icon: FileText,
@@ -279,6 +285,12 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Sales',
     items: [
+      {
+        label: 'Produk',
+        route: 'crm-products',
+        icon: Package,
+        permission: 'catalog_product.read',
+      },
       {
         label: 'Quotations',
         route: 'crm-quotations',
