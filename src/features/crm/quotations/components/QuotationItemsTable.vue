@@ -2,6 +2,8 @@
 import { ArrowDown, ArrowUp, Package, Plus, Trash2 } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { priceSuffix, type PricingAttrs } from '@/features/catalog/utils/pricing'
+import LinePricingPopover from '@/features/crm/quotations/components/LinePricingPopover.vue'
 import {
   blankLine,
   formatRupiah,
@@ -22,6 +24,11 @@ const emit = defineEmits<{
 
 function patch(index: number, field: keyof EditorLine, value: string) {
   const next = props.lines.map((l, i) => (i === index ? { ...l, [field]: value } : l))
+  emit('update:lines', next)
+}
+
+function patchPricing(index: number, pricing: PricingAttrs) {
+  const next = props.lines.map((l, i) => (i === index ? { ...l, pricing } : l))
   emit('update:lines', next)
 }
 
@@ -83,10 +90,13 @@ const cell =
               <td class="py-2 pr-2">
                 <p>{{ line.description }}</p>
                 <p v-if="line.sku" class="text-xs text-gray-500">{{ line.sku }}</p>
+                <LinePricingPopover :model-value="line.pricing" :uid="line.key" disabled />
               </td>
               <td class="py-2 pr-2 text-right tabular-nums">{{ Number(line.quantity) }}</td>
               <td class="py-2 pr-2">{{ line.unit || '-' }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ formatRupiah(line.unitPrice) }}</td>
+              <td class="py-2 pr-2 text-right tabular-nums">
+                {{ formatRupiah(line.unitPrice) }}{{ priceSuffix(line.pricing) }}
+              </td>
               <td class="py-2 pr-2 text-right">{{ percentLabel(line.discountPercent) }}</td>
               <td class="py-2 pr-2 text-right">{{ percentLabel(line.taxPercent) }}</td>
             </template>
@@ -101,6 +111,13 @@ const cell =
                   @input="patch(i, 'description', ($event.target as HTMLInputElement).value)"
                 />
                 <p v-if="line.sku" class="mt-1 text-xs text-gray-500">SKU {{ line.sku }}</p>
+                <LinePricingPopover
+                  class="mt-1"
+                  :model-value="line.pricing"
+                  :uid="line.key"
+                  :disabled="false"
+                  @update:model-value="patchPricing(i, $event)"
+                />
               </td>
               <td class="py-2 pr-2">
                 <input
@@ -129,6 +146,12 @@ const cell =
                   :class="[cell, 'text-right']"
                   @input="patch(i, 'unitPrice', ($event.target as HTMLInputElement).value)"
                 />
+                <span
+                  v-if="priceSuffix(line.pricing)"
+                  class="block text-right text-xs text-gray-500"
+                >
+                  {{ priceSuffix(line.pricing) }}
+                </span>
               </td>
               <td class="py-2 pr-2">
                 <input

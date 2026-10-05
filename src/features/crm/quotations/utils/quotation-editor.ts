@@ -1,4 +1,11 @@
 import type { CatalogProduct } from '@/features/catalog/api/catalog.api'
+import {
+  DEFAULT_PRICING,
+  FREQUENCIES,
+  normalizePricing,
+  type BillingFrequency,
+  type PricingAttrs,
+} from '@/features/catalog/utils/pricing'
 import { normalizeAmount } from '@/features/crm/leads/utils/convert-form'
 import type { LineItemInput, Quotation } from '@/features/crm/quotations/api/quotations.api'
 
@@ -12,6 +19,7 @@ export interface EditorLine {
   unitPrice: string
   discountPercent: string
   taxPercent: string
+  pricing: PricingAttrs
 }
 
 let seq = 0
@@ -28,6 +36,7 @@ export function blankLine(): EditorLine {
     unitPrice: '',
     discountPercent: '',
     taxPercent: '0',
+    pricing: { ...DEFAULT_PRICING },
   }
 }
 
@@ -40,6 +49,7 @@ export function lineFromProduct(p: CatalogProduct): EditorLine {
     unit: p.unit,
     unitPrice: p.base_price,
     taxPercent: p.tax_percent,
+    pricing: normalizePricing(p),
   }
 }
 
@@ -54,6 +64,11 @@ export function linesFromQuotation(q: Quotation): EditorLine[] {
     unitPrice: it.unit_price,
     discountPercent: it.discount_percent ?? '',
     taxPercent: it.tax_percent ?? '0',
+    pricing: normalizePricing({
+      charge_type: it.charge_type,
+      billing_frequency: it.billing_frequency,
+      payment_timing: it.payment_timing,
+    }),
   }))
 }
 
@@ -86,12 +101,19 @@ export interface EditorTotals {
   discountTotal: string
   taxTotal: string
   grandTotal: string
+  oneTimeTotal: string
+  firstInvoiceTotal: string
+  /** Hanya frekuensi yang terpakai, urut harian → tahunan. */
+  recurring: { frequency: BillingFrequency; label: string; amount: string }[]
 }
 
 export function computeTotals(lines: EditorLine[]): EditorTotals {
   let subtotal = 0n
   let discountTotal = 0n
   let taxTotal = 0n
+  let oneTime = 0n
+  let firstInvoice = 0n
+  const recurringCents = new Map<BillingFrequency, bigint>()
   const out = lines.map((l) => {
     const qty = toCents(normalizeAmount(l.quantity || '1') || '0') // sen = qty × 100
     const price = toCents(normalizeAmount(l.unitPrice) || '0')
@@ -104,6 +126,18 @@ export function computeTotals(lines: EditorLine[]): EditorTotals {
     subtotal += gross
     discountTotal += discount
     taxTotal += taxAmount
+    // Rincian memakai total baris setelah diskon dan pajak (sama dengan backend).
+    const lineGross = net + taxAmount
+    const attrs = normalizePricing(l.pricing ?? {})
+    if (attrs.charge_type === 'recurring' && attrs.billing_frequency) {
+      recurringCents.set(
+        attrs.billing_frequency,
+        (recurringCents.get(attrs.billing_frequency) ?? 0n) + lineGross,
+      )
+    } else {
+      oneTime += lineGross
+    }
+    if (attrs.payment_timing === 'prepaid') firstInvoice += lineGross
     return {
       gross: fromCents(gross),
       discount: fromCents(discount),
@@ -117,6 +151,13 @@ export function computeTotals(lines: EditorLine[]): EditorTotals {
     discountTotal: fromCents(discountTotal),
     taxTotal: fromCents(taxTotal),
     grandTotal: fromCents(subtotal - discountTotal + taxTotal),
+    oneTimeTotal: fromCents(oneTime),
+    firstInvoiceTotal: fromCents(firstInvoice),
+    recurring: FREQUENCIES.filter((f) => recurringCents.has(f.value)).map((f) => ({
+      frequency: f.value,
+      label: f.label,
+      amount: fromCents(recurringCents.get(f.value) ?? 0n),
+    })),
   }
 }
 
@@ -144,6 +185,9 @@ export function buildItemsPayload(lines: EditorLine[]): LineItemInput[] {
       : undefined,
     tax_percent: percent(l.taxPercent) ?? '0',
     unit: l.unit.trim() || undefined,
+    charge_type: l.pricing.charge_type,
+    billing_frequency: l.pricing.billing_frequency,
+    payment_timing: l.pricing.payment_timing,
   }))
 }
 

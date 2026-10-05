@@ -1,6 +1,8 @@
 import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
+import type { BillingFrequency, ChargeType, PaymentTiming } from '../utils/pricing'
+
 export interface CatalogCategory {
   id: string
   name: string
@@ -18,6 +20,9 @@ export interface CatalogProduct {
   base_price: string
   tax_percent: string
   currency: string
+  charge_type: ChargeType
+  billing_frequency: BillingFrequency | null
+  payment_timing: PaymentTiming
   is_active: boolean
   created_at: string
   updated_at: string
@@ -31,6 +36,10 @@ export interface ProductPayload {
   unit?: string
   base_price?: string
   tax_percent?: string
+  // Atribut harga selalu dikirim utuh (backend menolak sebagian).
+  charge_type?: ChargeType
+  billing_frequency?: BillingFrequency | null
+  payment_timing?: PaymentTiming
   is_active?: boolean
 }
 

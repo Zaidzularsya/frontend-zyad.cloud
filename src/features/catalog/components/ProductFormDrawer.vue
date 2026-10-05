@@ -26,6 +26,8 @@ const emit = defineEmits<{
   (e: 'saved'): void
 }>()
 
+import { FREQUENCIES } from '@/features/catalog/utils/pricing'
+
 const UNITS = ['pcs', 'unit', 'paket', 'bulan', 'tahun', 'jam', 'hari', 'meter']
 
 const form = ref<ProductForm>(emptyProductForm())
@@ -122,6 +124,49 @@ const inputClass =
           <span class="block text-xs text-gray-500">PPN umumnya 11 atau 12</span>
         </label>
       </div>
+
+      <fieldset class="space-y-3 rounded-lg border p-3">
+        <legend class="px-1 text-sm font-medium">Penagihan</legend>
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <label class="flex items-center gap-2">
+            <input v-model="form.chargeType" type="radio" name="charge_type" value="one_time" />
+            Sekali bayar
+          </label>
+          <label class="flex items-center gap-2">
+            <input v-model="form.chargeType" type="radio" name="charge_type" value="recurring" />
+            Berulang
+          </label>
+        </div>
+        <label v-if="form.chargeType === 'recurring'" class="block space-y-1 text-sm">
+          <span class="font-medium">Frekuensi</span>
+          <select v-model="form.frequency" name="billing_frequency" :class="inputClass">
+            <option v-for="f in FREQUENCIES" :key="f.value" :value="f.value">{{ f.label }}</option>
+          </select>
+        </label>
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <label class="flex items-center gap-2">
+            <input
+              v-model="form.paymentTiming"
+              type="radio"
+              name="payment_timing"
+              value="prepaid"
+            />
+            Prabayar
+          </label>
+          <label class="flex items-center gap-2">
+            <input
+              v-model="form.paymentTiming"
+              type="radio"
+              name="payment_timing"
+              value="postpaid"
+            />
+            Pascabayar
+          </label>
+        </div>
+        <p class="text-xs text-gray-500">
+          Pascabayar: ditagih setelah layanan diterima atau di akhir periode.
+        </p>
+      </fieldset>
 
       <label class="block space-y-1 text-sm">
         <span class="font-medium">Deskripsi</span>

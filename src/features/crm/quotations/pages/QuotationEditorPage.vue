@@ -6,6 +6,7 @@ import { ArrowLeft, Download, Eye, FileText, Send, Trash2 } from 'lucide-vue-nex
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import type { CatalogProduct } from '@/features/catalog/api/catalog.api'
+import { FREQUENCIES } from '@/features/catalog/utils/pricing'
 import { useContactQuery } from '@/features/crm/contacts/api/contacts.queries'
 import { useDealQuery } from '@/features/crm/deals/api/deals.queries'
 import {
@@ -581,6 +582,23 @@ const busy = computed(
                 {{ formatRupiah(readonly ? (quotation?.grand_total ?? '0') : totals.grandTotal) }}
               </dd>
             </div>
+            <template v-if="totals.recurring.length > 0">
+              <div class="flex justify-between">
+                <dt class="text-gray-500">Sekali bayar</dt>
+                <dd class="tabular-nums">{{ formatRupiah(totals.oneTimeTotal) }}</dd>
+              </div>
+              <div v-for="r in totals.recurring" :key="r.frequency" class="flex justify-between">
+                <dt class="text-gray-500">Berulang ({{ r.label }})</dt>
+                <dd class="tabular-nums">
+                  {{ formatRupiah(r.amount)
+                  }}{{ FREQUENCIES.find((f) => f.value === r.frequency)?.suffix }}
+                </dd>
+              </div>
+              <div class="flex justify-between font-semibold">
+                <dt>Tagihan pertama</dt>
+                <dd class="tabular-nums">{{ formatRupiah(totals.firstInvoiceTotal) }}</dd>
+              </div>
+            </template>
           </dl>
           <p v-if="!readonly" class="text-xs text-gray-500">
             Angka final dihitung server saat disimpan.
