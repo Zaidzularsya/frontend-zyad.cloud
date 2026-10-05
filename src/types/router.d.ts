@@ -11,6 +11,8 @@ declare module 'vue-router' {
     guestOnly?: boolean
     requiresTenant?: boolean
     requiresPlatform?: boolean
+    // Halaman publik berbasis token (mis. link penawaran): tanpa login/tenant.
+    public?: boolean
     permissions?: Permission[]
   }
 }
