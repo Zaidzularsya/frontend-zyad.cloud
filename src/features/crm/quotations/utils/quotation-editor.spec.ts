@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_PRICING } from '@/features/catalog/utils/pricing'
+
 import {
   blankLine,
   buildItemsPayload,
@@ -7,6 +9,7 @@ import {
   formatRupiah,
   lineFromProduct,
   validateLines,
+  type EditorLine,
 } from './quotation-editor'
 
 const line = (over: Partial<ReturnType<typeof blankLine>>) => ({ ...blankLine(), ...over })
@@ -80,6 +83,9 @@ describe('validate & payload', () => {
         discount_percent: undefined,
         tax_percent: '11.00',
         unit: 'bulan',
+        charge_type: 'one_time',
+        billing_frequency: null,
+        payment_timing: 'prepaid',
       },
       {
         product_id: undefined,
@@ -89,6 +95,9 @@ describe('validate & payload', () => {
         discount_percent: undefined,
         tax_percent: '0',
         unit: undefined,
+        charge_type: 'one_time',
+        billing_frequency: null,
+        payment_timing: 'prepaid',
       },
     ])
   })
@@ -99,5 +108,81 @@ describe('formatRupiah', () => {
     expect(formatRupiah('1500000.00')).toBe('Rp 1.500.000')
     expect(formatRupiah('1500000.50')).toBe('Rp 1.500.000,50')
     expect(formatRupiah('0')).toBe('Rp 0')
+  })
+})
+
+describe('pricing attributes', () => {
+  it('splits totals by charge type and timing', () => {
+    const lines = [
+      line({
+        description: 'Instalasi',
+        unitPrice: '500000',
+        pricing: { charge_type: 'one_time', billing_frequency: null, payment_timing: 'prepaid' },
+      }),
+      line({
+        description: 'Internet',
+        unitPrice: '300000',
+        taxPercent: '11',
+        pricing: {
+          charge_type: 'recurring',
+          billing_frequency: 'monthly',
+          payment_timing: 'prepaid',
+        },
+      }),
+      line({
+        description: 'Website',
+        unitPrice: '5000000',
+        pricing: { charge_type: 'one_time', billing_frequency: null, payment_timing: 'postpaid' },
+      }),
+    ] as EditorLine[]
+    const t = computeTotals(lines)
+    expect(t.oneTimeTotal).toBe('5500000.00')
+    expect(t.firstInvoiceTotal).toBe('833000.00')
+    expect(t.recurring).toEqual([{ frequency: 'monthly', label: 'Bulanan', amount: '333000.00' }])
+  })
+
+  it('orders mixed frequencies daily to annual and leaves legacy lines without breakdown', () => {
+    const t = computeTotals([
+      line({
+        description: 'Domain',
+        unitPrice: '200000',
+        pricing: {
+          charge_type: 'recurring',
+          billing_frequency: 'annual',
+          payment_timing: 'prepaid',
+        },
+      }),
+      line({
+        description: 'Internet',
+        unitPrice: '300000',
+        pricing: {
+          charge_type: 'recurring',
+          billing_frequency: 'monthly',
+          payment_timing: 'prepaid',
+        },
+      }),
+    ])
+    expect(t.recurring.map((r) => r.frequency)).toEqual(['monthly', 'annual'])
+    expect(computeTotals([line({ description: 'A', unitPrice: '10' })]).recurring).toEqual([])
+  })
+
+  it('copies catalog pricing and sends it in the payload', () => {
+    const l = lineFromProduct({
+      id: 'p1',
+      name: 'Net',
+      unit: 'bulan',
+      base_price: '300000',
+      tax_percent: '0',
+      charge_type: 'recurring',
+      billing_frequency: 'monthly',
+      payment_timing: 'prepaid',
+    } as never)
+    expect(l.pricing.billing_frequency).toBe('monthly')
+    expect(buildItemsPayload([{ ...l, quantity: '1' }])[0]).toMatchObject({
+      charge_type: 'recurring',
+      billing_frequency: 'monthly',
+      payment_timing: 'prepaid',
+    })
+    expect(blankLine().pricing).toEqual(DEFAULT_PRICING)
   })
 })

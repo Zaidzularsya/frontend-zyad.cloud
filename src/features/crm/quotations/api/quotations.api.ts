@@ -1,6 +1,8 @@
 import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
+import type { BillingFrequency, ChargeType, PaymentTiming } from '@/features/catalog/utils/pricing'
+
 export type QuotationStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'superseded'
 
 export interface LineItem {
@@ -16,6 +18,9 @@ export interface LineItem {
   unit?: string
   tax_percent?: string
   tax_amount?: string
+  charge_type?: ChargeType
+  billing_frequency?: BillingFrequency | null
+  payment_timing?: PaymentTiming
 }
 
 export interface LineItemInput {
@@ -26,6 +31,9 @@ export interface LineItemInput {
   discount_percent?: string
   tax_percent?: string
   unit?: string
+  charge_type?: ChargeType
+  billing_frequency?: BillingFrequency | null
+  payment_timing?: PaymentTiming
 }
 
 export interface QuotationListParams {
@@ -49,6 +57,10 @@ export interface Quotation {
   discount_total: string
   tax_total: string
   grand_total: string
+  // Quotation lama bisa tanpa field ini (diperlakukan sekali bayar).
+  one_time_total?: string
+  first_invoice_total?: string
+  recurring_totals?: Partial<Record<BillingFrequency, string>>
   currency: string
   notes?: string
   items: LineItem[]
