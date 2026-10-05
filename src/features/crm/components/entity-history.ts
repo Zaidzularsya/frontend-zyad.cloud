@@ -10,6 +10,8 @@ export interface HistoryItem {
   group: Exclude<HistoryFilter, 'all'>
   activity?: Activity
   event?: LeadEvent
+  /** Respons customer atas penawaran: ditampilkan sebagai kartu kontras. */
+  highlight?: 'approved' | 'revision'
 }
 
 export function splitActivities(activities: Activity[]) {
@@ -24,6 +26,11 @@ export function splitActivities(activities: Activity[]) {
   }
 }
 
+function highlightOf(a: Activity): HistoryItem['highlight'] {
+  if (a.type !== 'quotation_response') return undefined
+  return a.metadata?.action === 'revision_requested' ? 'revision' : 'approved'
+}
+
 export function mergeHistory(activities: Activity[], events: LeadEvent[]): HistoryItem[] {
   const fromActivities: HistoryItem[] = splitActivities(activities).done.map((a) => ({
     key: `activity-${a.id}`,
@@ -31,6 +38,7 @@ export function mergeHistory(activities: Activity[], events: LeadEvent[]): Histo
     kind: 'activity',
     group: a.type === 'note' ? 'note' : 'interaction',
     activity: a,
+    highlight: highlightOf(a),
   }))
   const fromEvents: HistoryItem[] = events.map((e) => ({
     key: `event-${e.id}`,

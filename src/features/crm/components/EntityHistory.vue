@@ -20,6 +20,7 @@ import {
 import { relativeTime } from '@/features/crm/leads/utils/lead-dashboard'
 import { activityTypeLabels, feedSegments } from '@/features/crm/leads/utils/lead-activity-feed'
 import { outcomeLabels } from '@/features/crm/leads/utils/lead-playbook'
+import QuotationResponseCard from '@/features/crm/components/QuotationResponseCard.vue'
 
 // Riwayat gabungan: activity yang sudah terjadi + perubahan lead (event).
 const props = defineProps<{ items: HistoryItem[]; leadName?: string }>()
@@ -41,6 +42,7 @@ const icons: Record<ActivityType, typeof Phone> = {
   task: ListTodo,
   note: FileText,
   whatsapp: MessageCircle,
+  quotation_response: FileText,
 }
 
 const absoluteFormat = new Intl.DateTimeFormat('id-ID', {
@@ -117,7 +119,15 @@ function eventSentence(item: HistoryItem) {
           />
         </span>
 
-        <template v-if="item.activity">
+        <QuotationResponseCard
+          v-if="item.activity && item.highlight"
+          :activity="item.activity"
+          :highlight="item.highlight"
+          :time="relativeTime(item.at)"
+          :time-title="absolute(item.at)"
+        />
+
+        <template v-else-if="item.activity">
           <p class="text-xs text-gray-500">
             {{ activityTypeLabels[item.activity.type] ?? item.activity.type }} ·
             <time :datetime="item.at" :title="absolute(item.at)">{{ relativeTime(item.at) }}</time>

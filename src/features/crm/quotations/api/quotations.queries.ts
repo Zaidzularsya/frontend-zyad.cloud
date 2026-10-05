@@ -17,6 +17,7 @@ export const quotationKeys = {
   detail: (id: string) => [...quotationKeys.all, 'detail', id] as const,
   summary: (id: string, message: string) => [...quotationKeys.all, 'summary', id, message] as const,
   sends: (id: string) => [...quotationKeys.all, 'sends', id] as const,
+  responses: (id: string) => [...quotationKeys.all, 'responses', id] as const,
 }
 
 // Quotation tampil juga di tab Deal Detail, jadi mutation menyegarkan keduanya.
@@ -137,4 +138,16 @@ export function useQuotationSendsQuery(id: Ref<string>) {
     queryFn: () => quotationsApi.sends(id.value),
     enabled: computed(() => Boolean(id.value)),
   })
+}
+
+export function useQuotationResponsesQuery(id: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => quotationKeys.responses(id.value)),
+    queryFn: () => quotationsApi.responses(id.value),
+    enabled: computed(() => Boolean(id.value) && enabled.value),
+  })
+}
+
+export function useQuotationLinkMutation() {
+  return useMutation({ mutationFn: (id: string) => quotationsApi.link(id) })
 }

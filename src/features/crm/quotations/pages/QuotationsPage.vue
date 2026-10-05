@@ -31,6 +31,7 @@ const tabs: { value: QuotationStatus | 'all'; label: string }[] = [
   { value: 'approved', label: 'Disetujui' },
   { value: 'rejected', label: 'Ditolak' },
   { value: 'expired', label: 'Kedaluwarsa' },
+  { value: 'revision_requested', label: 'Revisi diminta' },
   { value: 'superseded', label: 'Digantikan' },
 ]
 const statusLabel = Object.fromEntries(tabs.map((t) => [t.value, t.label])) as Record<
@@ -103,7 +104,12 @@ function formatDate(value?: string | null) {
               </td>
               <td class="px-5 py-3">
                 <span
-                  class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  class="rounded-full px-2.5 py-1 text-xs font-medium"
+                  :class="
+                    quotation.status === 'revision_requested'
+                      ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                  "
                 >
                   {{ statusLabel[quotation.status] ?? quotation.status }}
                 </span>

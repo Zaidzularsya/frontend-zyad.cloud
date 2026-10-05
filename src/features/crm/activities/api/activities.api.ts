@@ -3,9 +3,16 @@ import type { PaginatedResponse } from '@/types/api'
 import type { DisqualifyReason, Lead } from '@/features/crm/leads/api/leads.api'
 
 export type ActivityEntityType = 'lead' | 'contact' | 'company' | 'deal'
-export type ActivityType = 'call' | 'email' | 'meeting' | 'task' | 'note' | 'whatsapp'
-/** Types a user can create by hand; 'whatsapp' activities are written by the system. */
-export type ManualActivityType = Exclude<ActivityType, 'whatsapp'>
+export type ActivityType =
+  | 'call'
+  | 'email'
+  | 'meeting'
+  | 'task'
+  | 'note'
+  | 'whatsapp'
+  | 'quotation_response'
+/** Types a user can create by hand; 'whatsapp' and 'quotation_response' are written by the system. */
+export type ManualActivityType = Exclude<ActivityType, 'whatsapp' | 'quotation_response'>
 export type ActivityStatus = 'pending' | 'completed' | 'cancelled'
 
 export interface ActivityListParams {
@@ -76,6 +83,8 @@ export interface Activity {
   assignee_user_id?: string
   outcome_key?: string
   playbook?: ActivityPlaybook | null
+  /** Data terstruktur dari sistem, mis. respons customer atas penawaran. */
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
   deleted_at?: string | null

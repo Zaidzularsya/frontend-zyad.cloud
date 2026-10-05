@@ -9,6 +9,7 @@ export const activityTypeLabels: Record<ActivityType, string> = {
   task: 'Task',
   note: 'Catatan',
   whatsapp: 'WhatsApp',
+  quotation_response: 'Respons penawaran',
 }
 
 /** A piece of a feed sentence; strong parts are names. */
