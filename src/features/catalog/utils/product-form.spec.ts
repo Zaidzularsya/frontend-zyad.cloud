@@ -28,6 +28,9 @@ describe('product-form', () => {
       unit: 'bulan',
       description: undefined,
       category_id: undefined,
+      charge_type: 'one_time',
+      billing_frequency: null,
+      payment_timing: 'prepaid',
       is_active: true,
     })
   })
@@ -36,5 +39,30 @@ describe('product-form', () => {
     const payload = buildProductPayload({ ...emptyProductForm(), name: 'A' }, { editing: true })
     expect(payload.sku).toBe('')
     expect(payload.category_id).toBe('')
+  })
+
+  it('sends recurring pricing attributes with the chosen frequency', () => {
+    const payload = buildProductPayload({
+      ...emptyProductForm(),
+      name: 'Domain',
+      chargeType: 'recurring',
+      frequency: 'annual',
+      paymentTiming: 'postpaid',
+    })
+    expect(payload).toMatchObject({
+      charge_type: 'recurring',
+      billing_frequency: 'annual',
+      payment_timing: 'postpaid',
+    })
+  })
+
+  it('drops the frequency for one_time even if a stale value remains in the form', () => {
+    const payload = buildProductPayload({
+      ...emptyProductForm(),
+      name: 'Instalasi',
+      chargeType: 'one_time',
+      frequency: 'monthly',
+    })
+    expect(payload.billing_frequency).toBeNull()
   })
 })

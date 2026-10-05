@@ -17,6 +17,12 @@ import {
 import CategoryManagerDialog from '@/features/catalog/components/CategoryManagerDialog.vue'
 import ProductFormDrawer from '@/features/catalog/components/ProductFormDrawer.vue'
 import { catalogErrorMessage } from '@/features/catalog/utils/errors'
+import {
+  normalizePricing,
+  priceSuffix,
+  pricingShort,
+  type PricingAttrs,
+} from '@/features/catalog/utils/pricing'
 
 const PER_PAGE = 20
 
@@ -87,6 +93,11 @@ async function handleDelete(product: CatalogProduct) {
   } catch (error) {
     actionError.value = catalogErrorMessage(error)
   }
+}
+
+// Produk lama/respons tanpa atribut dianggap Sekali bayar · Prabayar.
+function pricingOf(product: CatalogProduct): PricingAttrs {
+  return normalizePricing(product)
 }
 
 function formatTax(value: string) {
@@ -189,7 +200,11 @@ function formatTax(value: string) {
               <td class="px-5 py-3">{{ product.category_name || '—' }}</td>
               <td class="px-5 py-3">{{ product.unit }}</td>
               <td class="px-5 py-3 text-right tabular-nums">
-                {{ formatCurrency(Number(product.base_price), product.currency) }}
+                {{ formatCurrency(Number(product.base_price), product.currency)
+                }}{{ priceSuffix(pricingOf(product)) }}
+                <p class="text-xs font-normal text-gray-500">
+                  {{ pricingShort(pricingOf(product)) }}
+                </p>
               </td>
               <td class="px-5 py-3 text-right tabular-nums">
                 {{ formatTax(product.tax_percent) }}
