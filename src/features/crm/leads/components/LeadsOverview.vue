@@ -194,6 +194,7 @@ const activityIcons: Record<ActivityType, typeof Phone> = {
   task: ListTodo,
   note: FileText,
   whatsapp: MessageCircle,
+  quotation_response: FileText,
 }
 
 const followUps = computed(() =>

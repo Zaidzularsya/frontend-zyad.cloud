@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Download, Eye, FileText, Send, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Download, Eye, FileText, Link2, Send, Trash2 } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import { useToast } from '@/components/ui/toast'
 import type { CatalogProduct } from '@/features/catalog/api/catalog.api'
 import { FREQUENCIES } from '@/features/catalog/utils/pricing'
 import { useContactQuery } from '@/features/crm/contacts/api/contacts.queries'
@@ -18,12 +19,15 @@ import {
   useCreateQuotationMutation,
   useDeleteQuotationMutation,
   useMarkQuotationSentMutation,
+  useQuotationLinkMutation,
   useQuotationQuery,
   useReviseQuotationMutation,
   useUpdateQuotationMutation,
 } from '@/features/crm/quotations/api/quotations.queries'
 import ProductPicker from '@/features/crm/quotations/components/ProductPicker.vue'
 import QuotationDecisionDialogs from '@/features/crm/quotations/components/QuotationDecisionDialogs.vue'
+import QuotationCustomerResponses from '@/features/crm/quotations/components/QuotationCustomerResponses.vue'
+import RevisionRequestedBanner from '@/features/crm/quotations/components/RevisionRequestedBanner.vue'
 import QuotationItemsTable from '@/features/crm/quotations/components/QuotationItemsTable.vue'
 import QuotationSendHistory from '@/features/crm/quotations/components/QuotationSendHistory.vue'
 import SendQuotationDialog from '@/features/crm/quotations/components/SendQuotationDialog.vue'
@@ -143,6 +147,10 @@ const statusMeta: Record<QuotationStatus, { label: string; cls: string }> = {
     label: 'Digantikan',
     cls: 'bg-gray-100 text-gray-500 line-through dark:bg-gray-800 dark:text-gray-400',
   },
+  revision_requested: {
+    label: 'Revisi diminta',
+    cls: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+  },
 }
 
 function formatDate(value?: string | null) {
@@ -165,6 +173,8 @@ const updateMutation = useUpdateQuotationMutation()
 const deleteMutation = useDeleteQuotationMutation()
 const reviseMutation = useReviseQuotationMutation()
 const markSentMutation = useMarkQuotationSentMutation()
+const linkMutation = useQuotationLinkMutation()
+const toast = useToast()
 const pickerOpen = ref(false)
 const decision = ref<'approve' | 'reject' | null>(null)
 const pdfBusy = ref(false)
@@ -258,6 +268,18 @@ async function markSent() {
   if (!id) return
   try {
     await markSentMutation.mutateAsync(id)
+  } catch (error) {
+    handleError(error)
+  }
+}
+
+async function copyCustomerLink() {
+  const q = quotation.value
+  if (!q) return
+  try {
+    const link = await linkMutation.mutateAsync(q.id)
+    await navigator.clipboard.writeText(link.url)
+    toast.success(`Link disalin. Berlaku s.d. ${formatDate(link.expires_at)}.`)
   } catch (error) {
     handleError(error)
   }
@@ -457,6 +479,15 @@ const busy = computed(
                 <Send class="size-4" />
                 Kirim…
               </BaseButton>
+              <BaseButton
+                v-if="status === 'sent' && canSend"
+                variant="outline"
+                :disabled="busy || linkMutation.isPending.value"
+                @click="copyCustomerLink"
+              >
+                <Link2 class="size-4" />
+                Salin link customer
+              </BaseButton>
               <BaseButton variant="outline" :disabled="busy" @click="downloadPdf">
                 <Download class="size-4" />
                 Download PDF
@@ -488,8 +519,16 @@ const busy = computed(
           </div>
         </div>
 
+        <RevisionRequestedBanner
+          v-if="quotation && status === 'revision_requested'"
+          :quotation-id="quotation.id"
+          :can-revise="auth.can('quotation.update')"
+          :can-reject="auth.can('quotation.reject')"
+          @revise="revise"
+          @reject="decision = 'reject'"
+        />
         <p
-          v-if="readonly && status !== 'superseded'"
+          v-if="readonly && status !== 'superseded' && status !== 'revision_requested'"
           class="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-950 dark:text-blue-200"
         >
           <template v-if="quotation?.sent_at"
@@ -605,6 +644,9 @@ const busy = computed(
           </p>
           <div v-if="!isNew && quotation" class="border-t pt-3">
             <QuotationSendHistory :quotation-id="quotation.id" />
+          </div>
+          <div v-if="!isNew && quotation && status !== 'draft'" class="border-t pt-3">
+            <QuotationCustomerResponses :quotation-id="quotation.id" />
           </div>
         </BaseCard>
       </div>

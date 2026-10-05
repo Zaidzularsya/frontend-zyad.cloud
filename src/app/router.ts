@@ -48,6 +48,14 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    // Link penawaran untuk customer: tanpa login/tenant. Dua segmen path, jadi tidak
+    // bertabrakan dengan `/:slug` landing page di bawah MarketingLayout.
+    path: '/q/:token',
+    name: 'public-quotation',
+    component: () => import('@/features/public-documents/pages/PublicQuotationPage.vue'),
+    meta: { title: 'Penawaran', public: true },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MarketingLayout.vue'),
     children: [

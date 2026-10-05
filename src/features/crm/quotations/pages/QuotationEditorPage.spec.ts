@@ -3,9 +3,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-const { update, get, sentQuotation } = vi.hoisted(() => ({
+const { update, get, link, responses, sentQuotation } = vi.hoisted(() => ({
   update: vi.fn(),
   get: vi.fn(),
+  link: vi.fn(),
+  responses: vi.fn(),
   sentQuotation: {
     id: 'q1',
     quotation_number: 'QUO-2026-0001',
@@ -40,6 +42,8 @@ vi.mock('@/features/crm/quotations/api/quotations.api', () => ({
     update,
     list: vi.fn().mockResolvedValue({ data: [], meta: {} }),
     sends: vi.fn().mockResolvedValue([]),
+    link,
+    responses,
   },
 }))
 vi.mock('@/features/crm/deals/api/deals.api', () => ({
@@ -107,5 +111,56 @@ describe('QuotationEditorPage', () => {
     await flushPromises()
     expect(update).toHaveBeenCalled()
     expect(w.text()).toContain('Quotation sudah terkirim. Buat revisi untuk mengubah.')
+  })
+
+  async function mountSent(status: string) {
+    get.mockResolvedValue({ ...sentQuotation, status })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/crm/quotations/:id', component: QuotationEditorPage }],
+    })
+    await router.push('/crm/quotations/q1')
+    const w = mount(QuotationEditorPage, {
+      global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    })
+    await flushPromises()
+    return w
+  }
+
+  it('shows the revision request banner with the customer note as plain text', async () => {
+    responses.mockResolvedValue([
+      {
+        id: 'r1',
+        action: 'revision_requested',
+        categories: ['price', 'other'],
+        note: '<b>terlalu mahal</b>',
+        responder_name: 'Budi',
+        created_at: '2026-10-05T03:00:00Z',
+      },
+    ])
+    const w = await mountSent('revision_requested')
+    const banner = w.get('[data-testid="revision-banner"]')
+    expect(banner.text()).toContain('Customer meminta revisi')
+    expect(banner.text()).toContain('Harga/diskon')
+    expect(banner.text()).toContain('Lainnya')
+    expect(banner.text()).toContain('<b>terlalu mahal</b>')
+    expect(banner.find('b').exists()).toBe(false)
+    expect(banner.text()).toContain('Buat revisi')
+    expect(banner.text()).toContain('Tolak')
+    expect(w.text()).toContain('Revisi diminta')
+  })
+
+  it('copies the public customer link of a sent quotation', async () => {
+    responses.mockResolvedValue([])
+    link.mockResolvedValue({ url: 'https://app.test/q/tok', expires_at: '2026-10-31T16:59:59Z' })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const w = await mountSent('sent')
+    const button = w.findAll('button').find((b) => b.text().includes('Salin link customer'))
+    expect(button).toBeTruthy()
+    await button!.trigger('click')
+    await flushPromises()
+    expect(link).toHaveBeenCalledWith('q1')
+    expect(writeText).toHaveBeenCalledWith('https://app.test/q/tok')
   })
 })

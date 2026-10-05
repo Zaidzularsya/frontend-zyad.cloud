@@ -3,7 +3,14 @@ import type { PaginatedResponse } from '@/types/api'
 
 import type { BillingFrequency, ChargeType, PaymentTiming } from '@/features/catalog/utils/pricing'
 
-export type QuotationStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'superseded'
+export type QuotationStatus =
+  | 'draft'
+  | 'sent'
+  | 'approved'
+  | 'rejected'
+  | 'expired'
+  | 'superseded'
+  | 'revision_requested'
 
 export interface LineItem {
   id: string
@@ -88,6 +95,21 @@ export interface QuotationSend {
   error?: string
   sent_by_name?: string
   sent_at: string
+}
+
+export interface QuotationLink {
+  url: string
+  expires_at: string
+}
+
+/** Respons customer lewat link publik (approve atau minta revisi). */
+export interface QuotationResponse {
+  id: string
+  action: 'approved' | 'revision_requested'
+  categories: string[]
+  note?: string
+  responder_name: string
+  created_at: string
 }
 
 export interface SendQuotationPayload {
@@ -183,6 +205,19 @@ export const quotationsApi = {
   sends: (id: string) =>
     http
       .get<{ success: boolean; data: QuotationSend[] }>(`/app/crm/quotations/${id}/sends`)
+      .then((response) => response.data.data),
+
+  link: (id: string) =>
+    http
+      .post<{ success: boolean; data: QuotationLink }>(`/app/crm/quotations/${id}/link`)
+      .then((response) => response.data.data),
+
+  responses: (id: string) =>
+    http
+      .get<{
+        success: boolean
+        data: QuotationResponse[]
+      }>(`/app/crm/quotations/${id}/responses`)
       .then((response) => response.data.data),
 
   create: (payload: QuotationPayload) =>

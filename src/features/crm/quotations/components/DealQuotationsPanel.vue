@@ -34,6 +34,10 @@ const statusMeta: Record<QuotationStatus, { label: string; cls: string }> = {
     cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   },
   superseded: { label: 'Digantikan', cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800' },
+  revision_requested: {
+    label: 'Revisi diminta',
+    cls: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+  },
 }
 
 function formatDate(value?: string | null) {

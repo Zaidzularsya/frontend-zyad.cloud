@@ -37,6 +37,7 @@ const typeLabels: Record<ActivityType, string> = {
   task: 'Task',
   note: 'Catatan',
   whatsapp: 'WhatsApp',
+  quotation_response: 'Respons penawaran',
 }
 // The create form only offers types a user records by hand.
 const manualTypeLabels: Record<ManualActivityType, string> = {
