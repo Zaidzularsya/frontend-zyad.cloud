@@ -1,7 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 // Fase 1-2: Companies, Contacts, Leads, Pipelines, Deals. Activity/Quotation/
-// Invoice/Integration land in later fases — see backend/docs/reference-crm.md
+// Invoice tenant-ke-customer pindah ke fitur receivable (features/receivable) — see backend/docs/reference-receivable.md
 // "Fase Implementasi".
 //
 // namePrefix defaults to pathPrefix but can be set separately so the same
@@ -84,12 +84,6 @@ export function buildCrmRoutes(
       name: `${namePrefix}-products`,
       component: () => import('@/features/catalog/pages/ProductsPage.vue'),
       meta: { title: 'Produk', permissions: ['catalog_product.read'] },
-    },
-    {
-      path: `${pathPrefix}/invoices`,
-      name: `${namePrefix}-invoices`,
-      component: () => import('@/features/crm/invoices/pages/InvoicesPage.vue'),
-      meta: { title: 'Invoices', permissions: ['invoice.read'] },
     },
     {
       path: `${pathPrefix}/integrations`,

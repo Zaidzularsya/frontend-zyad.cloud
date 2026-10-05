@@ -168,7 +168,7 @@ export const platformMenuGroups: MenuGroup[] = [
     items: [
       {
         label: 'Invoices',
-        route: 'platform-crm-invoices',
+        route: 'platform-billing-invoices',
         icon: Receipt,
         permission: 'invoice.read',
       },
@@ -176,7 +176,13 @@ export const platformMenuGroups: MenuGroup[] = [
         label: 'Payments',
         route: 'platform-billing-payments',
         icon: Wallet,
-        description: 'Belum tersedia — placeholder sampai modul backend Payments dibangun.',
+        permission: 'invoice.read',
+      },
+      {
+        label: 'Pengaturan Penagihan',
+        route: 'platform-billing-receivable-settings',
+        icon: Settings2,
+        permission: 'invoice.read',
       },
       {
         label: 'Recurring Billing',
@@ -314,12 +320,13 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Billing',
     items: [
-      { label: 'Invoices', route: 'crm-invoices', icon: Receipt, permission: 'invoice.read' },
+      { label: 'Invoices', route: 'billing-invoices', icon: Receipt, permission: 'invoice.read' },
+      { label: 'Payments', route: 'billing-payments', icon: Wallet, permission: 'invoice.read' },
       {
-        label: 'Payments',
-        route: 'billing-payments',
-        icon: Wallet,
-        description: 'Belum tersedia — placeholder sampai modul backend Payments dibangun.',
+        label: 'Pengaturan Penagihan',
+        route: 'billing-receivable-settings',
+        icon: Settings2,
+        permission: 'invoice.read',
       },
       {
         label: 'Recurring Billing',

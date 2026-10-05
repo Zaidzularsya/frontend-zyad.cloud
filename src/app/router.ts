@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { env } from '@/config/env'
 import { buildCrmRoutes } from '@/features/crm/config/crm-routes'
+import { buildReceivableRoutes } from '@/features/receivable/config/receivable-routes'
 import { buildLandingManagementRoutes } from '@/features/landing/builder/config/landing-menu'
 import { authGuard } from '@/middleware/auth.guard'
 import { guestGuard } from '@/middleware/guest.guard'
@@ -170,16 +171,7 @@ const routes: RouteRecordRaw[] = [
         },
         meta: { title: 'Contracts' },
       },
-      {
-        path: 'billing/payments',
-        name: 'billing-payments',
-        component: placeholder,
-        props: {
-          title: 'Payments',
-          description: 'Riwayat pembayaran atas invoice yang diterbitkan.',
-        },
-        meta: { title: 'Payments' },
-      },
+      ...buildReceivableRoutes('billing'),
       {
         path: 'billing/recurring',
         name: 'billing-recurring',
@@ -436,16 +428,7 @@ const routes: RouteRecordRaw[] = [
         },
         meta: { title: 'Contracts' },
       },
-      {
-        path: 'billing/payments',
-        name: 'platform-billing-payments',
-        component: placeholder,
-        props: {
-          title: 'Payments',
-          description: 'Riwayat pembayaran invoice dari seluruh tenant.',
-        },
-        meta: { title: 'Payments' },
-      },
+      ...buildReceivableRoutes('billing', 'platform-billing'),
       {
         path: 'billing/recurring',
         name: 'platform-billing-recurring',

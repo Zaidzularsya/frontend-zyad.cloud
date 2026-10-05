@@ -7,14 +7,17 @@ import type { CatalogProduct } from '@/features/catalog/api/catalog.api'
 import { useProductsQuery } from '@/features/catalog/api/catalog.queries'
 import { formatRupiah } from '@/features/crm/quotations/utils/quotation-editor'
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean; productsPath?: string }>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'pick', product: CatalogProduct): void
 }>()
 
 const route = useRoute()
-const productsPath = computed(() => route.path.replace(/quotations\/[^/]+$/, 'products'))
+// Tautan "kelola produk": dari editor quotation diturunkan dari path; modul lain (invoice) mengirim path sendiri.
+const catalogPath = computed(
+  () => props.productsPath ?? route.path.replace(/quotations\/[^/]+$/, 'products'),
+)
 
 const searchInput = ref('')
 const search = ref('')
@@ -62,7 +65,7 @@ const products = computed(() => productsQuery.data.value?.data ?? [])
       </p>
       <p v-else-if="products.length === 0" class="py-6 text-center text-sm text-gray-500">
         Produk tidak ditemukan.
-        <RouterLink :to="productsPath" class="font-medium text-brand-600"
+        <RouterLink :to="catalogPath" class="font-medium text-brand-600"
           >Tambahkan di menu Produk.</RouterLink
         >
       </p>

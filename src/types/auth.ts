@@ -101,6 +101,8 @@ export type Permission =
   | 'invoice.send'
   | 'invoice.mark_paid'
   | 'invoice.cancel'
+  | 'invoice.void'
+  | 'receivable.settings'
   | 'integration.read'
   | 'integration.create'
   | 'integration.update'
