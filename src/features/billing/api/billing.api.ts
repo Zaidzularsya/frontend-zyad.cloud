@@ -99,20 +99,8 @@ export interface BillingInvoiceListParams {
   status?: BillingInvoiceStatus | ''
 }
 
-export interface RequestBillingUpgradePayload {
-  plan_id: string
-  billing_interval?: BillingInterval
-  reason?: string
-}
-
 export interface ScheduleBillingCancellationPayload {
   reason?: string
-}
-
-export interface BillingCheckout {
-  payment_url: string
-  provider: string
-  expires_at?: string | null
 }
 
 export interface BillingCheckoutStatus {
@@ -143,15 +131,6 @@ export const billingApi = {
       meta: response.data.meta as PaginatedResponse<BillingInvoice>['meta'],
     }
   },
-
-  requestUpgrade: (payload: RequestBillingUpgradePayload) =>
-    apiClient.post<BillingInvoice, RequestBillingUpgradePayload>('/app/billing/upgrade', payload),
-
-  createInvoiceCheckout: (invoiceId: string) =>
-    apiClient.post<BillingCheckout, Record<string, never>>(
-      `/app/billing/invoices/${invoiceId}/checkout`,
-      {},
-    ),
 
   syncInvoiceCheckoutStatus: (invoiceId: string) =>
     apiClient.post<BillingCheckoutStatus, Record<string, never>>(

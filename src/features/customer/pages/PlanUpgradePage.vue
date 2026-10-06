@@ -26,11 +26,15 @@ import {
 } from '@/features/billing/api/billing.api'
 import {
   useBillingInvoicesQuery,
-  useCreateInvoiceCheckoutMutation,
   useCurrentBillingPlanQuery,
   useScheduleBillingCancellationMutation,
 } from '@/features/billing/api/billing.queries'
-import { publicCatalogApi, type PublicCatalogPlan } from '@/features/public/api/public-catalog.api'
+import { FREQUENCIES } from '@/features/catalog/utils/pricing'
+import {
+  publicCatalogApi,
+  type PublicListing,
+  type PublicListingVariant,
+} from '@/features/public/api/public-catalog.api'
 import { useTenantStore } from '@/stores/tenant.store'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
@@ -55,30 +59,30 @@ const upgradeModalOpen = ref(false)
 const cancelModalOpen = ref(false)
 const feedback = ref<{ tone: 'success' | 'error'; message: string } | null>(null)
 
+// Pilihan paket: listing katalog → varian (frekuensi) yang bisa dibeli langsung.
 const upgradeForm = reactive({
-  plan_code: '',
-  billing_interval: 'monthly',
+  listing_code: '',
+  product_id: '',
 })
 
 const cancelForm = reactive({
   reason: '',
 })
 
-const catalogPlans = ref<PublicCatalogPlan[]>([])
+const catalogListings = ref<PublicListing[]>([])
 const catalogLoading = ref(false)
 const catalogError = ref('')
 
 const currentPlanQuery = useCurrentBillingPlanQuery(organizationId)
 const invoicesQuery = useBillingInvoicesQuery(organizationId, invoiceQueryParams)
 const scheduleCancellationMutation = useScheduleBillingCancellationMutation()
-const createCheckoutMutation = useCreateInvoiceCheckoutMutation()
-const payingInvoiceId = ref('')
 
 onMounted(async () => {
   catalogLoading.value = true
   catalogError.value = ''
   try {
-    catalogPlans.value = await publicCatalogApi.listPlans()
+    const categories = await publicCatalogApi.listListings()
+    catalogListings.value = categories.flatMap((category) => category.listings)
   } catch {
     catalogError.value = 'Katalog paket tidak dapat dimuat.'
   } finally {
@@ -162,8 +166,8 @@ function usagePercent(item: BillingUsageItem) {
 
 function openUpgradeModal() {
   feedback.value = null
-  upgradeForm.plan_code = ''
-  upgradeForm.billing_interval = 'monthly'
+  upgradeForm.listing_code = ''
+  upgradeForm.product_id = ''
   upgradeModalOpen.value = true
 }
 
@@ -172,62 +176,53 @@ function openCancelModal() {
   cancelModalOpen.value = true
 }
 
+function purchasableVariants(listing: PublicListing) {
+  return listing.variants.filter((variant) => variant.checkout_enabled)
+}
+
 const selectablePlans = computed(() =>
-  catalogPlans.value.filter(
-    (plan) =>
-      plan.code !== currentPlanCode.value && plan.prices.some((price) => Number(price.amount) > 0),
+  catalogListings.value.filter(
+    (listing) => listing.code !== currentPlanCode.value && purchasableVariants(listing).length > 0,
   ),
 )
 
 const selectedUpgradePlan = computed(
-  () => selectablePlans.value.find((plan) => plan.code === upgradeForm.plan_code) ?? null,
+  () => selectablePlans.value.find((listing) => listing.code === upgradeForm.listing_code) ?? null,
 )
 
-const selectedPlanIntervals = computed(() => {
-  if (!selectedUpgradePlan.value) return []
-  return selectedUpgradePlan.value.prices
-    .filter((price) => Number(price.amount) > 0)
-    .map((price) => price.billing_interval)
-})
+const selectedPlanVariants = computed(() =>
+  selectedUpgradePlan.value ? purchasableVariants(selectedUpgradePlan.value) : [],
+)
 
-function selectUpgradePlan(plan: PublicCatalogPlan) {
-  upgradeForm.plan_code = plan.code
-  const intervals = plan.prices
-    .filter((price) => Number(price.amount) > 0)
-    .map((price) => price.billing_interval)
-  if (!intervals.includes(upgradeForm.billing_interval)) {
-    upgradeForm.billing_interval = intervals[0] ?? 'monthly'
+function frequencyLabel(variant: PublicListingVariant) {
+  return FREQUENCIES.find((f) => f.value === variant.billing_frequency)?.label ?? 'Sekali bayar'
+}
+
+function selectUpgradePlan(listing: PublicListing) {
+  upgradeForm.listing_code = listing.code
+  const variants = purchasableVariants(listing)
+  if (!variants.some((variant) => variant.product_id === upgradeForm.product_id)) {
+    const monthly = variants.find((variant) => variant.billing_frequency === 'monthly')
+    upgradeForm.product_id = (monthly ?? variants[0])?.product_id ?? ''
   }
 }
 
-function planPriceLabel(plan: PublicCatalogPlan) {
-  const price =
-    plan.prices.find((item) => item.billing_interval === upgradeForm.billing_interval) ??
-    plan.prices.find((item) => Number(item.amount) > 0)
-  if (!price) return '-'
-  return `${formatMoney(price.amount, price.currency)} / ${price.billing_interval}`
+function planPriceLabel(listing: PublicListing) {
+  const variants = purchasableVariants(listing)
+  const variant =
+    variants.find((item) => item.product_id === upgradeForm.product_id) ??
+    variants.find((item) => item.billing_frequency === 'monthly') ??
+    variants[0]
+  if (!variant) return '-'
+  const suffix = FREQUENCIES.find((f) => f.value === variant.billing_frequency)?.suffix ?? ''
+  return `${formatMoney(variant.price_with_tax, variant.currency)}${suffix}`
 }
 
 function submitUpgrade() {
-  if (!upgradeForm.plan_code) return
+  if (!upgradeForm.product_id) return
   upgradeModalOpen.value = false
-  // Satu jalur checkout untuk semua: halaman checkout yang membuat invoice
-  // dan sesi pembayaran DOKU saat tombol bayar diklik.
-  void router.push(
-    `/app/checkout?plan=${encodeURIComponent(upgradeForm.plan_code)}&interval=${encodeURIComponent(upgradeForm.billing_interval)}`,
-  )
-}
-
-async function payInvoice(invoiceId: string) {
-  feedback.value = null
-  payingInvoiceId.value = invoiceId
-  try {
-    const checkout = await createCheckoutMutation.mutateAsync(invoiceId)
-    window.location.href = checkout.payment_url
-  } catch (error) {
-    feedback.value = { tone: 'error', message: extractError(error) }
-    payingInvoiceId.value = ''
-  }
+  // Satu jalur beli: halaman checkout menyiapkan invoice (CRM → receivable) lalu mengarahkan ke link bayar.
+  void router.push(`/app/checkout?product=${encodeURIComponent(upgradeForm.product_id)}`)
 }
 
 async function submitCancellation() {
@@ -515,18 +510,6 @@ function refreshBillingData() {
             >
               {{ invoice.items[0].description }}
             </p>
-
-            <div v-if="invoice.status === 'open'" class="mt-4">
-              <BaseButton
-                class="w-full"
-                :disabled="createCheckoutMutation.isPending.value"
-                @click="payInvoice(invoice.id)"
-              >
-                <Loader2 v-if="payingInvoiceId === invoice.id" class="size-4 animate-spin" />
-                <CreditCard v-else class="size-4" />
-                Bayar Sekarang
-              </BaseButton>
-            </div>
           </article>
         </div>
 
@@ -571,7 +554,7 @@ function refreshBillingData() {
             type="button"
             class="w-full rounded-2xl border p-4 text-left transition"
             :class="
-              upgradeForm.plan_code === plan.code
+              upgradeForm.listing_code === plan.code
                 ? 'border-brand-500 bg-brand-50/60 ring-1 ring-brand-500 dark:bg-brand-950/40'
                 : 'border-gray-200/80 hover:border-brand-300 dark:border-gray-800'
             "
@@ -590,18 +573,20 @@ function refreshBillingData() {
             </div>
           </button>
 
-          <div v-if="selectedUpgradePlan" class="space-y-2">
+          <div v-if="selectedPlanVariants.length > 1" class="space-y-2">
             <label class="text-sm font-medium text-gray-700 dark:text-gray-200"
-              >Billing interval</label
+              >Frekuensi penagihan</label
             >
             <select
-              v-model="upgradeForm.billing_interval"
+              v-model="upgradeForm.product_id"
               class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-800 dark:bg-gray-950"
             >
-              <option v-for="interval in selectedPlanIntervals" :key="interval" :value="interval">
-                {{
-                  interval === 'yearly' ? 'Tahunan' : interval === 'monthly' ? 'Bulanan' : interval
-                }}
+              <option
+                v-for="variant in selectedPlanVariants"
+                :key="variant.product_id"
+                :value="variant.product_id"
+              >
+                {{ frequencyLabel(variant) }}
               </option>
             </select>
           </div>
@@ -609,7 +594,7 @@ function refreshBillingData() {
 
         <div class="flex justify-end gap-3 pt-2">
           <BaseButton variant="outline" @click="upgradeModalOpen = false">Batal</BaseButton>
-          <BaseButton type="submit" :disabled="!upgradeForm.plan_code">
+          <BaseButton type="submit" :disabled="!upgradeForm.product_id">
             Lanjut ke Checkout
           </BaseButton>
         </div>
