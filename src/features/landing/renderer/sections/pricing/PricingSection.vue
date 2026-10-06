@@ -2,9 +2,20 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { publicCatalogApi, type PublicCatalogPlan } from '@/features/public/api/public-catalog.api'
+import {
+  publicCatalogApi,
+  type PublicListingCategory,
+} from '@/features/public/api/public-catalog.api'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEditMode } from '../../composables/useEditMode'
+import {
+  buildCards,
+  checkoutTarget,
+  defaultFrequency,
+  frequenciesOf,
+  frequencyLabel,
+  type PricingCard,
+} from './pricing-view'
 
 const editMode = useEditMode()
 
@@ -12,18 +23,14 @@ type PricingPlan = {
   name: string
   priceLabel: string
   features?: string[]
-  code?: string
-  interval?: string
-  isFree?: boolean
-  hasPrice?: boolean
 }
 
 const props = defineProps<{
   content: {
     title?: string
     source?: 'custom' | 'platform_catalog'
-    billingInterval?: string
     plans?: PricingPlan[]
+    contactSalesHref?: string
   }
 }>()
 
@@ -47,22 +54,28 @@ function toggleExpanded(planName: string) {
   expandedPlans.value = next
 }
 
-function visibleFeatures(plan: PricingPlan) {
-  const features = plan.features || []
-  if (isExpanded(plan.name) || features.length <= FEATURE_PREVIEW_LIMIT) return features
-  return features.slice(0, FEATURE_PREVIEW_LIMIT)
+function visibleFeatures(features: string[]) {
+  return features.length <= FEATURE_PREVIEW_LIMIT
+    ? features
+    : features.slice(0, FEATURE_PREVIEW_LIMIT)
 }
 
-function hiddenFeatureCount(plan: PricingPlan) {
-  const features = plan.features || []
+function shownFeatures(name: string, features: string[]) {
+  return isExpanded(name) ? features : visibleFeatures(features)
+}
+
+function hiddenFeatureCount(features: string[]) {
   return Math.max(features.length - FEATURE_PREVIEW_LIMIT, 0)
 }
 
-const catalogPlans = ref<PublicCatalogPlan[]>([])
+const isCatalogSource = computed(() => props.content.source === 'platform_catalog')
+
+// ---- sumber katalog platform: tab kategori → kartu → toggle frekuensi ----
+const categories = ref<PublicListingCategory[]>([])
 const catalogLoading = ref(false)
 const catalogError = ref(false)
-
-const isCatalogSource = computed(() => props.content.source === 'platform_catalog')
+const activeCategoryId = ref('')
+const chosenFrequency = ref<Record<string, string | null>>({})
 
 onMounted(async () => {
   // Di canvas builder jangan panggil API katalog publik.
@@ -71,83 +84,61 @@ onMounted(async () => {
   catalogLoading.value = true
   catalogError.value = false
   try {
-    catalogPlans.value = await publicCatalogApi.listPlans()
+    const all = await publicCatalogApi.listListings()
+    categories.value = all
+      .filter((c) => c.listings.length > 0)
+      .sort((a, b) => a.position - b.position)
+    activeCategoryId.value = categories.value[0]?.id ?? ''
   } catch (err) {
-    console.error('PricingSection: failed to load public catalog plans', err)
+    console.error('PricingSection: failed to load public catalog listings', err)
     catalogError.value = true
   } finally {
     catalogLoading.value = false
   }
 })
 
-function formatAmount(amount: string, currency: string): string {
-  const numeric = Number(amount)
-  if (Number.isNaN(numeric)) return amount
-  try {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: currency || 'IDR',
-      maximumFractionDigits: 0,
-    }).format(numeric)
-  } catch {
-    return `${currency} ${amount}`
-  }
-}
+const activeCategory = computed(
+  () => categories.value.find((c) => c.id === activeCategoryId.value) ?? categories.value[0],
+)
 
-const preferredInterval = computed(() => props.content.billingInterval || 'monthly')
+const frequencies = computed(() =>
+  activeCategory.value ? frequenciesOf(activeCategory.value) : [],
+)
 
-const displayPlans = computed<PricingPlan[]>(() => {
-  if (!isCatalogSource.value) return props.content.plans || []
-
-  return catalogPlans.value.map((plan) => {
-    const price =
-      plan.prices.find((p) => p.billing_interval === preferredInterval.value) || plan.prices[0]
-    const benefits = (plan.benefits ?? []).map((benefit) =>
-      benefit.value ? `${benefit.label}: ${benefit.value}` : benefit.label,
-    )
-    const isFree = !price || Number(price.amount) === 0
-    return {
-      name: plan.name,
-      priceLabel: price
-        ? isFree
-          ? 'Gratis'
-          : `${formatAmount(price.amount, price.currency)} / ${price.billing_interval}`
-        : 'Gratis',
-      features: benefits.length ? benefits : plan.description ? [plan.description] : [],
-      code: plan.code,
-      interval: price?.billing_interval ?? preferredInterval.value,
-      isFree,
-      hasPrice: Boolean(price),
-    }
-  })
+const activeFrequency = computed<string | null>(() => {
+  const category = activeCategory.value
+  if (!category) return null
+  const chosen = chosenFrequency.value[category.id]
+  if (chosen && frequencies.value.includes(chosen)) return chosen
+  return defaultFrequency(frequencies.value)
 })
 
-function checkoutPath(plan: PricingPlan) {
-  const params = new URLSearchParams({
-    plan: plan.code ?? '',
-    interval: plan.interval ?? 'monthly',
-  })
-  return `/app/checkout?${params.toString()}`
+const cards = computed<PricingCard[]>(() =>
+  activeCategory.value ? buildCards(activeCategory.value, activeFrequency.value) : [],
+)
+
+function setFrequency(frequency: string) {
+  const category = activeCategory.value
+  if (!category) return
+  chosenFrequency.value = { ...chosenFrequency.value, [category.id]: frequency }
 }
 
-function selectPlan(plan: PricingPlan) {
+function onCta(card: PricingCard) {
   if (editMode.value) return
-  if (!plan.code) return
-
-  if (plan.isFree) {
-    // Paket gratis: cukup punya akun — subscription free dibuat otomatis
-    // saat registrasi.
-    void router.push(auth.isAuthenticated ? '/app/dashboard' : '/auth/register')
-    return
+  switch (card.cta.kind) {
+    case 'checkout':
+      void router.push(checkoutTarget(card.cta.productId, auth.isAuthenticated))
+      return
+    case 'free':
+      // Paket gratis: cukup punya akun — subscription free dibuat otomatis saat registrasi.
+      void router.push(auth.isAuthenticated ? '/app/dashboard' : '/auth/register')
+      return
+    default:
+      return
   }
-
-  const target = checkoutPath(plan)
-  if (auth.isAuthenticated) {
-    void router.push(target)
-    return
-  }
-  void router.push(`/auth/register?redirect=${encodeURIComponent(target)}`)
 }
+
+const contactHref = computed(() => props.content.contactSalesHref || '#contact')
 </script>
 
 <template>
@@ -159,28 +150,140 @@ function selectPlan(plan: PricingPlan) {
         </h2>
       </div>
 
-      <div v-if="isCatalogSource && catalogLoading" class="text-center text-on-surface-variant">
-        Memuat paket...
-      </div>
-      <div v-else-if="isCatalogSource && catalogError" class="text-center text-on-surface-variant">
-        Paket tidak dapat dimuat saat ini.
-      </div>
+      <template v-if="isCatalogSource">
+        <div v-if="catalogLoading" class="text-center text-on-surface-variant">Memuat paket...</div>
+        <div v-else-if="catalogError" class="text-center text-on-surface-variant">
+          Paket tidak dapat dimuat saat ini.
+        </div>
+        <template v-else>
+          <div
+            v-if="categories.length > 1"
+            class="mb-6 flex flex-wrap justify-center gap-2"
+            role="tablist"
+            aria-label="Kategori paket"
+          >
+            <button
+              v-for="category in categories"
+              :key="category.id"
+              type="button"
+              role="tab"
+              data-testid="pricing-tab"
+              :aria-selected="category.id === activeCategory?.id"
+              class="rounded-full border px-4 py-2 text-sm font-semibold transition"
+              :class="
+                category.id === activeCategory?.id
+                  ? 'border-secondary bg-secondary text-on-secondary'
+                  : 'border-outline-variant/40 text-on-surface-variant hover:border-secondary'
+              "
+              @click="activeCategoryId = category.id"
+            >
+              {{ category.name }}
+            </button>
+          </div>
+
+          <div
+            v-if="frequencies.length > 1"
+            class="mb-8 flex flex-wrap justify-center gap-2"
+            role="group"
+            aria-label="Frekuensi penagihan"
+          >
+            <button
+              v-for="frequency in frequencies"
+              :key="frequency"
+              type="button"
+              data-testid="pricing-frequency"
+              :aria-pressed="frequency === activeFrequency"
+              class="rounded-lg px-3 py-1.5 text-sm font-medium transition"
+              :class="
+                frequency === activeFrequency
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+              "
+              @click="setFrequency(frequency)"
+            >
+              {{ frequencyLabel(frequency) }}
+            </button>
+          </div>
+
+          <div class="grid gap-5 md:grid-cols-3">
+            <article
+              v-for="card in cards"
+              :key="card.code"
+              data-testid="pricing-card"
+              class="flex flex-col rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-8 shadow-sm transition hover:-translate-y-1 hover:border-secondary"
+            >
+              <h3 class="text-xl font-bold text-primary">{{ card.name }}</h3>
+              <p class="mt-3 text-3xl font-black text-secondary">{{ card.priceLabel }}</p>
+              <ul class="mt-6 flex-1 space-y-3 text-sm text-on-surface-variant">
+                <li
+                  v-for="feature in shownFeatures(card.code, card.benefits)"
+                  :key="feature"
+                  class="flex gap-2"
+                >
+                  <span class="text-secondary">✓</span>
+                  <span>{{ feature }}</span>
+                </li>
+              </ul>
+              <button
+                v-if="hiddenFeatureCount(card.benefits) > 0"
+                type="button"
+                class="mt-3 text-left text-sm font-semibold text-secondary hover:underline"
+                @click="toggleExpanded(card.code)"
+              >
+                {{
+                  isExpanded(card.code)
+                    ? 'Sembunyikan fitur'
+                    : `Lihat ${hiddenFeatureCount(card.benefits)} fitur lainnya`
+                }}
+              </button>
+              <a
+                v-if="card.cta.kind === 'contact'"
+                :href="contactHref"
+                data-testid="pricing-cta"
+                class="mt-8 block w-full rounded-xl border border-secondary px-4 py-3 text-center text-sm font-semibold text-secondary transition hover:bg-secondary/10"
+              >
+                {{ card.ctaLabel }}
+              </a>
+              <button
+                v-else
+                type="button"
+                data-testid="pricing-cta"
+                :disabled="card.cta.kind === 'unavailable'"
+                class="mt-8 w-full rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+                :class="
+                  card.cta.kind === 'checkout'
+                    ? 'bg-secondary text-on-secondary shadow-md shadow-secondary/25 hover:opacity-90'
+                    : 'border border-secondary text-secondary hover:bg-secondary/10'
+                "
+                @click="onCta(card)"
+              >
+                {{ card.ctaLabel }}
+              </button>
+            </article>
+          </div>
+        </template>
+      </template>
+
       <div v-else class="grid gap-5 md:grid-cols-3">
         <article
-          v-for="plan in displayPlans"
+          v-for="plan in content.plans || []"
           :key="plan.name"
           class="flex flex-col rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-8 shadow-sm transition hover:-translate-y-1 hover:border-secondary"
         >
           <h3 class="text-xl font-bold text-primary">{{ plan.name }}</h3>
           <p class="mt-3 text-3xl font-black text-secondary">{{ plan.priceLabel }}</p>
           <ul class="mt-6 flex-1 space-y-3 text-sm text-on-surface-variant">
-            <li v-for="feature in visibleFeatures(plan)" :key="feature" class="flex gap-2">
+            <li
+              v-for="feature in shownFeatures(plan.name, plan.features || [])"
+              :key="feature"
+              class="flex gap-2"
+            >
               <span class="text-secondary">✓</span>
               <span>{{ feature }}</span>
             </li>
           </ul>
           <button
-            v-if="hiddenFeatureCount(plan) > 0"
+            v-if="hiddenFeatureCount(plan.features || []) > 0"
             type="button"
             class="mt-3 text-left text-sm font-semibold text-secondary hover:underline"
             @click="toggleExpanded(plan.name)"
@@ -188,21 +291,8 @@ function selectPlan(plan: PricingPlan) {
             {{
               isExpanded(plan.name)
                 ? 'Sembunyikan fitur'
-                : `Lihat ${hiddenFeatureCount(plan)} fitur lainnya`
+                : `Lihat ${hiddenFeatureCount(plan.features || [])} fitur lainnya`
             }}
-          </button>
-          <button
-            v-if="plan.code"
-            type="button"
-            class="mt-8 w-full rounded-xl px-4 py-3 text-sm font-semibold transition"
-            :class="
-              plan.isFree
-                ? 'border border-secondary text-secondary hover:bg-secondary/10'
-                : 'bg-secondary text-on-secondary shadow-md shadow-secondary/25 hover:opacity-90'
-            "
-            @click="selectPlan(plan)"
-          >
-            {{ plan.isFree ? 'Mulai Gratis' : 'Pilih Paket' }}
           </button>
         </article>
       </div>
