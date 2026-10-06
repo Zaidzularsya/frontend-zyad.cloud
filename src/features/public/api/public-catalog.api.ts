@@ -70,9 +70,9 @@ export const publicCatalogApi = {
 
   /** GET /public/catalog/listings — produk platform yang dipublikasikan, per kategori. */
   listListings: async (): Promise<PublicListingCategory[]> => {
-    const response = await http.get<ApiEnvelope<PublicListingCategory[]>>(
+    const response = await http.get<ApiEnvelope<{ categories: PublicListingCategory[] }>>(
       '/public/catalog/listings',
     )
-    return response.data.data ?? []
+    return response.data.data?.categories ?? []
   },
 }
