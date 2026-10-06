@@ -1,14 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { PublicInvoice } from '../api/public-invoice.api'
 
-const { get } = vi.hoisted(() => ({ get: vi.fn() }))
+const { get, checkout, status, redirectTo } = vi.hoisted(() => ({
+  get: vi.fn(),
+  checkout: vi.fn(),
+  status: vi.fn(),
+  redirectTo: vi.fn(),
+}))
+vi.mock('../utils/redirect', () => ({ redirectTo }))
 vi.mock('../api/public-invoice.api', () => ({
   publicInvoiceApi: {
     get,
+    checkout,
+    status,
     pdfUrl: (t: string) => `/api/v1/public/invoices/${t}/pdf`,
   },
 }))
@@ -48,12 +56,12 @@ function invoice(over: Partial<PublicInvoice> = {}): PublicInvoice {
   }
 }
 
-async function mountPage() {
+async function mountPage(query = '') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/i/:token', component: PublicInvoicePage }],
   })
-  await router.push('/i/tok123')
+  await router.push(`/i/tok123${query}`)
   const wrapper = mount(PublicInvoicePage, {
     attachTo: document.body,
     global: {
@@ -76,6 +84,9 @@ const buttons = (w: Awaited<ReturnType<typeof mountPage>>) =>
 describe('PublicInvoicePage', () => {
   beforeEach(() => {
     get.mockReset()
+    checkout.mockReset()
+    status.mockReset()
+    redirectTo.mockReset()
     document.body.innerHTML = ''
     document.head.querySelectorAll('meta[name="robots"]').forEach((m) => m.remove())
   })
@@ -153,5 +164,88 @@ describe('PublicInvoicePage', () => {
     )
     w.unmount()
     expect(document.head.querySelector('meta[name="robots"]')).toBeNull()
+  })
+
+  describe('pembayaran online', () => {
+    it('klik Bayar sekarang memanggil checkout sekali lalu mengalihkan ke DOKU', async () => {
+      get.mockResolvedValue(invoice({ can_pay: true }))
+      let resolve!: (v: { payment_url: string; expires_at: string }) => void
+      checkout.mockReturnValue(new Promise((r) => (resolve = r)))
+      const w = await mountPage()
+      const btn = () => w.findAll('button').find((b) => b.text().includes('Bayar'))!
+      await btn().trigger('click')
+      await btn().trigger('click')
+      expect(checkout).toHaveBeenCalledTimes(1)
+      expect(checkout).toHaveBeenCalledWith('tok123')
+      expect(btn().attributes('disabled')).toBeDefined()
+      resolve({ payment_url: 'https://doku.test/pay', expires_at: '2026-10-05T04:00:00Z' })
+      await flushPromises()
+      expect(redirectTo).toHaveBeenCalledWith('https://doku.test/pay')
+    })
+
+    it('403 menyembunyikan tombol dan menampilkan pesan server', async () => {
+      get.mockResolvedValue(invoice({ can_pay: true }))
+      checkout.mockRejectedValue({
+        response: {
+          status: 403,
+          data: { message: 'Pembayaran online belum tersedia untuk invoice ini.' },
+        },
+      })
+      const w = await mountPage()
+      await w
+        .findAll('button')
+        .find((b) => b.text().includes('Bayar'))!
+        .trigger('click')
+      await flushPromises()
+      expect(buttons(w).some((b) => b.includes('Bayar'))).toBe(false)
+      expect(w.text()).toContain('Pembayaran online belum tersedia untuk invoice ini.')
+      expect(redirectTo).not.toHaveBeenCalled()
+    })
+
+    describe('kembali dari DOKU (?paid=1)', () => {
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+      })
+      afterEach(() => {
+        vi.useRealTimers()
+      })
+
+      it('memverifikasi lewat polling lalu menampilkan pembayaran diterima', async () => {
+        get.mockResolvedValueOnce(invoice({ can_pay: true }))
+        status.mockResolvedValueOnce({ status: 'issued' }).mockResolvedValue({ status: 'paid' })
+        const w = await mountPage('?paid=1')
+        expect(w.text()).toContain('Memverifikasi pembayaran…')
+        get.mockResolvedValue(
+          invoice({ status: 'paid', state: 'paid', amount_paid: '333000.00', balance: '0.00' }),
+        )
+        await vi.advanceTimersByTimeAsync(5000)
+        await flushPromises()
+        expect(status).toHaveBeenCalledWith('tok123')
+        expect(w.text()).toContain('Pembayaran diterima. Terima kasih!')
+        expect(w.text()).not.toContain('Memverifikasi pembayaran…')
+        const calls = status.mock.calls.length
+        await vi.advanceTimersByTimeAsync(30000)
+        expect(status.mock.calls.length).toBe(calls)
+      })
+
+      it('berhenti setelah 12 kali dan menampilkan pesan sedang diproses', async () => {
+        get.mockResolvedValue(invoice({ can_pay: true }))
+        status.mockResolvedValue({ status: 'issued' })
+        const w = await mountPage('?paid=1')
+        await vi.advanceTimersByTimeAsync(5000 * 15)
+        await flushPromises()
+        expect(status).toHaveBeenCalledTimes(12)
+        expect(w.text()).toContain(
+          'Pembayaran sedang diproses. Halaman akan diperbarui saat konfirmasi diterima.',
+        )
+      })
+
+      it('tanpa ?paid=1 tidak ada polling', async () => {
+        get.mockResolvedValue(invoice({ can_pay: true }))
+        await mountPage()
+        await vi.advanceTimersByTimeAsync(60000)
+        expect(status).not.toHaveBeenCalled()
+      })
+    })
   })
 })
