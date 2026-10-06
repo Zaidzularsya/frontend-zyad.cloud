@@ -144,6 +144,36 @@ async function endContract() {
         </div>
       </BaseCard>
 
+      <BaseCard v-if="contract.upcoming.length > 0" class="space-y-3 !p-5">
+        <h2 class="font-semibold">Tagihan berikutnya</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[560px] text-left text-sm">
+            <thead class="border-b text-xs uppercase text-gray-500">
+              <tr>
+                <th class="py-2">Tanggal tagih</th>
+                <th class="py-2">Item</th>
+                <th class="py-2">Periode</th>
+                <th class="py-2 text-right">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="u in contract.upcoming"
+                :key="`${u.item_id}-${u.bill_on}`"
+                class="border-b last:border-0"
+              >
+                <td class="py-2">{{ formatDate(u.bill_on) }}</td>
+                <td class="py-2">{{ u.description }}</td>
+                <td class="py-2">
+                  {{ formatDate(u.period_start) }} – {{ formatDate(u.period_end) }}
+                </td>
+                <td class="py-2 text-right tabular-nums">{{ formatRupiah(u.amount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </BaseCard>
+
       <BaseCard v-if="canManage" class="space-y-3 !p-5 text-sm">
         <h2 class="font-semibold">Tanggal akhir</h2>
         <div class="flex flex-wrap items-end gap-3">

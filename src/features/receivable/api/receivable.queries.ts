@@ -24,6 +24,7 @@ export const receivableKeys = {
   contractList: (params: ContractListParams) =>
     [...receivableKeys.contracts(), 'list', params] as const,
   contract: (id: string) => [...receivableKeys.contracts(), 'detail', id] as const,
+  overview: () => [...receivableKeys.all, 'overview'] as const,
   settings: () => [...receivableKeys.all, 'settings'] as const,
   senders: () => [...receivableKeys.all, 'senders'] as const,
 }
@@ -169,6 +170,13 @@ export function useSendersQuery(enabled: Ref<boolean>) {
     queryFn: receivableApi.senders,
     enabled,
     staleTime: 60_000,
+  })
+}
+
+export function useOverviewQuery() {
+  return useQuery({
+    queryKey: receivableKeys.overview(),
+    queryFn: () => receivableApi.overview.get(),
   })
 }
 

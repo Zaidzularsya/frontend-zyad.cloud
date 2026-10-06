@@ -38,6 +38,12 @@ export function buildReceivableRoutes(
       meta: { title: 'Pembayaran', permissions: ['invoice.read'] },
     },
     {
+      path: `${pathPrefix}/recurring`,
+      name: `${namePrefix}-recurring`,
+      component: () => import('@/features/receivable/pages/RecurringBillingPage.vue'),
+      meta: { title: 'Recurring Billing', permissions: ['contract.read'] },
+    },
+    {
       path: `${pathPrefix}/receivable-settings`,
       name: `${namePrefix}-receivable-settings`,
       component: () => import('@/features/receivable/pages/ReceivableSettingsPage.vue'),
