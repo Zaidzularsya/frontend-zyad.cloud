@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import {
   ArrowRightLeft,
   CalendarDays,
+  ClipboardList,
   FileText,
   ListTodo,
   Mail,
@@ -43,6 +44,7 @@ const icons: Record<ActivityType, typeof Phone> = {
   note: FileText,
   whatsapp: MessageCircle,
   quotation_response: FileText,
+  order: ClipboardList,
 }
 
 const absoluteFormat = new Intl.DateTimeFormat('id-ID', {

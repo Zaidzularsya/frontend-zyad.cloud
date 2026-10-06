@@ -45,3 +45,26 @@ export function buildReceivableRoutes(
     },
   ]
 }
+
+// Kontrak tagihan berulang (lahir dari konfirmasi Sales Order). Nama route eksplisit karena menu
+// sudah memakai 'contracts' / 'platform-contracts'.
+export function buildContractRoutes(
+  pathPrefix: string,
+  listName: string,
+  detailName: string,
+): RouteRecordRaw[] {
+  return [
+    {
+      path: `${pathPrefix}/contracts`,
+      name: listName,
+      component: () => import('@/features/receivable/pages/ContractsPage.vue'),
+      meta: { title: 'Contracts', permissions: ['contract.read'] },
+    },
+    {
+      path: `${pathPrefix}/contracts/:id`,
+      name: detailName,
+      component: () => import('@/features/receivable/pages/ContractDetailPage.vue'),
+      meta: { title: 'Detail Contract', permissions: ['contract.read'] },
+    },
+  ]
+}

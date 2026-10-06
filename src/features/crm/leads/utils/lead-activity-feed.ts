@@ -10,6 +10,7 @@ export const activityTypeLabels: Record<ActivityType, string> = {
   note: 'Catatan',
   whatsapp: 'WhatsApp',
   quotation_response: 'Respons penawaran',
+  order: 'Order',
 }
 
 /** A piece of a feed sentence; strong parts are names. */

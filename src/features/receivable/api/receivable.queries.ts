@@ -4,6 +4,7 @@ import { computed, type Ref } from 'vue'
 import {
   receivableApi,
   type AccountPayload,
+  type ContractListParams,
   type InvoiceListParams,
   type InvoicePayload,
   type PaymentPayload,
@@ -19,6 +20,10 @@ export const receivableKeys = {
   sends: (id: string) => [...receivableKeys.invoices(), 'sends', id] as const,
   invoicePayments: (id: string) => [...receivableKeys.invoices(), 'payments', id] as const,
   payments: (params: object) => [...receivableKeys.all, 'payments', params] as const,
+  contracts: () => [...receivableKeys.all, 'contracts'] as const,
+  contractList: (params: ContractListParams) =>
+    [...receivableKeys.contracts(), 'list', params] as const,
+  contract: (id: string) => [...receivableKeys.contracts(), 'detail', id] as const,
   settings: () => [...receivableKeys.all, 'settings'] as const,
   senders: () => [...receivableKeys.all, 'senders'] as const,
 }
@@ -164,5 +169,39 @@ export function useSendersQuery(enabled: Ref<boolean>) {
     queryFn: receivableApi.senders,
     enabled,
     staleTime: 60_000,
+  })
+}
+
+export function useContractsQuery(params: Ref<ContractListParams>) {
+  return useQuery({
+    queryKey: computed(() => receivableKeys.contractList(params.value)),
+    queryFn: () => receivableApi.contracts.list(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useContractQuery(id: Ref<string | undefined>) {
+  return useQuery({
+    queryKey: computed(() => receivableKeys.contract(id.value ?? '')),
+    queryFn: () => receivableApi.contracts.get(id.value as string),
+    enabled: computed(() => Boolean(id.value)),
+  })
+}
+
+export function useSetContractEndDateMutation() {
+  const invalidate = useInvalidateReceivable()
+  return useMutation({
+    mutationFn: (v: { id: string; endDate: string | null }) =>
+      receivableApi.contracts.setEndDate(v.id, v.endDate),
+    onSuccess: invalidate,
+  })
+}
+
+export function useEndContractMutation() {
+  const invalidate = useInvalidateReceivable()
+  return useMutation({
+    mutationFn: (v: { id: string; reason: string; endDate?: string }) =>
+      receivableApi.contracts.end(v.id, { reason: v.reason, end_date: v.endDate }),
+    onSuccess: invalidate,
   })
 }

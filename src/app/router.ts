@@ -2,7 +2,11 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { env } from '@/config/env'
 import { buildCrmRoutes } from '@/features/crm/config/crm-routes'
-import { buildReceivableRoutes } from '@/features/receivable/config/receivable-routes'
+import { buildSalesOrderRoutes } from '@/features/crm/sales-orders/config/sales-order-routes'
+import {
+  buildContractRoutes,
+  buildReceivableRoutes,
+} from '@/features/receivable/config/receivable-routes'
 import { buildLandingManagementRoutes } from '@/features/landing/builder/config/landing-menu'
 import { authGuard } from '@/middleware/auth.guard'
 import { guestGuard } from '@/middleware/guest.guard'
@@ -158,26 +162,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/email/pages/EmailAccountsPage.vue'),
         meta: { title: 'Akun Email', permissions: ['email.read'] },
       },
-      {
-        path: 'sales/orders',
-        name: 'sales-orders',
-        component: placeholder,
-        props: {
-          title: 'Sales Orders',
-          description: 'Kelola sales order hasil konversi quotation yang deal.',
-        },
-        meta: { title: 'Sales Orders' },
-      },
-      {
-        path: 'sales/contracts',
-        name: 'contracts',
-        component: placeholder,
-        props: {
-          title: 'Contracts',
-          description: 'Kelola kontrak berlangganan dan perjanjian dengan customer.',
-        },
-        meta: { title: 'Contracts' },
-      },
+      ...buildSalesOrderRoutes('sales', 'sales'),
+      ...buildContractRoutes('sales', 'contracts', 'contract-detail'),
       ...buildReceivableRoutes('billing'),
       {
         path: 'billing/recurring',
@@ -415,26 +401,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/email/pages/EmailAccountsPage.vue'),
         meta: { title: 'Akun Email', permissions: ['email.read'] },
       },
-      {
-        path: 'sales/orders',
-        name: 'platform-sales-orders',
-        component: placeholder,
-        props: {
-          title: 'Sales Orders',
-          description: 'Kelola sales order hasil konversi quotation yang deal.',
-        },
-        meta: { title: 'Sales Orders' },
-      },
-      {
-        path: 'sales/contracts',
-        name: 'platform-contracts',
-        component: placeholder,
-        props: {
-          title: 'Contracts',
-          description: 'Kelola kontrak berlangganan dan perjanjian dengan customer.',
-        },
-        meta: { title: 'Contracts' },
-      },
+      ...buildSalesOrderRoutes('sales', 'platform-sales'),
+      ...buildContractRoutes('sales', 'platform-contracts', 'platform-contract-detail'),
       ...buildReceivableRoutes('billing', 'platform-billing'),
       {
         path: 'billing/recurring',

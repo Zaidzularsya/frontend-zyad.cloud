@@ -11,8 +11,9 @@ export type ActivityType =
   | 'note'
   | 'whatsapp'
   | 'quotation_response'
-/** Types a user can create by hand; 'whatsapp' and 'quotation_response' are written by the system. */
-export type ManualActivityType = Exclude<ActivityType, 'whatsapp' | 'quotation_response'>
+  | 'order'
+/** Types a user can create by hand; 'whatsapp', 'quotation_response' and 'order' are written by the system. */
+export type ManualActivityType = Exclude<ActivityType, 'whatsapp' | 'quotation_response' | 'order'>
 export type ActivityStatus = 'pending' | 'completed' | 'cancelled'
 
 export interface ActivityListParams {

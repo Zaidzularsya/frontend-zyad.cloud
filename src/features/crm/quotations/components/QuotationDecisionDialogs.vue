@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import {
-  useCloseDealLostMutation,
-  useCloseDealWonMutation,
-} from '@/features/crm/deals/api/deals.queries'
+import { useCloseDealLostMutation } from '@/features/crm/deals/api/deals.queries'
 import type { Quotation } from '@/features/crm/quotations/api/quotations.api'
 import {
   useApproveQuotationMutation,
   useRejectQuotationMutation,
 } from '@/features/crm/quotations/api/quotations.queries'
+import { useSalesOrderByQuotationQuery } from '@/features/crm/sales-orders/api/sales-orders.queries'
+import { useAuthStore } from '@/stores/auth.store'
 import { quotationErrorMessage } from '@/features/crm/quotations/utils/errors'
 
 const props = defineProps<{
@@ -24,15 +24,32 @@ const emit = defineEmits<{
   (e: 'revise'): void
 }>()
 
-// confirm → keputusan dikirim; follow-up → pertanyaan lanjutan soal deal.
-const step = ref<'confirm' | 'follow-up'>('confirm')
+// confirm → keputusan dikirim; follow-up → pertanyaan lanjutan soal deal (penolakan);
+// order-created → info Sales Order yang lahir otomatis dari approve.
+const step = ref<'confirm' | 'follow-up' | 'order-created'>('confirm')
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const base = computed(() => route.path.replace(/\/crm\/quotations.*$/, ''))
+const quotationNumber = computed(() =>
+  step.value === 'order-created' ? props.quotation.quotation_number : undefined,
+)
+const orderQuery = useSalesOrderByQuotationQuery(
+  computed(() => (auth.can('sales_order.read') ? quotationNumber.value : undefined)),
+)
+const createdOrder = computed(() => orderQuery.data.value?.data[0])
+
+function openOrder() {
+  if (!createdOrder.value) return
+  emit('close')
+  void router.push(`${base.value}/sales/orders/${createdOrder.value.id}`)
+}
 const lostReason = ref('')
 const askLostReason = ref(false)
 const errorMessage = ref('')
 
 const approve = useApproveQuotationMutation()
 const reject = useRejectQuotationMutation()
-const closeWon = useCloseDealWonMutation()
 const closeLost = useCloseDealLostMutation()
 
 watch(
@@ -58,25 +75,16 @@ async function run(action: () => Promise<unknown>) {
 
 async function confirmDecision() {
   if (props.mode === 'approve') {
-    let suggest = ''
-    const ok = await run(async () => {
-      suggest = (await approve.mutateAsync(props.quotation.id)).suggest_deal_status
-    })
+    // Approve membuat Sales Order draft otomatis di server; Won ditentukan evaluator, bukan di sini.
+    const ok = await run(() => approve.mutateAsync(props.quotation.id))
     if (!ok) return
-    if (suggest === 'won' && props.quotation.deal_id) step.value = 'follow-up'
-    else emit('close')
+    step.value = 'order-created'
     return
   }
   const ok = await run(() => reject.mutateAsync(props.quotation.id))
   if (!ok) return
   if (props.quotation.deal_id) step.value = 'follow-up'
   else emit('close')
-}
-
-async function markWon() {
-  const dealId = props.quotation.deal_id
-  if (!dealId) return
-  if (await run(() => closeWon.mutateAsync(dealId))) emit('close')
 }
 
 async function markLost() {
@@ -86,11 +94,7 @@ async function markLost() {
   if (await run(() => closeLost.mutateAsync({ id: dealId, lostReason: reason }))) emit('close')
 }
 
-const busy = () =>
-  approve.isPending.value ||
-  reject.isPending.value ||
-  closeWon.isPending.value ||
-  closeLost.isPending.value
+const busy = () => approve.isPending.value || reject.isPending.value || closeLost.isPending.value
 </script>
 
 <template>
@@ -120,10 +124,16 @@ const busy = () =>
       </template>
 
       <template v-else-if="mode === 'approve'">
-        <p>Quotation disetujui. Tandai deal sebagai <strong>Won</strong>?</p>
+        <p>
+          Quotation disetujui.
+          <template v-if="createdOrder">
+            Sales order <strong>{{ createdOrder.so_number }}</strong> dibuat.
+          </template>
+          <template v-else>Sales order draft dibuat otomatis.</template>
+        </p>
         <div class="flex justify-end gap-2">
-          <BaseButton variant="secondary" @click="emit('close')">Nanti</BaseButton>
-          <BaseButton :disabled="busy()" @click="markWon">Ya, tandai Won</BaseButton>
+          <BaseButton variant="secondary" @click="emit('close')">Tutup</BaseButton>
+          <BaseButton v-if="createdOrder" @click="openOrder">Buka SO</BaseButton>
         </div>
       </template>
 

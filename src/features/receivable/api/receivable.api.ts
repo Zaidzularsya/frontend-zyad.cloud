@@ -170,10 +170,70 @@ export interface InvoiceLink {
   expires_at: string
 }
 
+export type ContractStatus = 'active' | 'ended' | 'cancelled'
+
+export interface ContractItem {
+  id: string
+  description: string
+  quantity: string
+  unit: string
+  unit_price: string
+  discount_percent: string
+  tax_percent: string
+  billing_frequency: BillingFrequency
+  payment_timing: PaymentTiming
+  period_index: number
+  next_period_start: string
+  next_period_end: string
+}
+
+export interface Contract {
+  id: string
+  contract_number: string
+  status: ContractStatus
+  account: Account
+  source_type: string
+  source_id: string
+  currency: string
+  start_date: string
+  end_date: string | null
+  end_reason: string
+  ended_at: string | null
+  channels: SendChannel[]
+  pic_user_id: string
+  notes: string
+  items: ContractItem[]
+  created_at: string
+}
+
+export interface ContractListParams {
+  page: number
+  per_page: number
+  status?: ContractStatus
+  search?: string
+}
+
 type Envelope<T> = { success: boolean; data: T }
 type Paged<T> = { success: boolean; data: T[]; meta: PaginatedResponse<T>['meta'] }
 
 export const receivableApi = {
+  contracts: {
+    list: async (params: ContractListParams) => {
+      const r = await http.get<Paged<Contract>>('/app/receivable/contracts', { params })
+      return { data: r.data.data, meta: r.data.meta }
+    },
+    get: (id: string) =>
+      http.get<Envelope<Contract>>(`/app/receivable/contracts/${id}`).then((r) => r.data.data),
+    setEndDate: (id: string, endDate: string | null) =>
+      http
+        .patch<Envelope<Contract>>(`/app/receivable/contracts/${id}`, { end_date: endDate })
+        .then((r) => r.data.data),
+    end: (id: string, payload: { reason: string; end_date?: string }) =>
+      http
+        .post<Envelope<Contract>>(`/app/receivable/contracts/${id}/end`, payload)
+        .then((r) => r.data.data),
+  },
+
   accounts: {
     list: async (params: { page: number; per_page: number; search?: string }) => {
       const r = await http.get<Paged<Account>>('/app/receivable/accounts', { params })
