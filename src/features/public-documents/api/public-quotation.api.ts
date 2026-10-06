@@ -17,6 +17,7 @@ export interface PublicItem {
   charge_type?: ChargeType
   billing_frequency?: BillingFrequency | null
   payment_timing?: PaymentTiming
+  features?: string[]
 }
 
 export interface PublicQuotation {

@@ -242,6 +242,13 @@ onBeforeUnmount(() => robots?.remove())
                     })
                   }}
                 </p>
+                <ul
+                  v-if="item.features?.length"
+                  data-testid="item-features"
+                  class="mt-1 list-disc space-y-0.5 pl-4 text-gray-600 dark:text-gray-400"
+                >
+                  <li v-for="feature in item.features" :key="feature">{{ feature }}</li>
+                </ul>
               </div>
               <p class="shrink-0 font-medium text-gray-900 dark:text-gray-100">
                 {{ money(item.line_total) }}

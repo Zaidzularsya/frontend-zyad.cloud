@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import type { CatalogFeatureDef } from '@/features/catalog/api/catalog.api'
+
 import { buildProductPayload, emptyProductForm, validateProductForm } from './product-form'
 
 describe('product-form', () => {
@@ -64,5 +66,77 @@ describe('product-form', () => {
       frequency: 'monthly',
     })
     expect(payload.billing_frequency).toBeNull()
+  })
+
+  describe('publikasi & fitur (platform)', () => {
+    const defs: CatalogFeatureDef[] = [
+      { key: 'crm', name: 'CRM', module: 'crm', value_type: 'boolean' },
+      { key: 'users', name: 'Jumlah user', module: 'core', value_type: 'integer', unit: 'user' },
+    ]
+    const base = { ...emptyProductForm(), name: 'Freelancer' }
+    const platform = { platform: true, featureDefs: defs }
+
+    it('requires a listing code and a category when public', () => {
+      expect(validateProductForm({ ...base, isPublic: true, categoryId: 'c1' }, platform)).toBe(
+        'Kode listing wajib bila tampil di pricing page.',
+      )
+      expect(validateProductForm({ ...base, isPublic: true, listingCode: 'free' }, platform)).toBe(
+        'Kategori wajib bila tampil di pricing page.',
+      )
+    })
+
+    it('rejects a malformed listing code', () => {
+      expect(
+        validateProductForm(
+          { ...base, isPublic: true, categoryId: 'c1', listingCode: 'Free Lancer' },
+          platform,
+        ),
+      ).toContain('huruf kecil')
+    })
+
+    it('rejects inactive or invalid feature rows', () => {
+      const withRow = (row: { key: string; raw: string | boolean }) => ({
+        ...base,
+        features: [{ ...row, displayLabel: '' }],
+      })
+      expect(validateProductForm(withRow({ key: 'lama', raw: true }), platform)).toContain(
+        'tidak aktif',
+      )
+      expect(validateProductForm(withRow({ key: 'users', raw: '5,5' }), platform)).toBe(
+        'Jumlah user: Harus bilangan bulat.',
+      )
+    })
+
+    it('does not send listing or features for a non-platform catalog', () => {
+      const payload = buildProductPayload({ ...base, isPublic: true, listingCode: 'x' })
+      expect(payload).not.toHaveProperty('is_public')
+      expect(payload).not.toHaveProperty('features')
+    })
+
+    it('sends typed feature values with position = row index for platform', () => {
+      const payload = buildProductPayload(
+        {
+          ...base,
+          isPublic: true,
+          categoryId: 'c1',
+          listingCode: 'freelancer',
+          listingOrder: '2',
+          features: [
+            { key: 'users', raw: '5', displayLabel: 'Hingga 5 user' },
+            { key: 'crm', raw: true, displayLabel: '' },
+          ],
+        },
+        platform,
+      )
+      expect(payload).toMatchObject({
+        is_public: true,
+        listing_code: 'freelancer',
+        listing_order: 2,
+      })
+      expect(payload.features).toEqual([
+        { feature_key: 'users', value: 5, display_label: 'Hingga 5 user', position: 0 },
+        { feature_key: 'crm', value: true, display_label: undefined, position: 1 },
+      ])
+    })
   })
 })

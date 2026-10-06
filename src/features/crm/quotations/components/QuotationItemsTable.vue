@@ -52,6 +52,10 @@ function addFree() {
   emit('update:lines', [...props.lines, blankLine()])
 }
 
+function visibleFeatures(line: EditorLine) {
+  return line.features.filter((f) => f.label)
+}
+
 function percentLabel(value: string) {
   const n = Number((value || '0').replace(',', '.'))
   return n ? `${n}%` : '-'
@@ -90,6 +94,13 @@ const cell =
               <td class="py-2 pr-2">
                 <p>{{ line.description }}</p>
                 <p v-if="line.sku" class="text-xs text-gray-500">{{ line.sku }}</p>
+                <ul
+                  v-if="visibleFeatures(line).length"
+                  data-testid="line-features"
+                  class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-gray-500"
+                >
+                  <li v-for="f in visibleFeatures(line)" :key="f.feature_key">{{ f.label }}</li>
+                </ul>
                 <LinePricingPopover :model-value="line.pricing" :uid="line.key" disabled />
               </td>
               <td class="py-2 pr-2 text-right tabular-nums">{{ Number(line.quantity) }}</td>
@@ -111,6 +122,13 @@ const cell =
                   @input="patch(i, 'description', ($event.target as HTMLInputElement).value)"
                 />
                 <p v-if="line.sku" class="mt-1 text-xs text-gray-500">SKU {{ line.sku }}</p>
+                <ul
+                  v-if="visibleFeatures(line).length"
+                  data-testid="line-features"
+                  class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-gray-500"
+                >
+                  <li v-for="f in visibleFeatures(line)" :key="f.feature_key">{{ f.label }}</li>
+                </ul>
                 <LinePricingPopover
                   class="mt-1"
                   :model-value="line.pricing"

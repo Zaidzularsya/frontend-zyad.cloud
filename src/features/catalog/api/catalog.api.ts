@@ -9,6 +9,22 @@ export interface CatalogCategory {
   position: number
 }
 
+export interface CatalogFeatureDef {
+  key: string
+  name: string
+  module: string
+  value_type: 'boolean' | 'integer' | 'decimal' | 'string'
+  unit?: string
+}
+
+export interface ProductFeature {
+  feature_key: string
+  value: unknown
+  display_label?: string
+  label?: string
+  position: number
+}
+
 export interface CatalogProduct {
   id: string
   category_id: string | null
@@ -24,6 +40,11 @@ export interface CatalogProduct {
   billing_frequency: BillingFrequency | null
   payment_timing: PaymentTiming
   is_active: boolean
+  // Hanya terisi untuk katalog platform; org lain selalu false/[].
+  is_public?: boolean
+  listing_code?: string | null
+  listing_order?: number
+  features?: ProductFeature[]
   created_at: string
   updated_at: string
 }
@@ -41,6 +62,11 @@ export interface ProductPayload {
   billing_frequency?: BillingFrequency | null
   payment_timing?: PaymentTiming
   is_active?: boolean
+  // Katalog platform saja; org lain yang mengirim ini ditolak 422.
+  is_public?: boolean
+  listing_code?: string
+  listing_order?: number
+  features?: Omit<ProductFeature, 'label'>[]
 }
 
 export interface ProductListParams {
@@ -88,6 +114,11 @@ export const catalogApi = {
       .then((response) => response.data.data),
 
   deleteProduct: (id: string) => http.delete(`/app/catalog/products/${id}`),
+
+  features: () =>
+    http
+      .get<{ success: boolean; data: CatalogFeatureDef[] }>('/app/catalog/features')
+      .then((response) => response.data.data),
 
   categories: () =>
     http

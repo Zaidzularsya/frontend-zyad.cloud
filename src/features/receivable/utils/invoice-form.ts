@@ -62,6 +62,7 @@ export function formFromInvoice(inv: Invoice): InvoiceForm {
         billing_frequency: it.billing_frequency,
         payment_timing: it.payment_timing,
       }),
+      features: [], // fitur produk hanya untuk penawaran
     })),
   }
 }

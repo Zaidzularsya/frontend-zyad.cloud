@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 
 import type { CatalogCategory, CatalogProduct } from '@/features/catalog/api/catalog.api'
-import { useSaveProductMutation } from '@/features/catalog/api/catalog.queries'
-import { catalogErrorMessage } from '@/features/catalog/utils/errors'
+import {
+  useCatalogFeaturesQuery,
+  useSaveProductMutation,
+} from '@/features/catalog/api/catalog.queries'
+import ProductPublishingSection from '@/features/catalog/components/ProductPublishingSection.vue'
+import { catalogErrorMessage, errorCode } from '@/features/catalog/utils/errors'
 import {
   buildProductPayload,
   emptyProductForm,
@@ -19,6 +23,8 @@ const props = defineProps<{
   open: boolean
   product: CatalogProduct | null
   categories: CatalogCategory[]
+  // 'platform' = katalog org platform: bagian Publikasi & Fitur ditampilkan.
+  mode?: 'platform' | 'workspace'
 }>()
 
 const emit = defineEmits<{
@@ -33,31 +39,51 @@ const UNITS = ['pcs', 'unit', 'paket', 'bulan', 'tahun', 'jam', 'hari', 'meter']
 const form = ref<ProductForm>(emptyProductForm())
 const errorMessage = ref('')
 const saveMutation = useSaveProductMutation()
+const isPlatform = computed(() => props.mode === 'platform')
+const featuresQuery = useCatalogFeaturesQuery(isPlatform)
+const featureDefs = computed(() => featuresQuery.data.value ?? [])
+const listingError = ref('')
 
 watch(
   () => props.open,
   (open) => {
     if (!open) return
-    form.value = props.product ? productToForm(props.product) : emptyProductForm()
+    form.value = props.product
+      ? productToForm(props.product, featureDefs.value)
+      : emptyProductForm()
     errorMessage.value = ''
+    listingError.value = ''
   },
 )
 
+// Registry fitur bisa tiba setelah drawer dibuka; baris yang sudah dimuat perlu nilai bertipe.
+watch(featureDefs, (defs) => {
+  if (props.open && props.product && isPlatform.value)
+    form.value = productToForm(props.product, defs)
+})
+
 async function submit() {
-  const invalid = validateProductForm(form.value)
+  const platformOpts = { platform: isPlatform.value, featureDefs: featureDefs.value }
+  const invalid = validateProductForm(form.value, platformOpts)
   if (invalid) {
     errorMessage.value = invalid
     return
   }
   errorMessage.value = ''
+  listingError.value = ''
   try {
     await saveMutation.mutateAsync({
       id: props.product?.id,
-      payload: buildProductPayload(form.value, { editing: Boolean(props.product) }),
+      payload: buildProductPayload(form.value, {
+        editing: Boolean(props.product),
+        ...platformOpts,
+      }),
     })
     emit('saved')
   } catch (error) {
-    errorMessage.value = catalogErrorMessage(error)
+    const message = catalogErrorMessage(error)
+    if (errorCode(error) === 'PRODUCT_LISTING_EXISTS') listingError.value = message
+    else errorMessage.value = message
   }
 }
 
@@ -167,6 +193,13 @@ const inputClass =
           Pascabayar: ditagih setelah layanan diterima atau di akhir periode.
         </p>
       </fieldset>
+
+      <ProductPublishingSection
+        v-if="isPlatform"
+        v-model="form"
+        :defs="featureDefs"
+        :listing-error="listingError"
+      />
 
       <label class="block space-y-1 text-sm">
         <span class="font-medium">Deskripsi</span>

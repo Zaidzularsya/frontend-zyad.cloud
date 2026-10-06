@@ -83,6 +83,7 @@ export function buildCrmRoutes(
       path: `${pathPrefix}/products`,
       name: `${namePrefix}-products`,
       component: () => import('@/features/catalog/pages/ProductsPage.vue'),
+      props: { mode: namePrefix.startsWith('platform') ? 'platform' : 'workspace' },
       meta: { title: 'Produk', permissions: ['catalog_product.read'] },
     },
     {

@@ -13,6 +13,7 @@ export const catalogKeys = {
   products: (params: ProductListParams) => [...catalogKeys.all, 'products', params] as const,
   product: (id: string) => [...catalogKeys.all, 'product', id] as const,
   categories: () => [...catalogKeys.all, 'categories'] as const,
+  features: () => [...catalogKeys.all, 'features'] as const,
 }
 
 export function useProductsQuery(params: Ref<ProductListParams>) {
@@ -27,6 +28,16 @@ export function useCategoriesQuery() {
   return useQuery({
     queryKey: catalogKeys.categories(),
     queryFn: () => catalogApi.categories(),
+  })
+}
+
+// Registry fitur hanya untuk katalog platform; query dimatikan untuk org lain (backend 403).
+export function useCatalogFeaturesQuery(enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: catalogKeys.features(),
+    queryFn: () => catalogApi.features(),
+    enabled,
+    staleTime: 5 * 60_000,
   })
 }
 
