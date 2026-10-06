@@ -8,15 +8,20 @@ interface ErrorBody {
 
 const messages: Record<string, string> = {
   PRODUCT_SKU_EXISTS: 'SKU sudah dipakai produk lain.',
+  PRODUCT_LISTING_EXISTS: 'Kode listing sudah punya produk publik dengan frekuensi ini.',
   CATEGORY_NAME_EXISTS: 'Nama kategori sudah ada.',
   PRODUCT_NOT_FOUND: 'Produk tidak ditemukan atau sudah dihapus.',
   CATEGORY_NOT_FOUND: 'Kategori tidak ditemukan atau sudah dihapus.',
   VALIDATION_ERROR: 'Data belum valid. Periksa kembali isian Anda.',
 }
 
-export function catalogErrorMessage(error: unknown): string {
+export function errorCode(error: unknown): string | undefined {
   const body = (error as { response?: { data?: ErrorBody } } | null)?.response?.data
-  const code = body?.code ?? body?.error?.code
+  return body?.code ?? body?.error?.code
+}
+
+export function catalogErrorMessage(error: unknown): string {
+  const code = errorCode(error)
   if (code && messages[code]) return messages[code]
   return 'Terjadi kesalahan, silakan coba lagi.'
 }

@@ -26,6 +26,10 @@ import {
 
 const PER_PAGE = 20
 
+const props = withDefaults(defineProps<{ mode?: 'platform' | 'workspace' }>(), {
+  mode: 'workspace',
+})
+
 const auth = useAuthStore()
 const canCreate = computed(() => auth.can('catalog_product.create'))
 const canUpdate = computed(() => auth.can('catalog_product.update'))
@@ -192,7 +196,15 @@ function formatTax(value: string) {
                 {{ product.sku || '—' }}
               </td>
               <td class="px-5 py-3">
-                <p class="font-medium">{{ product.name }}</p>
+                <p class="font-medium">
+                  {{ product.name }}
+                  <span
+                    v-if="product.is_public"
+                    class="ml-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                  >
+                    Publik
+                  </span>
+                </p>
                 <p v-if="product.description" class="line-clamp-1 text-xs text-gray-500">
                   {{ product.description }}
                 </p>
@@ -259,6 +271,7 @@ function formatTax(value: string) {
       :open="formOpen"
       :product="editing"
       :categories="categories"
+      :mode="props.mode"
       @close="formOpen = false"
       @saved="formOpen = false"
     />
