@@ -4,7 +4,6 @@ import { computed, type Ref } from 'vue'
 import {
   billingApi,
   type BillingInvoiceListParams,
-  type RequestBillingUpgradePayload,
   type ScheduleBillingCancellationPayload,
 } from '@/features/billing/api/billing.api'
 
@@ -34,28 +33,6 @@ export function useBillingInvoicesQuery(
     queryFn: () => billingApi.invoices(params.value),
     enabled: computed(() => Boolean(organizationId.value)),
     placeholderData: keepPreviousData,
-  })
-}
-
-export function useRequestBillingUpgradeMutation() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (payload: RequestBillingUpgradePayload) => billingApi.requestUpgrade(payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: billingKeys.all })
-    },
-  })
-}
-
-export function useCreateInvoiceCheckoutMutation() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (invoiceId: string) => billingApi.createInvoiceCheckout(invoiceId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: billingKeys.invoices() })
-    },
   })
 }
 
