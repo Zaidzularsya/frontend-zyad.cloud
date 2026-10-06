@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ClipboardList,
   FileText,
   ListTodo,
   Mail,
@@ -195,6 +196,7 @@ const activityIcons: Record<ActivityType, typeof Phone> = {
   note: FileText,
   whatsapp: MessageCircle,
   quotation_response: FileText,
+  order: ClipboardList,
 }
 
 const followUps = computed(() =>

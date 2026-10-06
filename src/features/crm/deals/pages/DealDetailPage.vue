@@ -5,6 +5,10 @@ import { ArrowLeft, Building2, User } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import DealOrdersPanel from '@/features/crm/deals/components/DealOrdersPanel.vue'
+import MarkWonDialog from '@/features/crm/deals/components/MarkWonDialog.vue'
+import WonChecklistCard from '@/features/crm/deals/components/WonChecklistCard.vue'
+import { useWonChecklistQuery } from '@/features/crm/sales-orders/api/sales-orders.queries'
 import DealStageTrack from '@/features/crm/components/DealStageTrack.vue'
 import EntityTimeline from '@/features/crm/components/EntityTimeline.vue'
 import { useCompanyQuery } from '@/features/crm/companies/api/companies.queries'
@@ -57,9 +61,28 @@ async function onSelectStage(stageId: string) {
   }
 }
 
-async function markWon() {
-  if (!deal.value || !confirm(`Tandai deal "${deal.value.title}" sebagai Won?`)) return
-  await closeWon.mutateAsync(deal.value.id)
+const wonDialogOpen = ref(false)
+const canReadOrders = computed(() => auth.can('sales_order.read'))
+// Checklist juga memicu evaluasi ulang Won di server (pemulihan bila listener pembayaran gagal).
+const wonChecklistQuery = useWonChecklistQuery(
+  dealId,
+  computed(() => canReadOrders.value && Boolean(deal.value)),
+)
+const checklists = computed(() => wonChecklistQuery.data.value ?? [])
+
+function markWon() {
+  if (deal.value) wonDialogOpen.value = true
+}
+
+async function confirmWon() {
+  if (!deal.value) return
+  try {
+    await closeWon.mutateAsync(deal.value.id)
+    wonDialogOpen.value = false
+  } catch {
+    actionError.value = 'Deal gagal ditandai Won.'
+    wonDialogOpen.value = false
+  }
 }
 
 async function markLost() {
@@ -68,12 +91,13 @@ async function markLost() {
   await closeLost.mutateAsync({ id: deal.value.id, lostReason: reason })
 }
 
-type Tab = 'timeline' | 'quotations' | 'whatsapp' | 'email'
+type Tab = 'timeline' | 'quotations' | 'orders' | 'whatsapp' | 'email'
 const tab = ref<Tab>('timeline')
 const tabs = computed(() =>
   [
     { value: 'timeline' as const, label: 'Timeline', show: true },
     { value: 'quotations' as const, label: 'Quotation', show: auth.can('quotation.read') },
+    { value: 'orders' as const, label: 'Order & Penagihan', show: canReadOrders.value },
     {
       value: 'whatsapp' as const,
       label: 'Chat WhatsApp',
@@ -164,6 +188,11 @@ const closeDate = computed(() =>
             </p>
             <p class="text-xs text-gray-500">Target closing: {{ closeDate }}</p>
           </section>
+          <WonChecklistCard
+            v-if="checklists.length"
+            :checklists="checklists"
+            :base-path="base.replace(/\/$/, '').replace(/\/crm$/, '')"
+          />
           <p v-if="deal.source_lead" class="text-xs text-gray-500">
             Asal:
             <RouterLink :to="`${base}leads/${deal.source_lead.id}`" class="text-brand-600"
@@ -197,6 +226,11 @@ const closeDate = computed(() =>
             :default-assignee-id="deal.owner_user_id"
           />
           <DealQuotationsPanel v-else-if="tab === 'quotations'" :deal-id="deal.id" />
+          <DealOrdersPanel
+            v-else-if="tab === 'orders'"
+            :deal-id="deal.id"
+            :base-path="base.replace(/\/$/, '').replace(/\/crm$/, '')"
+          />
           <ConversationPanel
             v-else-if="tab === 'whatsapp' && contact"
             related-entity-type="contact"
@@ -214,6 +248,14 @@ const closeDate = computed(() =>
           />
         </BaseCard>
       </div>
+      <MarkWonDialog
+        :open="wonDialogOpen"
+        :deal-title="deal.title"
+        :checklists="checklists"
+        :busy="closeWon.isPending.value"
+        @close="wonDialogOpen = false"
+        @confirm="confirmWon"
+      />
     </div>
   </div>
 </template>
