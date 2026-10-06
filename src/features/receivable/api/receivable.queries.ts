@@ -152,7 +152,8 @@ export function useReceivableSettingsQuery() {
 export function useUpdateReceivableSettingsMutation() {
   const invalidate = useInvalidateReceivable()
   return useMutation({
-    mutationFn: receivableApi.settings.update,
+    mutationFn: (payload: Parameters<typeof receivableApi.settings.update>[0]) =>
+      receivableApi.settings.update(payload),
     onSuccess: invalidate,
   })
 }

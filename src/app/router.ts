@@ -57,6 +57,13 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Penawaran', public: true },
   },
   {
+    // Link invoice untuk pelanggan tenant: tanpa login/tenant, sama seperti /q/:token.
+    path: '/i/:token',
+    name: 'public-invoice',
+    component: () => import('@/features/public-documents/pages/PublicInvoicePage.vue'),
+    meta: { title: 'Invoice', public: true },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MarketingLayout.vue'),
     children: [
