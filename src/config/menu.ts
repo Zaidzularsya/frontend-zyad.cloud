@@ -188,8 +188,7 @@ export const platformMenuGroups: MenuGroup[] = [
         label: 'Recurring Billing',
         route: 'platform-billing-recurring',
         icon: RefreshCw,
-        description:
-          'Belum tersedia — placeholder sampai modul backend Recurring Billing dibangun.',
+        permission: 'contract.read',
       },
       {
         label: 'Credit Notes',
@@ -332,8 +331,7 @@ export const customerMenuGroups: MenuGroup[] = [
         label: 'Recurring Billing',
         route: 'billing-recurring',
         icon: RefreshCw,
-        description:
-          'Belum tersedia — placeholder sampai modul backend Recurring Billing dibangun.',
+        permission: 'contract.read',
       },
       {
         label: 'Credit Notes',

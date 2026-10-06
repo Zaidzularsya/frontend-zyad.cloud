@@ -166,16 +166,6 @@ const routes: RouteRecordRaw[] = [
       ...buildContractRoutes('sales', 'contracts', 'contract-detail'),
       ...buildReceivableRoutes('billing'),
       {
-        path: 'billing/recurring',
-        name: 'billing-recurring',
-        component: placeholder,
-        props: {
-          title: 'Recurring Billing',
-          description: 'Jadwal penagihan berulang untuk pelanggan.',
-        },
-        meta: { title: 'Recurring Billing' },
-      },
-      {
         path: 'billing/credit-notes',
         name: 'billing-credit-notes',
         component: placeholder,
@@ -404,16 +394,6 @@ const routes: RouteRecordRaw[] = [
       ...buildSalesOrderRoutes('sales', 'platform-sales'),
       ...buildContractRoutes('sales', 'platform-contracts', 'platform-contract-detail'),
       ...buildReceivableRoutes('billing', 'platform-billing'),
-      {
-        path: 'billing/recurring',
-        name: 'platform-billing-recurring',
-        component: placeholder,
-        props: {
-          title: 'Recurring Billing',
-          description: 'Jadwal penagihan berulang untuk subscription tenant.',
-        },
-        meta: { title: 'Recurring Billing' },
-      },
       {
         path: 'billing/credit-notes',
         name: 'platform-billing-credit-notes',

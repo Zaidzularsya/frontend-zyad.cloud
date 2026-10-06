@@ -206,6 +206,41 @@ export interface Contract {
   created_at: string
 }
 
+export interface UpcomingBilling {
+  contract_id?: string
+  contract_number?: string
+  account_name?: string
+  item_id?: string
+  description?: string
+  bill_on: string
+  period_start: string
+  period_end: string
+  amount: string
+  payment_timing: PaymentTiming
+}
+
+export interface ContractDetail extends Contract {
+  /** 3 tanggal tagih berikutnya per item. */
+  upcoming: UpcomingBilling[]
+}
+
+export interface FailedSend {
+  invoice_id: string
+  invoice_number: string
+  account_name: string
+  channel: SendChannel
+  error: string
+  sent_at: string
+}
+
+export interface ReceivableOverview {
+  active_contracts: number
+  recurring_by_frequency: { frequency: BillingFrequency; label: string; amount: string }[]
+  upcoming: UpcomingBilling[]
+  unpaid: { count: number; total_balance: string; overdue_count: number }
+  failed_sends: FailedSend[]
+}
+
 export interface ContractListParams {
   page: number
   per_page: number
@@ -217,13 +252,20 @@ type Envelope<T> = { success: boolean; data: T }
 type Paged<T> = { success: boolean; data: T[]; meta: PaginatedResponse<T>['meta'] }
 
 export const receivableApi = {
+  overview: {
+    get: () =>
+      http.get<Envelope<ReceivableOverview>>('/app/receivable/overview').then((r) => r.data.data),
+  },
+
   contracts: {
     list: async (params: ContractListParams) => {
       const r = await http.get<Paged<Contract>>('/app/receivable/contracts', { params })
       return { data: r.data.data, meta: r.data.meta }
     },
     get: (id: string) =>
-      http.get<Envelope<Contract>>(`/app/receivable/contracts/${id}`).then((r) => r.data.data),
+      http
+        .get<Envelope<ContractDetail>>(`/app/receivable/contracts/${id}`)
+        .then((r) => r.data.data),
     setEndDate: (id: string, endDate: string | null) =>
       http
         .patch<Envelope<Contract>>(`/app/receivable/contracts/${id}`, { end_date: endDate })
