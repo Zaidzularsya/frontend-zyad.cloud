@@ -35,9 +35,14 @@ export interface PublicInvoice {
   grand_total: string
   amount_paid: string
   balance: string
-  /** Hanya true bila organisasi punya pembayaran online (checkout menyusul di rilis berikutnya). */
+  /** Hanya true bila organisasi punya pembayaran online (org platform) dan invoice masih open. */
   can_pay: boolean
   items: PublicInvoiceItem[]
+}
+
+export interface PublicInvoiceCheckout {
+  payment_url: string
+  expires_at: string
 }
 
 interface Envelope<T> {
@@ -50,6 +55,15 @@ const base = (token: string) => `/public/invoices/${encodeURIComponent(token)}`
 export const publicInvoiceApi = {
   get: async (token: string): Promise<PublicInvoice> =>
     (await http.get<Envelope<PublicInvoice>>(base(token))).data.data,
+
+  /** Membuat/memakai ulang sesi DOKU untuk sisa tagihan. 403 = pembayaran online tidak tersedia. */
+  checkout: async (token: string): Promise<PublicInvoiceCheckout> =>
+    (await http.post<Envelope<PublicInvoiceCheckout>>(`${base(token)}/checkout`)).data.data,
+
+  /** Status terkini; backend menanyakan DOKU bila webhook belum masuk (throttle 10 detik). */
+  status: async (token: string): Promise<{ status: PublicInvoice['status'] }> =>
+    (await http.get<Envelope<{ status: PublicInvoice['status'] }>>(`${base(token)}/status`)).data
+      .data,
 
   /** URL same-origin untuk <object>; backend melayani inline tanpa cache. */
   pdfUrl: (token: string): string => `/api/v1${base(token)}/pdf`,

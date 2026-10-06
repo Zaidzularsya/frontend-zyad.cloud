@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery } from '@tanstack/vue-query'
 import { AlertTriangle, CheckCircle2, Download, FileX } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { priceSuffix } from '@/features/catalog/utils/pricing'
 import { formatRupiah } from '@/features/crm/quotations/utils/quotation-editor'
 
 import { publicInvoiceApi } from '../api/public-invoice.api'
+import { redirectTo } from '../utils/redirect'
 
 const route = useRoute()
 const token = computed(() => String(route.params.token ?? ''))
 
-const { data, isPending, error } = useQuery({
+const { data, isPending, error, refetch } = useQuery({
   queryKey: computed(() => ['public-invoice', token.value]),
   queryFn: () => publicInvoiceApi.get(token.value),
   retry: false,
@@ -21,6 +22,74 @@ const { data, isPending, error } = useQuery({
 
 const notFound = computed(
   () => (error.value as { response?: { status?: number } } | null)?.response?.status === 404,
+)
+
+const errorMessage = (err: unknown, fallback: string) =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
+
+// Pembayaran online: tombol hanya muncul bila backend mengizinkan; 403 menyembunyikannya.
+const payBlocked = ref(false)
+const payError = ref('')
+const checkoutMutation = useMutation({
+  mutationFn: () => publicInvoiceApi.checkout(token.value),
+  onSuccess: (session) => redirectTo(session.payment_url),
+  onError: (err) => {
+    payBlocked.value = (err as { response?: { status?: number } })?.response?.status === 403
+    payError.value = errorMessage(err, 'Gagal memulai pembayaran. Coba lagi.')
+  },
+})
+const showPayButton = computed(() => data.value?.can_pay === true && !payBlocked.value)
+function startCheckout() {
+  if (checkoutMutation.isPending.value) return
+  payError.value = ''
+  checkoutMutation.mutate()
+}
+
+// Kembali dari DOKU (?paid=1): webhook bisa belum masuk, jadi tanyakan status berkala.
+const POLL_INTERVAL_MS = 5000
+const POLL_MAX_ATTEMPTS = 12
+const returnedFromPayment = computed(() => route.query.paid === '1')
+const confirmed = ref(false)
+const pollExhausted = ref(false)
+let pollTimer: ReturnType<typeof setTimeout> | undefined
+let attempts = 0
+
+async function pollStatus() {
+  attempts += 1
+  try {
+    const { status } = await publicInvoiceApi.status(token.value)
+    if (status === 'paid') {
+      confirmed.value = true
+      await refetch()
+      return
+    }
+  } catch {
+    // Gangguan sementara: coba lagi pada putaran berikutnya.
+  }
+  if (attempts >= POLL_MAX_ATTEMPTS) {
+    pollExhausted.value = true
+    return
+  }
+  pollTimer = setTimeout(pollStatus, POLL_INTERVAL_MS)
+}
+
+const verifying = computed(
+  () =>
+    returnedFromPayment.value &&
+    data.value?.state === 'open' &&
+    !confirmed.value &&
+    !pollExhausted.value,
+)
+const paymentReceived = computed(
+  () => returnedFromPayment.value && (confirmed.value || data.value?.state === 'paid'),
+)
+
+watch(
+  () => [returnedFromPayment.value, data.value?.state] as const,
+  ([paid, state]) => {
+    if (paid && state === 'open' && attempts === 0) void pollStatus()
+  },
+  { immediate: true },
 )
 
 // Tanggal kalender (YYYY-MM-DD) ditampilkan apa adanya, tanpa geser zona waktu.
@@ -45,7 +114,10 @@ onMounted(() => {
   robots.content = 'noindex'
   document.head.appendChild(robots)
 })
-onBeforeUnmount(() => robots?.remove())
+onBeforeUnmount(() => {
+  robots?.remove()
+  clearTimeout(pollTimer)
+})
 </script>
 
 <template>
@@ -180,16 +252,47 @@ onBeforeUnmount(() => robots?.remove())
           </dl>
         </section>
 
-        <!-- Slot pembayaran online: backend hanya mengirim can_pay=true bila organisasi punya
-             receivable.online_payment; aksinya diisi rilis pembayaran online (S6). -->
-        <div v-if="data.can_pay" class="mt-6 flex justify-end">
+        <div
+          v-if="paymentReceived"
+          class="mt-6 flex gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100"
+          role="status"
+        >
+          <CheckCircle2 class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          <p>Pembayaran diterima. Terima kasih!</p>
+        </div>
+        <p
+          v-else-if="verifying"
+          class="mt-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"
+          role="status"
+        >
+          Memverifikasi pembayaran…
+        </p>
+        <p
+          v-else-if="returnedFromPayment && pollExhausted && data.state === 'open'"
+          class="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100"
+          role="status"
+        >
+          Pembayaran sedang diproses. Halaman akan diperbarui saat konfirmasi diterima.
+        </p>
+
+        <div v-if="showPayButton && !paymentReceived" class="mt-6 flex flex-col items-end gap-2">
           <button
             type="button"
-            class="rounded-lg bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 focus:ring-4 focus:ring-brand-100 focus:outline-none"
+            :disabled="checkoutMutation.isPending.value"
+            class="rounded-lg bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 focus:ring-4 focus:ring-brand-100 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            @click="startCheckout"
           >
             Bayar sekarang
           </button>
+          <p v-if="payError" class="text-sm text-red-600" role="alert">{{ payError }}</p>
         </div>
+        <p
+          v-else-if="payBlocked && payError"
+          class="mt-6 text-right text-sm text-red-600"
+          role="alert"
+        >
+          {{ payError }}
+        </p>
 
         <section class="mt-6">
           <div class="mb-2 flex items-center justify-between">
