@@ -7,7 +7,11 @@ import {
   type PricingAttrs,
 } from '@/features/catalog/utils/pricing'
 import { normalizeAmount } from '@/features/crm/leads/utils/convert-form'
-import type { LineItemInput, Quotation } from '@/features/crm/quotations/api/quotations.api'
+import type {
+  LineFeature,
+  LineItemInput,
+  Quotation,
+} from '@/features/crm/quotations/api/quotations.api'
 
 export interface EditorLine {
   key: string
@@ -20,6 +24,8 @@ export interface EditorLine {
   discountPercent: string
   taxPercent: string
   pricing: PricingAttrs
+  // Hanya tampilan: server menyalin fitur dari katalog saat menyimpan.
+  features: LineFeature[]
 }
 
 let seq = 0
@@ -37,6 +43,7 @@ export function blankLine(): EditorLine {
     discountPercent: '',
     taxPercent: '0',
     pricing: { ...DEFAULT_PRICING },
+    features: [],
   }
 }
 
@@ -50,6 +57,11 @@ export function lineFromProduct(p: CatalogProduct): EditorLine {
     unitPrice: p.base_price,
     taxPercent: p.tax_percent,
     pricing: normalizePricing(p),
+    features: (p.features ?? []).map((f) => ({
+      feature_key: f.feature_key,
+      value: f.value,
+      label: f.label ?? '',
+    })),
   }
 }
 
@@ -69,6 +81,7 @@ export function linesFromQuotation(q: Quotation): EditorLine[] {
       billing_frequency: it.billing_frequency,
       payment_timing: it.payment_timing,
     }),
+    features: it.features ?? [],
   }))
 }
 

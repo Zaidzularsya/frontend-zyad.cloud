@@ -97,6 +97,16 @@ describe('PublicQuotationPage', () => {
     expect(wrapper.find('script').exists()).toBe(false)
   })
 
+  it('lists the feature labels of an item', async () => {
+    const q = quotation()
+    q.items = [{ ...q.items[0]!, features: ['CRM', 'Hingga 5 user'] }, { ...q.items[0]! }]
+    get.mockResolvedValue(q)
+    const wrapper = await mountPage()
+    const lists = wrapper.findAll('[data-testid="item-features"]')
+    expect(lists).toHaveLength(1)
+    expect(lists[0]!.findAll('li').map((li) => li.text())).toEqual(['CRM', 'Hingga 5 user'])
+  })
+
   it('tells the customer a newer version exists and hides the actions', async () => {
     get.mockResolvedValue(quotation({ state: 'superseded', status: 'superseded' }))
     const wrapper = await mountPage()

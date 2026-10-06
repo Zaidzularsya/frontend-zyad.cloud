@@ -28,6 +28,14 @@ export interface LineItem {
   charge_type?: ChargeType
   billing_frequency?: BillingFrequency | null
   payment_timing?: PaymentTiming
+  // Snapshot fitur produk; hanya baca (diisi server dari katalog, tidak dikirim balik).
+  features?: LineFeature[]
+}
+
+export interface LineFeature {
+  feature_key: string
+  value: unknown
+  label: string // '' = tidak ditampilkan
 }
 
 export interface LineItemInput {
