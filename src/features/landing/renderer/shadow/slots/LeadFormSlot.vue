@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import { landingApi, SubmitFormError } from '../../../shared/api/landing.api'
 import type { GrapesChrome, GrapesChromeFormField } from '../../grapes/chrome'
+import { redirectTarget } from '../../lead-form/redirect-target'
 import { CONSENT_ERROR, validateLeadForm } from '../../lead-form/lead-form-validation'
 import { useLandingPageContext } from '../page-context'
 
@@ -125,10 +126,12 @@ function buildContext() {
 }
 
 function redirect(url: string) {
-  if (url.startsWith('/') && !url.startsWith('//')) {
-    void router.push(url)
+  const target = redirectTarget(url)
+  if (!target) return
+  if (target.kind === 'internal') {
+    void router.push(target.url)
   } else {
-    window.location.assign(url)
+    window.location.assign(target.url)
   }
 }
 

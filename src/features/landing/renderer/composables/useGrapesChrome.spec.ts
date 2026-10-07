@@ -149,4 +149,15 @@ describe('buildGrapesChrome — forms', () => {
     })
     expect(buildGrapesChrome({ Page: { title: 'x', settings: {} } }, 'x').forms).toEqual([])
   })
+
+  it.each(['mailto:a@b.id', 'tel:123', '//evil.com', 'data:text/html,x'])(
+    'drops redirect %s that is not a path or http(s)',
+    (redirect_url) => {
+      const chrome = buildGrapesChrome(
+        { Page: { title: 'x', settings: {} }, forms: [{ id: 'f', redirect_url, fields: [] }] },
+        'x',
+      )
+      expect(chrome.forms![0]!.redirectUrl).toBe('')
+    },
+  )
 })

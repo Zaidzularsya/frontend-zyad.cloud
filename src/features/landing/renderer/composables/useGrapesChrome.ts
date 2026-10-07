@@ -1,5 +1,5 @@
 import { useFooterContent } from './useFooterContent'
-import { safeHref } from '../grapes/chrome'
+import { redirectTarget } from '../lead-form/redirect-target'
 import type {
   GrapesChrome,
   GrapesChromeForm,
@@ -40,8 +40,7 @@ function forms(result: RawRecord): GrapesChromeForm[] {
       id: pickString(form, 'ID', 'id'),
       submitLabel: pickString(form, 'SubmitLabel', 'submit_label'),
       successMessage: pickString(form, 'SuccessMessage', 'success_message'),
-      // safeHref returns '#' for anything it rejects; treat that as no redirect.
-      redirectUrl: redirect && safeHref(redirect) !== '#' ? redirect.trim() : '',
+      redirectUrl: redirectTarget(redirect)?.url ?? '',
       fields: pickArray(form, 'Fields', 'fields')
         .sort(
           (a, b) =>

@@ -277,6 +277,41 @@ describe('LeadFormSlot', () => {
     expect(push).toHaveBeenCalledWith('/terima-kasih')
   })
 
+  it('redirects to external http(s) urls via location.assign', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
+    try {
+      const { w } = mountSlot(makeForm({ redirectUrl: 'https://example.com/x' }))
+      await fillValid(w)
+      await w.find('form').trigger('submit')
+      await flushPromises()
+      expect(assign).toHaveBeenCalledWith('https://example.com/x')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each(['javascript:alert(1)', 'data:text/html,x', '//evil.com', 'mailto:a@b.id'])(
+    'ignores unsafe redirect %s and still shows success',
+    async (redirectUrl) => {
+      submitPublicForm.mockResolvedValue(undefined)
+      const assign = vi.fn()
+      vi.stubGlobal('location', { ...window.location, assign })
+      try {
+        const { w } = mountSlot(makeForm({ redirectUrl }))
+        await fillValid(w)
+        await w.find('form').trigger('submit')
+        await flushPromises()
+        expect(assign).not.toHaveBeenCalled()
+        expect(push).not.toHaveBeenCalled()
+        expect(w.find('.zy-slot-lead-form__success').text()).toContain('Terima kasih!')
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    },
+  )
+
   it('shows the 429 message and keeps values', async () => {
     submitPublicForm.mockRejectedValue(new SubmitFormError(429, 'RATE_LIMITED'))
     const { w } = mountSlot()
