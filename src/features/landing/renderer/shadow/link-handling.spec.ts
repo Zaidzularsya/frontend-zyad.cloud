@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyLinkClick, type ClickInfo } from './link-handling'
+import { classifyLinkClick, hasAppRoute, type ClickInfo } from './link-handling'
 
 const plain: ClickInfo = {
   button: 0,
@@ -82,5 +82,13 @@ describe('classifyLinkClick', () => {
 
   it('invalid currentUrl does not throw', () => {
     expect(classifyLinkClick(plain, '/x', null, false, 'bukan url')).toEqual({ kind: 'native' })
+  })
+})
+
+describe('hasAppRoute', () => {
+  it('true only for a non catch-all match', () => {
+    expect(hasAppRoute([{ path: '/auth/register' }])).toBe(true)
+    expect(hasAppRoute([])).toBe(false)
+    expect(hasAppRoute([{ path: '/:pathMatch(.*)*' }])).toBe(false)
   })
 })

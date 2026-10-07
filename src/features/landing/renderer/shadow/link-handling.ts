@@ -66,3 +66,13 @@ export function classifyLinkClick(
 
   return { kind: 'route', path: url.pathname + url.search + url.hash }
 }
+
+const CATCH_ALL_PATH = '/:pathMatch(.*)*' // route `not-found` di src/app/router.ts
+
+/**
+ * True bila hasil `router.resolve(...).matched` adalah route aplikasi sungguhan.
+ * Path tanpa route (mis. /media/x.pdf) atau yang jatuh ke catch-all dibiarkan native.
+ */
+export function hasAppRoute(matched: ReadonlyArray<{ path: string }>): boolean {
+  return matched.length > 0 && !matched.some((m) => m.path === CATCH_ALL_PATH)
+}

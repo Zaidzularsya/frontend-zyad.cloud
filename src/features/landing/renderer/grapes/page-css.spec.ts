@@ -15,6 +15,12 @@ describe('rewritePageCss', () => {
     expect(r(':root{--brand:#0EA5E9}').css).toContain(':host{--brand:#0EA5E9}')
   })
 
+  it('maps compound :root.cls / :root[attr] to :host(...)', () => {
+    expect(r(':root.dark{--a:1}').css).toContain(':host(.dark){--a:1}')
+    expect(r(':root[data-x]{--a:1}').css).toContain(':host([data-x]){--a:1}')
+    expect(r(':root[data-x="1"].dark{--a:1}').css).toContain(':host([data-x="1"].dark){--a:1}')
+  })
+
   it('leaves other selectors, ids, keyframes untouched', () => {
     const out = r('#i3k{color:red}.tbody{x:y}@keyframes f{from{opacity:0}to{opacity:1}}').css
     expect(out).toContain('#i3k{color:red}')

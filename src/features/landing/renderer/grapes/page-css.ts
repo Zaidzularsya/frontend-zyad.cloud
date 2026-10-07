@@ -63,7 +63,11 @@ function rewriteSelector(selector: string): string {
     .trim()
     // `html body`, `html > body`, `html`, `body` at the start become the page wrapper.
     .replace(/^(?:html(?![\w-])\s*(?:>\s*)?body(?![\w-])|html(?![\w-])|body(?![\w-]))/, '.zy-page')
-  return s.replace(/:root(?![\w-])/g, ':host')
+  // `:root.dark` / `:root[data-x]` -> `:host(.dark)` / `:host([data-x])`; `:root` murni -> `:host`.
+  // Compound hanya dikenali sampai spasi/combinator/koma, jadi `:root .a` tetap `:host .a`.
+  return s
+    .replace(/:root((?:\.[\w-]+|#[\w-]+|\[[^\]]*\])+)/g, ':host($1)')
+    .replace(/:root(?![\w-])/g, ':host')
 }
 
 function rewriteSelectorList(prelude: string): string {

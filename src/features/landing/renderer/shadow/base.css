@@ -5,12 +5,13 @@
 .zy-page {
   display: block;
 }
-.zy-page *,
-.zy-page *::before,
-.zy-page *::after {
+/* :where() menjaga specificity 0 seperti reset di iframe lama, jadi CSS halaman menang. */
+:where(.zy-page) *,
+:where(.zy-page) *::before,
+:where(.zy-page) *::after {
   box-sizing: border-box;
 }
-.zy-page img,
-.zy-page video {
+:where(.zy-page) img,
+:where(.zy-page) video {
   max-width: 100%;
 }

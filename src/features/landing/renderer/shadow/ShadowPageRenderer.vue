@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router'
 
 import type { GrapesChrome } from '../grapes/chrome'
 import { rewritePageCss } from '../grapes/page-css'
-import { classifyLinkClick } from './link-handling'
+import { classifyLinkClick, hasAppRoute } from './link-handling'
 import { SLOT_REGISTRY, slotStyles } from './slot-registry'
 import baseCss from './base.css?inline'
 
@@ -153,8 +153,9 @@ function onClick(event: Event) {
   if (action.kind === 'hash') {
     e.preventDefault()
     root?.getElementById(action.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    history.replaceState(null, '', `#${action.id}`)
-  } else if (action.kind === 'route') {
+    // Pertahankan history.state milik vue-router (back/position/scroll).
+    history.replaceState(history.state, '', `#${action.id}`)
+  } else if (action.kind === 'route' && hasAppRoute(router.resolve(action.path).matched)) {
     e.preventDefault()
     void router.push(action.path)
   }

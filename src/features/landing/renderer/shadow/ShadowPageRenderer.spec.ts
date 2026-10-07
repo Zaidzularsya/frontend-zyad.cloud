@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ShadowPageRenderer from './ShadowPageRenderer.vue'
 
 const push = vi.fn()
-vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
+// Mock resolve: /media/* tanpa route, /nowhere* jatuh ke catch-all, selain itu route nyata.
+const resolve = (path: string) => ({
+  matched: path.startsWith('/media')
+    ? []
+    : [{ path: path.startsWith('/nowhere') ? '/:pathMatch(.*)*' : path }],
+})
+vi.mock('vue-router', () => ({ useRouter: () => ({ push, resolve }) }))
 
 const FONT_CSS = '@font-face{font-family:X;src:url(/f.woff2)}'
 const FOOTER = { brandName: 'Zyad', columns: [] }
@@ -69,9 +75,10 @@ describe('ShadowPageRenderer', () => {
   it('isolates from inherited SPA styles', () => {
     const w = mountRenderer({ html: '<p>a</p>', css: '' })
     // base.css diformat prettier (multi-baris): bandingkan tanpa whitespace.
-    expect(host(w).shadowRoot!.innerHTML.replace(/\s+/g, '')).toContain(
-      ':host{all:initial;display:block;}',
-    )
+    const css = host(w).shadowRoot!.innerHTML.replace(/\s+/g, '')
+    expect(css).toContain(':host{all:initial;display:block;}')
+    expect(css).toContain(':where(.zy-page)*::after{box-sizing:border-box;}')
+    expect(css).not.toMatch(/(^|[};])\.zy-page\*/)
   })
 
   it('applies rewritten page css', () => {
@@ -109,12 +116,37 @@ describe('ShadowPageRenderer', () => {
     expect(location.hash).toBe('#harga')
   })
 
+  it('keeps history.state (vue-router) when updating the hash', async () => {
+    history.replaceState({ back: '/x', position: 3 }, '', '/')
+    const w = mountRenderer({
+      html: '<a id="go" href="#harga">h</a><section id="harga"></section>',
+      css: '',
+    })
+    await flushPromises()
+    click(host(w).shadowRoot!.getElementById('go')!)
+    expect(history.state).toEqual({ back: '/x', position: 3 })
+  })
+
   it('routes same-origin links through the router', async () => {
     const w = mountRenderer({ html: '<a id="a" href="/auth/register">m</a>', css: '' })
     await flushPromises()
     const ev = click(host(w).shadowRoot!.getElementById('a')!)
     expect(push).toHaveBeenCalledWith('/auth/register')
     expect(ev.prevented).toBe(true)
+  })
+
+  it('leaves links without an app route to the browser', async () => {
+    const w = mountRenderer({
+      html: '<a id="a" href="/media/x.pdf">p</a><a id="b" href="/nowhere/else">q</a>',
+      css: '',
+    })
+    await flushPromises()
+    const root = host(w).shadowRoot!
+    const pdf = click(root.getElementById('a')!)
+    const catchAll = click(root.getElementById('b')!)
+    expect(push).not.toHaveBeenCalled()
+    expect(pdf.prevented).toBe(false)
+    expect(catchAll.prevented).toBe(false)
   })
 
   it('does not hijack ctrl-click, middle-click or target=_blank', async () => {
