@@ -1,0 +1,16 @@
+:host {
+  all: initial;
+  display: block;
+}
+.zy-page {
+  display: block;
+}
+.zy-page *,
+.zy-page *::before,
+.zy-page *::after {
+  box-sizing: border-box;
+}
+.zy-page img,
+.zy-page video {
+  max-width: 100%;
+}
