@@ -1,9 +1,5 @@
 import { useFooterContent } from './useFooterContent'
-import type {
-  GrapesChrome,
-  GrapesChromeLink,
-  GrapesChromePricingPlan,
-} from '../components/GrapesPageFrame.vue'
+import type { GrapesChrome, GrapesChromeLink, GrapesChromePricingPlan } from '../grapes/chrome'
 
 /**
  * Builds the live tenant chrome (header nav + footer) for GrapesJS pages from a

@@ -7,6 +7,7 @@ const envSchema = z.object({
   VITE_TENANT_HEADER: z.string().default('X-Organization-ID'),
   VITE_GOOGLE_CLIENT_ID: z.string().default(''),
   VITE_SUPPORT_EMAIL: z.string().default(''),
+  VITE_LANDING_RENDERER: z.enum(['shadow', 'iframe']).default('shadow'),
 })
 
 export const env = envSchema.parse(import.meta.env)
