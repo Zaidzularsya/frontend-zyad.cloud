@@ -8,8 +8,8 @@ vi.mock('vue-router', () => ({ useRoute: () => ({ params: {} }) }))
 import DynamicLandingPage from './DynamicLandingPage.vue'
 
 const stubs = {
-  GrapesPageFrame: {
-    name: 'GrapesPageFrame',
+  GrapesPageRenderer: {
+    name: 'GrapesPageRenderer',
     props: ['html', 'css', 'title'],
     template: '<div class="stub-frame" :data-html="html" :data-css="css" />',
   },
@@ -23,7 +23,7 @@ function resolveWith(data: Record<string, unknown>) {
 describe('DynamicLandingPage — GrapesJS branch', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders GrapesPageFrame with html/css for a grapesjs page', async () => {
+  it('renders GrapesPageRenderer with html/css for a grapesjs page', async () => {
     resolveWith({
       Builder: 'grapesjs',
       HTML: '<h1>Halo</h1>',

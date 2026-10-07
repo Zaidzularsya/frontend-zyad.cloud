@@ -7,7 +7,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { http } from '@/lib/http'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
-import GrapesPageFrame, { type GrapesChrome } from '../components/GrapesPageFrame.vue'
+import GrapesPageRenderer from '../components/GrapesPageRenderer.vue'
+import type { GrapesChrome } from '../grapes/chrome'
 import { buildGrapesChrome } from '../composables/useGrapesChrome'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
@@ -254,7 +255,7 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
       </div>
     </div>
     <div v-else class="pt-16">
-      <GrapesPageFrame
+      <GrapesPageRenderer
         v-if="page && isGrapes"
         :html="grapesHtml"
         :css="grapesCss"

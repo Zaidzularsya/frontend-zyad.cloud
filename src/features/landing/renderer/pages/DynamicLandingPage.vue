@@ -4,7 +4,8 @@ import { useRoute } from 'vue-router'
 import { http } from '@/lib/http'
 import { normalizeBranding } from '../../shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
-import GrapesPageFrame, { type GrapesChrome } from '../components/GrapesPageFrame.vue'
+import GrapesPageRenderer from '../components/GrapesPageRenderer.vue'
+import type { GrapesChrome } from '../grapes/chrome'
 import { useFooterContent } from '../composables/useFooterContent'
 import { buildGrapesChrome } from '../composables/useGrapesChrome'
 import type {
@@ -55,7 +56,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 // GrapesJS-authored pages (page.builder === 'grapesjs') carry HTML/CSS instead
-// of sections; rendered via <iframe srcdoc> by GrapesPageFrame.
+// of sections; rendered in a shadow root by GrapesPageRenderer.
 const builder = ref<'sections' | 'grapesjs'>('sections')
 const grapesHtml = ref('')
 const grapesCss = ref('')
@@ -361,8 +362,8 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
       </div>
     </div>
 
-    <!-- GrapesJS-authored page: isolated iframe render -->
-    <GrapesPageFrame
+    <!-- GrapesJS-authored page: Shadow DOM render (iframe via flag) -->
+    <GrapesPageRenderer
       v-else-if="builder === 'grapesjs'"
       :html="grapesHtml"
       :css="grapesCss"
