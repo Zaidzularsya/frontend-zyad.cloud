@@ -127,6 +127,41 @@ describe('normalizeForm — CRM fields', () => {
   })
 })
 
+describe('normalizeForm — fields', () => {
+  it('maps PascalCase Fields sorted by SortOrder, null/missing options become []', () => {
+    const f = normalizeForm({
+      ID: 'f',
+      Fields: [
+        { ID: 'b', Key: 'email', Type: 'email', Label: 'Email', IsRequired: true, SortOrder: 2 },
+        {
+          ID: 'a',
+          Key: 'size',
+          Type: 'select',
+          Label: 'Ukuran',
+          Options: ['1–10'],
+          Placeholder: 'x',
+          IsRequired: false,
+          SortOrder: 1,
+        },
+        { ID: 'c', Key: 'n', Type: 'text', Label: 'N', Options: null, SortOrder: 3 },
+      ],
+    })
+    expect(f.fields?.map((x) => x.key)).toEqual(['size', 'email', 'n'])
+    expect(f.fields?.[0]).toMatchObject({ options: ['1–10'], placeholder: 'x', required: false })
+    expect(f.fields?.[1]).toMatchObject({ required: true, options: [] })
+    expect(f.fields?.[2]!.options).toEqual([])
+  })
+
+  it('maps snake_case fields and keeps fields undefined when absent', () => {
+    expect(
+      normalizeForm({ id: 'f', fields: [{ key: 'k', type: 'text', label: 'K', required: true }] })
+        .fields,
+    ).toMatchObject([{ key: 'k', required: true }])
+    expect(normalizeForm({ id: 'f' }).fields).toBeUndefined()
+    expect(normalizeForm({ ID: 'f', Fields: [] }).fields).toEqual([])
+  })
+})
+
 describe('landingApi — submissions', () => {
   beforeEach(() => vi.clearAllMocks())
 

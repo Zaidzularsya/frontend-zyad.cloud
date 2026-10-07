@@ -142,6 +142,24 @@ export interface LandingForm {
   updated_at: string
 }
 
+/** Item field untuk PUT /forms/:id/fields (dan hasil normalisasi). */
+export type FormFieldItem = LandingFormField
+
+/** Form dengan field-nya sudah dimuat (GET /forms mengembalikan fields). */
+export type LandingFormWithFields = LandingForm & { fields: LandingFormField[] }
+
+/** Body POST /admin/landing-pages/:id/forms (CreateFormRequest). */
+export interface CreateFormPayload {
+  name: string
+  key: string
+  is_active: boolean
+  submit_label: string
+  success_message: string
+  redirect_url?: string | null
+  create_crm_lead?: boolean
+  lead_owner_user_id?: string
+}
+
 export type CrmSyncStatus = 'skipped' | 'created' | 'merged' | 'failed'
 
 export interface LandingSubmission {

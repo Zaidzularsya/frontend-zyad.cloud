@@ -120,6 +120,7 @@ function normalizeSection(raw: RawRecord): LandingSection {
 }
 
 export function normalizeForm(raw: RawRecord): LandingForm {
+  const rawFields = raw.fields ?? raw.Fields
   return {
     id: pick(raw, 'id', 'ID', ''),
     name: pick(raw, 'name', 'Name', ''),
@@ -132,6 +133,12 @@ export function normalizeForm(raw: RawRecord): LandingForm {
     create_crm_lead: pick(raw, 'create_crm_lead', 'CreateCRMLead', false),
     lead_owner_user_id:
       pick<string | null>(raw, 'lead_owner_user_id', 'LeadOwnerUserID', null) || null,
+    // Admin list returns Fields (PascalCase) already ordered; sort again to stay safe.
+    fields: Array.isArray(rawFields)
+      ? (rawFields as RawRecord[])
+          .map(normalizeFormField)
+          .sort((a, b) => a.sort_order - b.sort_order)
+      : undefined,
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
   }

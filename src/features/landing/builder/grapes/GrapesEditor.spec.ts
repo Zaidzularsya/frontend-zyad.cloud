@@ -48,6 +48,7 @@ const getMenus = vi.fn()
 const getDefaultBranding = vi.fn()
 const getMenuItems = vi.fn()
 const getPricingPlans = vi.fn()
+const getForms = vi.fn()
 vi.mock('@/features/landing/shared/api/landing.api', () => ({
   landingApi: {
     getDocument: (...a: unknown[]) => getDocument(...a),
@@ -60,7 +61,15 @@ vi.mock('@/features/landing/shared/api/landing.api', () => ({
     getDefaultBranding: (...a: unknown[]) => getDefaultBranding(...a),
     getMenuItems: (...a: unknown[]) => getMenuItems(...a),
     getPricingPlans: (...a: unknown[]) => getPricingPlans(...a),
+    getForms: (...a: unknown[]) => getForms(...a),
+    createForm: vi.fn(),
+    updateForm: vi.fn(),
+    replaceFormFields: vi.fn(),
+    deleteForm: vi.fn(),
   },
+}))
+vi.mock('@/features/crm/leads/api/leads.api', () => ({
+  leadsApi: { members: vi.fn(() => Promise.resolve([])) },
 }))
 
 const listListings = vi.fn()
@@ -95,6 +104,7 @@ describe('GrapesEditor', () => {
     getDefaultBranding.mockResolvedValue({ data: { company_name: 'Acme', colors: {} } })
     getMenuItems.mockResolvedValue({ data: [] })
     listListings.mockResolvedValue([])
+    getForms.mockResolvedValue({ data: [] })
   })
 
   function useOrg(organizationType: string) {
@@ -373,6 +383,54 @@ describe('GrapesEditor', () => {
       })
       await wrapper.vm.$nextTick()
       expect(wrapper.text()).toContain('Harga dan fitur diambil dari Sales → Produk.')
+    })
+  })
+  describe('blok Form Konsultasi (semua org)', () => {
+    it.each(['customer', 'platform'])(
+      'org %s: block zy-lead-form kategori Conversion dan tipe terdaftar',
+      async (org) => {
+        useOrg(org)
+        mount(GrapesEditor, { props: { pageId: 'p1' } })
+        await flush()
+        const call = editorStub.Blocks.add.mock.calls.find((c) => c[0] === 'zy-lead-form')
+        expect(call).toBeTruthy()
+        expect(call![1]).toMatchObject({
+          label: 'Form Konsultasi',
+          category: 'Conversion',
+          content: { type: 'zyad-lead-form' },
+        })
+        const types = editorStub.Components.addType.mock.calls.map((c) => c[0])
+        expect(types).toContain('zyad-lead-form')
+        expect(getForms).toHaveBeenCalledWith('p1')
+      },
+    )
+
+    it('guard duplikat: blok lead-form kedua dihapus dengan label Form Konsultasi', async () => {
+      useOrg('customer')
+      const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      editorStub.getWrapper.mockReturnValue({ find: () => [{}, {}] } as never)
+      const remove = vi.fn()
+      onHandler('component:add')!({
+        get: (k: string) => (k === 'type' ? 'zyad-lead-form' : undefined),
+        remove,
+      })
+      expect(remove).toHaveBeenCalledTimes(1)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('Form Konsultasi sudah ada di halaman ini')
+    })
+
+    it('seleksi blok membuka panel Form Konsultasi di tab Konten', async () => {
+      useOrg('customer')
+      const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      onHandler('component:selected')!({
+        get: (k: string) => (k === 'type' ? 'zyad-lead-form' : undefined),
+        getAttributes: () => ({}),
+        addAttributes: vi.fn(),
+      })
+      await flush()
+      expect(wrapper.text()).toContain('Buat form standar')
     })
   })
 })

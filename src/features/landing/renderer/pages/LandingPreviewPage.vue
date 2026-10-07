@@ -101,8 +101,7 @@ async function loadAdminPreview(id: string) {
   sections.value = sectionResponse.data
 }
 
-// The admin forms list does not include fields yet, so a form without them renders
-// with only the built-in consent checkbox and the submit button.
+// GET /forms returns each form with its fields (normalised in landing.api.ts).
 async function loadPreviewForms(id: string): Promise<GrapesChromeForm[]> {
   try {
     const response = await landingApi.getForms(id)
