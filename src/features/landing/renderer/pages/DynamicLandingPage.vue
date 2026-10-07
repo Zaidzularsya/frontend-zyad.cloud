@@ -32,6 +32,8 @@ import type {
 const props = defineProps<{
   /** Override slug jika tidak dari route. Kosongkan untuk resolve berdasarkan Host header. */
   slug?: string
+  /** Mode beranda platform: resolve halaman is_homepage (`?home=1`); mengalahkan slug. */
+  home?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -102,9 +104,12 @@ async function fetchPage(slug: string) {
   loading.value = true
   error.value = null
   try {
-    const res = await http.get<{ data: RawRecord } | RawRecord>(
-      slug ? `/public/landing/resolve?slug=${slug}` : '/public/landing/resolve',
-    )
+    const url = props.home
+      ? '/public/landing/resolve?home=1'
+      : slug
+        ? `/public/landing/resolve?slug=${slug}`
+        : '/public/landing/resolve'
+    const res = await http.get<{ data: RawRecord } | RawRecord>(url)
     const result: RawRecord = (res.data as { data?: RawRecord }).data ?? (res.data as RawRecord)
     const rawPage = pickObject(result, 'Page', 'page')
 
