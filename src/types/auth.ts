@@ -53,6 +53,7 @@ export type Permission =
   | 'company.update'
   | 'company.delete'
   | 'company.restore'
+  | 'company.link_workspace'
   | 'contact.read'
   | 'contact.create'
   | 'contact.update'
