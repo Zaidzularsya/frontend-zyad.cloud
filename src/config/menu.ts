@@ -69,10 +69,10 @@ export const platformMenuGroups: MenuGroup[] = [
       },
       { label: 'Members', route: 'platform-users', icon: ShieldCheck },
       {
-        label: 'Product Catalog',
-        route: 'platform-billing-plans',
+        label: 'Fitur Platform',
+        route: 'platform-features',
         icon: Package,
-        description: 'Katalog plan, harga, dan feature platform untuk berlangganan.',
+        description: 'Daftar fitur & kuota yang bisa diberikan produk.',
       },
       {
         label: 'Storage Quota',

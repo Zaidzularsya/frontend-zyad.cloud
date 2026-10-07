@@ -9,35 +9,35 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import TextField from '@/components/form/TextField.vue'
 import type {
-  CreatePlatformBillingFeaturePayload,
-  PlatformBillingFeature,
-  PlatformBillingFeatureValueType,
-  PlatformBillingResetStrategy,
-  UpdatePlatformBillingFeaturePayload,
-} from '@/features/billing/api/platform-billing.api'
+  CreatePlatformFeaturePayload,
+  PlatformFeature,
+  PlatformFeatureValueType,
+  PlatformFeatureResetStrategy,
+  UpdatePlatformFeaturePayload,
+} from '@/features/platform-features/api/platform-features.api'
 
 const props = defineProps<{
   isOpen: boolean
   mode: 'create' | 'edit'
-  featureToEdit: PlatformBillingFeature | null
+  featureToEdit: PlatformFeature | null
   isSubmitting: boolean
   serverError: string
 }>()
 
 const emit = defineEmits<{
   close: []
-  create: [payload: CreatePlatformBillingFeaturePayload]
-  update: [payload: UpdatePlatformBillingFeaturePayload]
+  create: [payload: CreatePlatformFeaturePayload]
+  update: [payload: UpdatePlatformFeaturePayload]
 }>()
 
-const valueTypeOptions: Array<{ value: PlatformBillingFeatureValueType; label: string }> = [
+const valueTypeOptions: Array<{ value: PlatformFeatureValueType; label: string }> = [
   { value: 'boolean', label: 'Boolean (on/off)' },
   { value: 'integer', label: 'Integer (angka bulat)' },
   { value: 'decimal', label: 'Decimal (angka desimal)' },
   { value: 'string', label: 'String (teks bebas)' },
 ]
 
-const resetStrategyOptions: Array<{ value: PlatformBillingResetStrategy; label: string }> = [
+const resetStrategyOptions: Array<{ value: PlatformFeatureResetStrategy; label: string }> = [
   { value: 'never', label: 'Tidak pernah reset' },
   { value: 'monthly', label: 'Reset bulanan' },
   { value: 'yearly', label: 'Reset tahunan' },
