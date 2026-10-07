@@ -1,5 +1,11 @@
 import { useFooterContent } from './useFooterContent'
-import type { GrapesChrome, GrapesChromeLink, GrapesChromePricingPlan } from '../grapes/chrome'
+import { safeHref } from '../grapes/chrome'
+import type {
+  GrapesChrome,
+  GrapesChromeForm,
+  GrapesChromeLink,
+  GrapesChromePricingPlan,
+} from '../grapes/chrome'
 
 /**
  * Builds the live tenant chrome (header nav + footer) for GrapesJS pages from a
@@ -23,7 +29,34 @@ export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): Gra
       columns: footer.columns,
     },
     pricingPlans: pricingPlans(result),
+    forms: forms(result),
   }
+}
+
+function forms(result: RawRecord): GrapesChromeForm[] {
+  return pickArray(result, 'Forms', 'forms').map((form) => {
+    const redirect = pickString(form, 'RedirectURL', 'redirect_url')
+    return {
+      id: pickString(form, 'ID', 'id'),
+      submitLabel: pickString(form, 'SubmitLabel', 'submit_label'),
+      successMessage: pickString(form, 'SuccessMessage', 'success_message'),
+      // safeHref returns '#' for anything it rejects; treat that as no redirect.
+      redirectUrl: redirect && safeHref(redirect) !== '#' ? redirect.trim() : '',
+      fields: pickArray(form, 'Fields', 'fields')
+        .sort(
+          (a, b) =>
+            pickNumber(a, 'SortOrder', 'sort_order') - pickNumber(b, 'SortOrder', 'sort_order'),
+        )
+        .map((f) => ({
+          key: pickString(f, 'Key', 'key'),
+          type: pickString(f, 'Type', 'type') || 'text',
+          label: pickString(f, 'Label', 'label'),
+          placeholder: pickString(f, 'Placeholder', 'placeholder'),
+          options: pickStringArray(f, 'Options', 'options'),
+          required: pickBoolean(f, ['IsRequired', 'is_required', 'required'], false),
+        })),
+    }
+  })
 }
 
 function pricingPlans(result: RawRecord): GrapesChromePricingPlan[] {

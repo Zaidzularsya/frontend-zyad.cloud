@@ -1,6 +1,7 @@
 import { http } from '@/lib/http'
 import type {
   BaseResponse,
+  CrmSyncStatus,
   CallToAction,
   LandingAvailableDomain,
   LandingBranding,
@@ -16,6 +17,7 @@ import type {
   LandingPage,
   LandingPricingPlan,
   LandingRevision,
+  LandingSubmission,
   LandingSection,
   PaginatedResponse,
   SectionTemplate,
@@ -117,7 +119,7 @@ function normalizeSection(raw: RawRecord): LandingSection {
   }
 }
 
-function normalizeForm(raw: RawRecord): LandingForm {
+export function normalizeForm(raw: RawRecord): LandingForm {
   return {
     id: pick(raw, 'id', 'ID', ''),
     name: pick(raw, 'name', 'Name', ''),
@@ -127,9 +129,67 @@ function normalizeForm(raw: RawRecord): LandingForm {
     redirect_url: pick(raw, 'redirect_url', 'RedirectURL', null),
     is_active: pick(raw, 'is_active', 'IsActive', false),
     consent: pick(raw, 'consent', 'Consent', {}),
+    create_crm_lead: pick(raw, 'create_crm_lead', 'CreateCRMLead', false),
+    lead_owner_user_id:
+      pick<string | null>(raw, 'lead_owner_user_id', 'LeadOwnerUserID', null) || null,
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
   }
+}
+
+const CRM_SYNC_STATUSES: CrmSyncStatus[] = ['skipped', 'created', 'merged', 'failed']
+
+// Admin list/retry return the raw domain struct (PascalCase, no json tags);
+// the DTO shape is snake_case. Accept both so a future DTO switch is harmless.
+export function normalizeSubmission(raw: RawRecord): LandingSubmission {
+  const status = pick<string>(raw, 'crm_sync_status', 'CRMSyncStatus', 'skipped')
+  return {
+    id: pick(raw, 'id', 'ID', ''),
+    landing_page_id: pick(raw, 'landing_page_id', 'LandingPageID', ''),
+    form_id: pick(raw, 'form_id', 'FormID', ''),
+    reference: pick(raw, 'reference', 'Reference', ''),
+    status: pick(raw, 'status', 'Status', ''),
+    submitted_data: pick(raw, 'submitted_data', 'SubmittedData', {}) ?? {},
+    submitted_at: pick(raw, 'submitted_at', 'SubmittedAt', ''),
+    crm_lead_id: pick<string | null>(raw, 'crm_lead_id', 'CRMLeadID', null) || null,
+    crm_sync_status: CRM_SYNC_STATUSES.includes(status as CrmSyncStatus)
+      ? (status as CrmSyncStatus)
+      : 'skipped',
+    crm_sync_error: pick<string | null>(raw, 'crm_sync_error', 'CRMSyncError', null) || null,
+  }
+}
+
+/** Gagal kirim form publik; `status` memungkinkan slot membedakan 429. */
+export class SubmitFormError extends Error {
+  readonly status: number
+  readonly code: string
+  constructor(status: number, code: string, message?: string) {
+    super(message || code || `HTTP ${status}`)
+    this.name = 'SubmitFormError'
+    this.status = status
+    this.code = code
+  }
+}
+
+export interface PublicFormSubmitBody {
+  fields: Record<string, unknown>
+  consent: boolean
+  website: string
+  context: {
+    referrer?: string
+    utm_source?: string
+    utm_medium?: string
+    utm_campaign?: string
+    utm_term?: string
+    utm_content?: string
+  }
+}
+
+export type SubmissionListParams = {
+  page?: number
+  per_page?: number
+  landing_page_id?: string
+  search?: string
 }
 
 function normalizeFormField(raw: RawRecord): LandingFormField {
@@ -558,6 +618,41 @@ export const landingApi = {
         data: response.data.map(normalizeFormField),
       }),
     ),
+
+  // Backend mengembalikan array polos tanpa meta/total (handler belum paginasi
+  // sungguhan; `search` belum didukung dan diabaikan). `total` = jumlah item halaman ini.
+  listSubmissions: async (params: SubmissionListParams) => {
+    const response = await getBase<RawRecord[] | null>('/admin/landing-submissions', params)
+    const data = (response.data ?? []).map(normalizeSubmission)
+    const perPage = params.per_page ?? 10
+    return {
+      ...response,
+      data,
+      meta: { total: data.length, has_more: data.length >= perPage },
+    }
+  },
+  retrySubmissionCrmSync: async (id: string) => {
+    const response = await postData<RawRecord>(`/admin/landing-submissions/${id}/crm-sync`)
+    return normalizeSubmission(response.data)
+  },
+
+  /** Publik: `formId` = id form (backend mencari lewat FindByID). */
+  submitPublicForm: async (
+    formId: string,
+    body: PublicFormSubmitBody,
+    idempotencyKey: string,
+  ): Promise<void> => {
+    try {
+      await http.post(`/public/landing/forms/${formId}/submissions`, body, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      })
+    } catch (err) {
+      const res = (
+        err as { response?: { status?: number; data?: { code?: string; message?: string } } }
+      ).response
+      throw new SubmitFormError(res?.status ?? 0, res?.data?.code ?? '', res?.data?.message)
+    }
+  },
 
   getDefaultBranding: async () => {
     const response = await getBase<RawRecord>('/admin/landing/branding')

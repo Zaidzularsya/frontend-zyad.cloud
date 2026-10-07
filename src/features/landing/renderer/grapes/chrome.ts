@@ -14,6 +14,23 @@ export interface GrapesChromePricingPlan {
   ctaUrl?: string
   isFeatured: boolean
 }
+export interface GrapesChromeFormField {
+  key: string
+  type: string
+  label: string
+  placeholder: string
+  options: string[]
+  required: boolean
+}
+export interface GrapesChromeForm {
+  id: string
+  submitLabel: string
+  successMessage: string
+  /** Sudah lolos safeHref; '' bila tidak ada / tidak aman. */
+  redirectUrl: string
+  /** Urut SortOrder. */
+  fields: GrapesChromeFormField[]
+}
 export interface GrapesChrome {
   /** Tipe organisasi pemilik halaman ('platform' | 'customer' | ''). */
   orgType?: string
@@ -28,6 +45,8 @@ export interface GrapesChrome {
   }
   /** Tenant's own pricing-plan cards for the pricing-plans sentinel. */
   pricingPlans?: GrapesChromePricingPlan[]
+  /** Form aktif halaman (untuk blok lead form). */
+  forms?: GrapesChromeForm[]
 }
 
 export interface HeaderPresentation {
