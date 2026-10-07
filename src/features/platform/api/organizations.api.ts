@@ -4,6 +4,8 @@ import type { ApiEnvelope, PaginatedResponse } from '@/types/api'
 export interface PlatformOrganizationListParams {
   page?: number
   per_page?: number
+  search?: string
+  type?: string
 }
 
 export interface PlatformOrganizationSummary {

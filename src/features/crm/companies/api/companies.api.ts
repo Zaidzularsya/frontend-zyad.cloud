@@ -8,6 +8,13 @@ export interface CompanyListParams {
   owner_user_id?: string
 }
 
+export interface CompanyWorkspace {
+  id: string
+  name: string
+  slug: string
+  status: string
+}
+
 export interface Company {
   id: string
   name: string
@@ -20,6 +27,9 @@ export interface Company {
   notes?: string
   tags: string[]
   owner_user_id?: string
+  tenant_organization_id?: string | null
+  /** Workspace tertaut; hanya terisi untuk org platform. */
+  tenant_organization?: CompanyWorkspace | null
   created_at: string
   updated_at: string
   deleted_at?: string | null
@@ -35,6 +45,8 @@ export interface CompanyPayload {
   notes?: string
   tags?: string[]
   owner_user_id?: string
+  /** Workspace yang ditautkan; null melepas tautan; tidak dikirim = tidak diubah. */
+  tenant_organization_id?: string | null
 }
 
 export const companiesApi = {

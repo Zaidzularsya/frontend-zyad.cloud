@@ -14,6 +14,7 @@ export const useTenantStore = defineStore('tenant', () => {
     () => tenants.value.find((tenant) => tenant.id === activeTenantId.value) ?? null,
   )
   const hasTenant = computed(() => Boolean(activeTenant.value))
+  const isPlatformOrganization = computed(() => activeTenant.value?.organizationType === 'platform')
 
   function hydrate(items: Tenant[], preferredTenantId?: string) {
     tenants.value = items
@@ -54,6 +55,7 @@ export const useTenantStore = defineStore('tenant', () => {
     activeTenantId,
     activeTenant,
     hasTenant,
+    isPlatformOrganization,
     hydrate,
     select,
     clear,
