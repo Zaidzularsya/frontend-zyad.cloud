@@ -9,6 +9,11 @@ import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { useLandingDocumentStore } from '@/stores/landingDocument'
 import { useLandingChromeStore } from '@/stores/landingChrome'
 import { useLandingPricingStore } from '@/stores/landingPricing'
+import { useTenantStore } from '@/stores/tenant.store'
+import {
+  publicCatalogApi,
+  type PublicListingCategory,
+} from '@/features/public/api/public-catalog.api'
 import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
 import { GRAPES_STARTERS, type GrapesStarter } from './starter-templates'
@@ -17,13 +22,20 @@ import { registerTenantFooter, TENANT_FOOTER_TYPE } from './grapes.footer-compon
 import { registerTenantPricing, TENANT_PRICING_TYPE } from './grapes.pricing-component'
 import GrapesHeaderPanel from './GrapesHeaderPanel.vue'
 import GrapesFooterPanel from './GrapesFooterPanel.vue'
+import {
+  CATALOG_PRICING_BLOCK_ID,
+  CATALOG_PRICING_TYPE,
+  registerCatalogPricing,
+} from './grapes.catalog-pricing-component'
 import GrapesPricingPanel from './GrapesPricingPanel.vue'
+import GrapesCatalogPricingPanel from './GrapesCatalogPricingPanel.vue'
 
 const props = defineProps<{ pageId: string }>()
 
 const store = useLandingDocumentStore()
 const chrome = useLandingChromeStore()
 const pricing = useLandingPricingStore()
+const tenantStore = useTenantStore()
 
 // The selected `zyad-tenant-header` / `zyad-tenant-footer` / `zyad-pricing-plans`
 // component (if any) → swaps the right pane for GrapesHeaderPanel /
@@ -36,6 +48,9 @@ type TenantComponent = {
 const headerComponent = shallowRef<TenantComponent | null>(null)
 const footerComponent = shallowRef<TenantComponent | null>(null)
 const pricingComponent = shallowRef<TenantComponent | null>(null)
+const catalogPricingComponent = shallowRef<TenantComponent | null>(null)
+// Listing publik (Sales → Produk) untuk pratinjau kanvas + panel; hanya diambil untuk org platform.
+const catalogCategories = shallowRef<PublicListingCategory[]>([])
 const duplicateNotice = ref('')
 
 const canvasRef = ref<HTMLElement | null>(null)
@@ -71,7 +86,11 @@ const savedLabel = computed(() => {
 })
 
 const tenantPanelActive = computed(
-  () => !!headerComponent.value || !!footerComponent.value || !!pricingComponent.value,
+  () =>
+    !!headerComponent.value ||
+    !!footerComponent.value ||
+    !!pricingComponent.value ||
+    !!catalogPricingComponent.value,
 )
 
 function setDevice(name: string) {
@@ -237,14 +256,36 @@ onMounted(async () => {
   void chrome.load()
   void pricing.load()
 
+  // "Pricing Katalog" hanya untuk organisasi platform (spec K2): tipe komponen
+  // dan block tidak didaftarkan sama sekali untuk tenant biasa.
+  if (tenantStore.isPlatformOrganization) {
+    registerCatalogPricing(ed, () => catalogCategories.value)
+    ed.Blocks.add(CATALOG_PRICING_BLOCK_ID, {
+      label: 'Pricing Katalog',
+      category: 'Conversion',
+      content: { type: CATALOG_PRICING_TYPE },
+    })
+    void publicCatalogApi
+      .listListings()
+      .then((categories) => {
+        catalogCategories.value = categories
+        rerenderTenantSlot('catalog-pricing')
+      })
+      .catch((err) => console.error('GrapesEditor: failed to load public catalog listings', err))
+  }
+
   ed.on('component:selected', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown } | undefined
     const type = model?.get?.('type')
     const isTenant =
-      type === TENANT_HEADER_TYPE || type === TENANT_FOOTER_TYPE || type === TENANT_PRICING_TYPE
+      type === TENANT_HEADER_TYPE ||
+      type === TENANT_FOOTER_TYPE ||
+      type === TENANT_PRICING_TYPE ||
+      type === CATALOG_PRICING_TYPE
     headerComponent.value = type === TENANT_HEADER_TYPE ? (component as never) : null
     footerComponent.value = type === TENANT_FOOTER_TYPE ? (component as never) : null
     pricingComponent.value = type === TENANT_PRICING_TYPE ? (component as never) : null
+    catalogPricingComponent.value = type === CATALOG_PRICING_TYPE ? (component as never) : null
     // Default to the custom content panel on selection, but leave Style/Setelan
     // reachable via the tab bar — GrapesJS's Style Manager already has the
     // sectors (Dekorasi: background/opacity, Posisi: position/z-index) needed
@@ -257,6 +298,7 @@ onMounted(async () => {
     headerComponent.value = null
     footerComponent.value = null
     pricingComponent.value = null
+    catalogPricingComponent.value = null
     if (rightTab.value === 'content') rightTab.value = 'styles'
   })
 
@@ -270,11 +312,13 @@ onMounted(async () => {
     [TENANT_HEADER_TYPE]: 'tenant-nav',
     [TENANT_FOOTER_TYPE]: 'tenant-footer',
     [TENANT_PRICING_TYPE]: 'pricing-plans',
+    [CATALOG_PRICING_TYPE]: 'catalog-pricing',
   }
   const TENANT_LABEL_BY_TYPE: Record<string, string> = {
     [TENANT_HEADER_TYPE]: 'Header tenant',
     [TENANT_FOOTER_TYPE]: 'Footer tenant',
     [TENANT_PRICING_TYPE]: 'Pricing tenant',
+    [CATALOG_PRICING_TYPE]: 'Pricing Katalog',
   }
   ed.on('component:add', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown; remove?: () => void } | undefined
@@ -314,7 +358,8 @@ onMounted(async () => {
   const removedNavDup = dedupeTenantSlot('tenant-nav')
   const removedFooterDup = dedupeTenantSlot('tenant-footer')
   const removedPricingDup = dedupeTenantSlot('pricing-plans')
-  if (removedNavDup || removedFooterDup || removedPricingDup) {
+  const removedCatalogDup = dedupeTenantSlot('catalog-pricing')
+  if (removedNavDup || removedFooterDup || removedPricingDup || removedCatalogDup) {
     store.applyEditorSnapshot({
       project: ed.getProjectData() as Record<string, unknown>,
       html: ed.getHtml(),
@@ -529,6 +574,14 @@ defineExpose({ editor })
         <GrapesPricingPanel
           v-if="pricingComponent"
           v-show="rightTab === 'content'"
+          class="grapes-pane"
+        />
+
+        <GrapesCatalogPricingPanel
+          v-if="catalogPricingComponent"
+          v-show="rightTab === 'content'"
+          :component="catalogPricingComponent"
+          :categories="catalogCategories"
           class="grapes-pane"
         />
 
