@@ -265,18 +265,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Checkout' },
       },
       {
-        path: 'checkout/success',
-        name: 'checkout-success',
-        component: () => import('@/features/customer/pages/CheckoutSuccessPage.vue'),
-        meta: { title: 'Status Pembayaran' },
-      },
-      {
-        path: 'checkout/failed',
-        name: 'checkout-failed',
-        component: () => import('@/features/customer/pages/CheckoutFailedPage.vue'),
-        meta: { title: 'Pembayaran Gagal' },
-      },
-      {
         path: 'audit-logs',
         name: 'audit-logs',
         component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
@@ -378,12 +366,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Member Detail' },
       },
       {
-        path: 'billing/plans',
-        name: 'platform-billing-plans',
-        component: () => import('@/features/billing/pages/PlatformBillingPlansPage.vue'),
+        path: 'features',
+        name: 'platform-features',
+        component: () => import('@/features/platform-features/pages/PlatformFeaturesPage.vue'),
         meta: {
-          title: 'Product Catalog Management',
-          permissions: ['platform.product.plan.read'],
+          title: 'Fitur Platform',
+          permissions: ['platform.product.feature.read'],
         },
       },
       ...buildCrmRoutes('crm', 'platform-crm'),

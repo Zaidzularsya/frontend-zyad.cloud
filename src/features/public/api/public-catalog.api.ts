@@ -6,27 +6,6 @@ import { http } from '@/lib/http'
  * Backend: internal/modules/product/handler/public_product_handler.go
  */
 
-export interface PublicCatalogPlanPrice {
-  billing_interval: string
-  currency: string
-  amount: string
-}
-
-export interface PublicCatalogPlanBenefit {
-  label: string
-  value?: string
-}
-
-export interface PublicCatalogPlan {
-  id: string
-  code: string
-  name: string
-  description?: string
-  sort_order: number
-  prices: PublicCatalogPlanPrice[]
-  benefits: PublicCatalogPlanBenefit[]
-}
-
 export interface PublicListingVariant {
   product_id: string
   sku: string
@@ -63,11 +42,6 @@ interface ApiEnvelope<T> {
 }
 
 export const publicCatalogApi = {
-  listPlans: async (): Promise<PublicCatalogPlan[]> => {
-    const response = await http.get<ApiEnvelope<PublicCatalogPlan[]>>('/public/catalog/plans')
-    return response.data.data ?? []
-  },
-
   /** GET /public/catalog/listings — produk platform yang dipublikasikan, per kategori. */
   listListings: async (): Promise<PublicListingCategory[]> => {
     const response = await http.get<ApiEnvelope<{ categories: PublicListingCategory[] }>>(
