@@ -1,0 +1,430 @@
+/*
+ * zy-motion.css — sistem animasi halaman landing (R5-S2, MOTION 3).
+ *
+ * Dipasang sebagai <style> di dalam shadow root (halaman publik) dan di dokumen kanvas GrapesJS,
+ * jadi tidak boleh bergantung pada :root/body. `.zy-js` dipasang runtime pada elemen root konten.
+ *
+ * Aturan:
+ *  - State awal tersembunyi HANYA di bawah `.zy-js` dan `:not(.is-in)`. Tanpa runtime (JS gagal,
+ *    SSR, crawler) semua konten tetap terlihat.
+ *  - Hanya transform, opacity, clip-path, filter yang dianimasikan (kecuali shimmer teks, lihat bawah).
+ *  - Gerak parallax/tilt/scale-in-scroll digerakkan variabel CSS yang diisi runtime
+ *    (--zy-progress, --zy-tilt-x, --zy-tilt-y); default variabel = tanpa gerak.
+ */
+
+/* ---------- Durasi & delay ---------- */
+
+.zy-dur-fast {
+  --zy-dur: 400ms;
+}
+
+.zy-dur-slow {
+  --zy-dur: 1200ms;
+}
+
+.zy-delay-100 {
+  --zy-delay: 100ms;
+}
+
+.zy-delay-200 {
+  --zy-delay: 200ms;
+}
+
+.zy-delay-300 {
+  --zy-delay: 300ms;
+}
+
+.zy-delay-400 {
+  --zy-delay: 400ms;
+}
+
+.zy-delay-500 {
+  --zy-delay: 500ms;
+}
+
+.zy-delay-600 {
+  --zy-delay: 600ms;
+}
+
+.zy-delay-700 {
+  --zy-delay: 700ms;
+}
+
+.zy-delay-800 {
+  --zy-delay: 800ms;
+}
+
+/* ---------- Efek masuk (scroll-reveal) ---------- */
+
+.zy-js .zy-anim-fade-up,
+.zy-js .zy-anim-fade-in,
+.zy-js .zy-anim-zoom-in,
+.zy-js .zy-anim-slide-left,
+.zy-js .zy-anim-slide-right,
+.zy-js .zy-anim-blur-in,
+.zy-js .zy-anim-clip-reveal,
+.zy-js .zy-stagger[class*='zy-anim-'] > * {
+  transition-property: opacity, transform, clip-path, filter;
+  transition-duration: var(--zy-dur, 700ms);
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--zy-delay, 0ms) + var(--zy-stagger-i, 0) * 80ms);
+}
+
+/* Anak dari .zy-stagger yang punya kelas animasi sendiri mengikuti indeks stagger-nya. */
+.zy-js .zy-stagger > [class*='zy-anim-'] {
+  transition-delay: calc(var(--zy-delay, 0ms) + var(--zy-stagger-i, 0) * 80ms);
+}
+
+.zy-js .zy-anim-fade-up:not(.is-in) {
+  opacity: 0;
+  transform: translate3d(0, 32px, 0);
+}
+
+.zy-js .zy-anim-fade-in:not(.is-in) {
+  opacity: 0;
+}
+
+.zy-js .zy-anim-zoom-in:not(.is-in) {
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+.zy-js .zy-anim-slide-left:not(.is-in) {
+  opacity: 0;
+  transform: translate3d(-32px, 0, 0);
+}
+
+.zy-js .zy-anim-slide-right:not(.is-in) {
+  opacity: 0;
+  transform: translate3d(32px, 0, 0);
+}
+
+.zy-js .zy-anim-blur-in:not(.is-in) {
+  opacity: 0;
+  filter: blur(12px);
+}
+
+.zy-js .zy-anim-clip-reveal:not(.is-in) {
+  clip-path: inset(0 0 100% 0);
+}
+
+/* Kontainer stagger yang sendiri beranimasi: anaknya masuk berurutan setelah kontainer terlihat. */
+.zy-js .zy-stagger[class*='zy-anim-']:not(.is-in) > * {
+  opacity: 0;
+  transform: translate3d(0, 32px, 0);
+}
+
+@media (max-width: 767px) {
+  .zy-js .zy-anim-fade-up:not(.is-in),
+  .zy-js .zy-stagger[class*='zy-anim-']:not(.is-in) > * {
+    transform: translate3d(0, 16px, 0);
+  }
+
+  .zy-js .zy-anim-slide-left:not(.is-in) {
+    transform: translate3d(-16px, 0, 0);
+  }
+
+  .zy-js .zy-anim-slide-right:not(.is-in) {
+    transform: translate3d(16px, 0, 0);
+  }
+}
+
+/* Hero: tidak diamati scroll, berjalan satu kali saat konten dimuat. */
+.zy-js .zy-anim-hero {
+  animation: zy-hero-in var(--zy-dur, 700ms) cubic-bezier(0.22, 1, 0.36, 1) var(--zy-delay, 0ms)
+    both;
+}
+
+@keyframes zy-hero-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 32px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (max-width: 767px) {
+  @keyframes zy-hero-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 16px, 0);
+    }
+
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+}
+
+/* ---------- Parallax / scale-in-scroll / tilt (variabel diisi runtime) ---------- */
+
+.zy-parallax-slow,
+.zy-parallax-med,
+.zy-parallax-fast {
+  will-change: transform;
+}
+
+.zy-parallax-slow {
+  transform: translate3d(0, calc((var(--zy-progress, 0.5) - 0.5) * 0.1 * 200px), 0);
+}
+
+.zy-parallax-med {
+  transform: translate3d(0, calc((var(--zy-progress, 0.5) - 0.5) * 0.2 * 200px), 0);
+}
+
+.zy-parallax-fast {
+  transform: translate3d(0, calc((var(--zy-progress, 0.5) - 0.5) * 0.35 * 200px), 0);
+}
+
+.zy-scale-in-scroll {
+  transform: scale(calc(0.94 + 0.06 * var(--zy-progress, 1)));
+  transform-origin: center;
+  will-change: transform;
+}
+
+.zy-tilt {
+  transform: perspective(800px) rotateX(calc(var(--zy-tilt-x, 0) * 1deg))
+    rotateY(calc(var(--zy-tilt-y, 0) * 1deg));
+  transition: transform 150ms ease-out;
+  will-change: transform;
+}
+
+/* ---------- Hover ---------- */
+
+@media (hover: hover) {
+  .zy-hover-lift {
+    transition: transform 150ms ease-out;
+  }
+
+  .zy-hover-lift:hover {
+    transform: translate3d(0, -4px, 0);
+  }
+
+  .zy-hover-glow {
+    position: relative;
+  }
+
+  .zy-hover-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 32px var(--zy-glow, rgb(99 102 241 / 45%));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease-out;
+  }
+
+  .zy-hover-glow:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ---------- Ambient ---------- */
+
+/* Satu zy-aurora per halaman (aturan author). Blur statis; hanya transform/opacity yang bergerak. */
+.zy-aurora {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+}
+
+.zy-aurora::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(40% 50% at 25% 30%, rgb(99 102 241 / 45%), transparent 70%),
+    radial-gradient(35% 45% at 75% 60%, rgb(45 212 191 / 35%), transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.zy-js .zy-aurora::before {
+  animation: zy-aurora-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes zy-aurora-drift {
+  from {
+    opacity: 0.7;
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
+}
+
+.zy-js .zy-float {
+  animation: zy-float 6s ease-in-out infinite alternate;
+}
+
+@keyframes zy-float {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+/*
+ * Shimmer teks: satu-satunya animasi non-compositor (background-position), karena teks gradien
+ * tidak bisa digeser dengan transform tanpa menggeser teksnya. Siklus 6 s, tanpa kilatan cepat.
+ */
+.zy-text-shimmer {
+  color: inherit;
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .zy-text-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      currentcolor 35%,
+      var(--zy-shimmer, rgb(99 102 241)) 50%,
+      currentcolor 65%
+    );
+    background-size: 250% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .zy-js .zy-text-shimmer {
+    animation: zy-shimmer 6s ease-in-out infinite;
+  }
+}
+
+@keyframes zy-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* ---------- Counter ---------- */
+
+.zy-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Marquee ---------- */
+
+.zy-marquee {
+  overflow: hidden;
+}
+
+.zy-marquee__track {
+  display: flex;
+  width: max-content;
+}
+
+/* Runtime menggandakan isi track sekali, jadi geser -50% = satu siklus mulus. */
+.zy-js .zy-marquee__track {
+  animation: zy-marquee 40s linear infinite;
+}
+
+.zy-marquee:hover .zy-marquee__track,
+.zy-marquee:focus-within .zy-marquee__track {
+  animation-play-state: paused;
+}
+
+@keyframes zy-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* ---------- Mockup Alur Produk: 4 tahap, siklus 8 s ---------- */
+
+.zy-js .zy-flow__step {
+  animation: zy-flow-cycle 8s infinite backwards;
+}
+
+.zy-js .zy-flow__step:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.zy-js .zy-flow__step:nth-child(2) {
+  animation-delay: 2s;
+}
+
+.zy-js .zy-flow__step:nth-child(3) {
+  animation-delay: 4s;
+}
+
+.zy-js .zy-flow__step:nth-child(4) {
+  animation-delay: 6s;
+}
+
+/* Tiap tahap aktif 2 s dari 8 s; transisi 0,3 s, tanpa kedip. */
+@keyframes zy-flow-cycle {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.97);
+  }
+
+  4%,
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  29%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.97);
+  }
+}
+
+/* ---------- Reduced motion: matikan semua gerak, paksa state akhir ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .zy-js [class*='zy-'],
+  [class*='zy-'] {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+    filter: none !important;
+  }
+
+  .zy-js [class*='zy-']::before,
+  .zy-js [class*='zy-']::after,
+  [class*='zy-']::before,
+  [class*='zy-']::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .zy-js .zy-stagger[class*='zy-anim-']:not(.is-in) > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .zy-marquee__track {
+    flex-wrap: wrap;
+    width: auto;
+  }
+
+  .zy-hover-glow::after {
+    opacity: 0 !important;
+  }
+}
