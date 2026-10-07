@@ -158,9 +158,10 @@ describe('TenantPricingSlot', () => {
 })
 
 describe('slot registry', () => {
-  it('registers the four slots', () => {
+  it('registers the five slots', () => {
     expect(Object.keys(SLOT_REGISTRY).sort()).toEqual([
       'catalog-pricing',
+      'lead-form',
       'pricing-plans',
       'tenant-footer',
       'tenant-nav',

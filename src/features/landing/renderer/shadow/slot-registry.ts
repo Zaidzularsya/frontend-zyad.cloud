@@ -7,6 +7,8 @@ import FooterSlot from './slots/FooterSlot.vue'
 import footerCss from './slots/footer.slot.css?inline'
 import HeaderSlot from './slots/HeaderSlot.vue'
 import headerCss from './slots/header.slot.css?inline'
+import LeadFormSlot from './slots/LeadFormSlot.vue'
+import leadFormCss from './slots/lead-form.slot.css?inline'
 import TenantPricingSlot from './slots/TenantPricingSlot.vue'
 import pricingCss from './slots/tenant-pricing.slot.css?inline'
 
@@ -27,6 +29,7 @@ export const SLOT_REGISTRY: Record<string, SlotDefinition> = {
   'tenant-nav': { component: HeaderSlot, css: headerCss },
   'tenant-footer': { component: FooterSlot, css: footerCss },
   'catalog-pricing': { component: CatalogPricingSlot, css: catalogPricingCss },
+  'lead-form': { component: LeadFormSlot, css: leadFormCss },
   'pricing-plans': { component: TenantPricingSlot, css: pricingCss },
 }
 
