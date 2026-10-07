@@ -1,0 +1,50 @@
+.zyad-tenant-footer {
+  padding: 48px 24px;
+  background: #0f172a;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+.zyad-tenant-footer__top {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: space-between;
+}
+.zyad-tenant-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+}
+.zyad-tenant-footer__brand img {
+  height: 28px;
+  width: auto;
+}
+.zyad-tenant-footer__title {
+  color: #fff;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.zyad-tenant-footer__col nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zyad-tenant-footer__col a {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+.zyad-tenant-footer__col a:hover {
+  color: #fff;
+}
+.zyad-tenant-footer__copyright {
+  max-width: 1120px;
+  margin: 28px auto 0;
+  border-top: 1px solid #1e293b;
+  padding-top: 16px;
+  font-size: 13px;
+}
