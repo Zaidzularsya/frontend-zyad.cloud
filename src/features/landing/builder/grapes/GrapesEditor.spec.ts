@@ -317,6 +317,9 @@ describe('GrapesEditor', () => {
       get: (k: string) => (k === 'type' ? 'zyad-tenant-header' : undefined),
       getAttributes: () => ({}),
       addAttributes: vi.fn(),
+      getClasses: () => [],
+      addClass: vi.fn(),
+      removeClass: vi.fn(),
     })
     await wrapper.vm.$nextTick()
 
@@ -324,7 +327,7 @@ describe('GrapesEditor', () => {
     // — previously the whole tab bar (and the native Style Manager pane) was
     // hidden outright whenever a tenant header/footer was selected.
     const tabButtons = () => wrapper.find('.grapes-right').findAll('.grapes-tabs button')
-    expect(tabButtons().map((b) => b.text())).toEqual(['Konten', 'Style', 'Setelan'])
+    expect(tabButtons().map((b) => b.text())).toEqual(['Konten', 'Style', 'Setelan', 'Animasi'])
 
     expect(wrapper.get('.hp').attributes('style') ?? '').not.toContain('display: none')
 
@@ -332,6 +335,57 @@ describe('GrapesEditor', () => {
       .find((b) => b.text() === 'Style')!
       .trigger('click')
     expect(wrapper.get('.hp').attributes('style') ?? '').toContain('display: none')
+  })
+
+  describe('tab Animasi', () => {
+    const tabLabels = (wrapper: ReturnType<typeof mount>) =>
+      wrapper
+        .find('.grapes-right')
+        .findAll('.grapes-tabs button')
+        .map((b) => b.text())
+
+    function plainComponent(classes: string[] = []) {
+      return {
+        get: () => 'default',
+        getClasses: () => classes,
+        addClass: vi.fn(),
+        removeClass: vi.fn(),
+      }
+    }
+
+    it('muncul saat komponen dipilih, hilang saat deselect', async () => {
+      const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      expect(tabLabels(wrapper)).toEqual(['Style', 'Setelan'])
+
+      onHandler('component:selected')!(plainComponent())
+      await wrapper.vm.$nextTick()
+      expect(tabLabels(wrapper)).toEqual(['Style', 'Setelan', 'Animasi'])
+
+      await wrapper
+        .find('.grapes-right')
+        .findAll('.grapes-tabs button')
+        .find((b) => b.text() === 'Animasi')!
+        .trigger('click')
+      expect(wrapper.text()).toContain('Efek masuk')
+
+      onHandler('component:deselected')!()
+      await wrapper.vm.$nextTick()
+      expect(tabLabels(wrapper)).toEqual(['Style', 'Setelan'])
+    })
+
+    it('tidak menggantikan tab Konten untuk komponen tenant', async () => {
+      const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      onHandler('component:selected')!({
+        ...plainComponent(),
+        get: (k: string) => (k === 'type' ? 'zyad-tenant-header' : undefined),
+        getAttributes: () => ({}),
+        addAttributes: vi.fn(),
+      })
+      await wrapper.vm.$nextTick()
+      expect(tabLabels(wrapper)).toEqual(['Konten', 'Style', 'Setelan', 'Animasi'])
+    })
   })
 
   describe('blok Pricing Katalog (platform-only)', () => {

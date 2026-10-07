@@ -32,6 +32,7 @@ import type { LandingFormWithFields } from '../../shared/types/landing.types'
 import GrapesPricingPanel from './GrapesPricingPanel.vue'
 import GrapesCatalogPricingPanel from './GrapesCatalogPricingPanel.vue'
 import GrapesLeadFormPanel from './GrapesLeadFormPanel.vue'
+import GrapesAnimationPanel from './GrapesAnimationPanel.vue'
 
 const props = defineProps<{ pageId: string }>()
 
@@ -53,6 +54,15 @@ const footerComponent = shallowRef<TenantComponent | null>(null)
 const pricingComponent = shallowRef<TenantComponent | null>(null)
 const catalogPricingComponent = shallowRef<TenantComponent | null>(null)
 const leadFormComponent = shallowRef<TenantComponent | null>(null)
+// Komponen terpilih apa pun → tab "Animasi" (atur kelas zy-*).
+type AnimatableComponent = {
+  getClasses: () => string[] | string
+  addClass: (c: string | string[]) => unknown
+  removeClass: (c: string | string[]) => unknown
+}
+const animationComponent = shallowRef<AnimatableComponent | null>(null)
+// Diisi oleh attachCanvasMotion (R5-S2-T4); sampai itu terpasang, refresh adalah no-op.
+const motion = shallowRef<{ refresh: () => void } | null>(null)
 // Form halaman (dengan field) untuk pratinjau kanvas blok Form Konsultasi.
 const leadForms = shallowRef<LandingFormWithFields[]>([])
 // Listing publik (Sales → Produk) untuk pratinjau kanvas + panel; hanya diambil untuk org platform.
@@ -67,7 +77,7 @@ const traitsRef = ref<HTMLElement | null>(null)
 
 const editor = shallowRef<Editor | null>(null)
 const leftTab = ref<'blocks' | 'layers'>('blocks')
-const rightTab = ref<'content' | 'styles' | 'traits'>('styles')
+const rightTab = ref<'content' | 'styles' | 'traits' | 'animation'>('styles')
 const activeDevice = ref('Desktop')
 const publishing = ref(false)
 const publishNotice = ref('')
@@ -99,6 +109,10 @@ const tenantPanelActive = computed(
     !!catalogPricingComponent.value ||
     !!leadFormComponent.value,
 )
+
+function onAnimationChanged() {
+  motion.value?.refresh()
+}
 
 function setDevice(name: string) {
   activeDevice.value = name
@@ -310,6 +324,10 @@ onMounted(async () => {
     pricingComponent.value = type === TENANT_PRICING_TYPE ? (component as never) : null
     catalogPricingComponent.value = type === CATALOG_PRICING_TYPE ? (component as never) : null
     leadFormComponent.value = type === LEAD_FORM_TYPE ? (component as never) : null
+    animationComponent.value =
+      typeof (component as Partial<AnimatableComponent> | undefined)?.getClasses === 'function'
+        ? (component as AnimatableComponent)
+        : null
     // Default to the custom content panel on selection, but leave Style/Setelan
     // reachable via the tab bar — GrapesJS's Style Manager already has the
     // sectors (Dekorasi: background/opacity, Posisi: position/z-index) needed
@@ -324,7 +342,8 @@ onMounted(async () => {
     pricingComponent.value = null
     catalogPricingComponent.value = null
     leadFormComponent.value = null
-    if (rightTab.value === 'content') rightTab.value = 'styles'
+    animationComponent.value = null
+    if (rightTab.value === 'content' || rightTab.value === 'animation') rightTab.value = 'styles'
   })
 
   // "Header tenant" / "Footer tenant" / "Pricing tenant" are meant to appear
@@ -597,6 +616,14 @@ defineExpose({ editor })
           >
             Setelan
           </button>
+          <button
+            v-if="animationComponent"
+            type="button"
+            :class="{ 'is-active': rightTab === 'animation' }"
+            @click="rightTab = 'animation'"
+          >
+            Animasi
+          </button>
         </div>
 
         <GrapesHeaderPanel
@@ -631,6 +658,14 @@ defineExpose({ editor })
           :page-id="pageId"
           class="grapes-pane"
           @forms-change="onLeadFormsChange"
+        />
+
+        <GrapesAnimationPanel
+          v-if="animationComponent"
+          v-show="rightTab === 'animation'"
+          :component="animationComponent"
+          class="grapes-pane"
+          @changed="onAnimationChanged"
         />
 
         <div v-show="rightTab === 'styles'" ref="stylesRef" class="grapes-pane"></div>
