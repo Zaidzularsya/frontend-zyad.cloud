@@ -113,3 +113,29 @@ export function checkoutTarget(productId: string, authenticated: boolean): strin
   const target = `/app/checkout?product=${productId}`
   return authenticated ? target : `/auth/register?redirect=${encodeURIComponent(target)}`
 }
+
+function priceOf(listing: PublicListing, frequency: string): number | null {
+  const variant = listing.variants.find((v) => v.billing_frequency === frequency)
+  if (!variant) return null
+  const price = Number(variant.price_with_tax)
+  return Number.isFinite(price) && price > 0 ? price : null
+}
+
+/** Persen hemat tahunan vs 12× bulanan (price_with_tax); null bila tidak berlaku. */
+export function yearlySavings(listing: PublicListing): number | null {
+  const monthly = priceOf(listing, 'monthly')
+  const annual = priceOf(listing, 'annual')
+  if (monthly === null || annual === null) return null
+  const percent = Math.round((1 - annual / (monthly * 12)) * 100)
+  return percent > 0 ? percent : null
+}
+
+/** Hemat tahunan terbesar di kategori, untuk badge toggle "Hemat s.d. X%". */
+export function maxYearlySavings(category: PublicListingCategory): number | null {
+  let max: number | null = null
+  for (const listing of category.listings) {
+    const s = yearlySavings(listing)
+    if (s !== null && (max === null || s > max)) max = s
+  }
+  return max
+}

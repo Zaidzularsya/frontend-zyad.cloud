@@ -22,6 +22,7 @@ const editorStub = {
   destroy: vi.fn(),
   AssetManager: assetManagerStub,
   Components: { addType: vi.fn() },
+  Blocks: { add: vi.fn() },
   getWrapper: vi.fn(() => ({ find: vi.fn(() => []) })),
 }
 
@@ -62,6 +63,12 @@ vi.mock('@/features/landing/shared/api/landing.api', () => ({
   },
 }))
 
+const listListings = vi.fn()
+vi.mock('@/features/public/api/public-catalog.api', () => ({
+  publicCatalogApi: { listListings: (...a: unknown[]) => listListings(...a) },
+}))
+
+import { useTenantStore } from '@/stores/tenant.store'
 import GrapesEditor from './GrapesEditor.vue'
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -87,7 +94,21 @@ describe('GrapesEditor', () => {
     getPricingPlans.mockResolvedValue({ data: [] })
     getDefaultBranding.mockResolvedValue({ data: { company_name: 'Acme', colors: {} } })
     getMenuItems.mockResolvedValue({ data: [] })
+    listListings.mockResolvedValue([])
   })
+
+  function useOrg(organizationType: string) {
+    useTenantStore().hydrate([
+      {
+        id: 't1',
+        name: 'Org',
+        slug: 'org',
+        plan: 'trial',
+        status: 'active',
+        organizationType,
+      },
+    ])
+  }
 
   it('initialises grapesjs once with our config on mount', () => {
     mount(GrapesEditor, { props: { pageId: 'p1' } })
@@ -301,5 +322,57 @@ describe('GrapesEditor', () => {
       .find((b) => b.text() === 'Style')!
       .trigger('click')
     expect(wrapper.get('.hp').attributes('style') ?? '').toContain('display: none')
+  })
+
+  describe('blok Pricing Katalog (platform-only)', () => {
+    it('org non-platform: block zy-catalog-pricing tidak terdaftar dan listing tidak diambil', async () => {
+      useOrg('customer')
+      mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      const ids = editorStub.Blocks.add.mock.calls.map((c) => c[0])
+      expect(ids).not.toContain('zy-catalog-pricing')
+      expect(listListings).not.toHaveBeenCalled()
+      const types = editorStub.Components.addType.mock.calls.map((c) => c[0])
+      expect(types).not.toContain('zyad-catalog-pricing')
+    })
+
+    it('org platform: block terdaftar dengan kategori Conversion dan listing diambil sekali', async () => {
+      useOrg('platform')
+      mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      const call = editorStub.Blocks.add.mock.calls.find((c) => c[0] === 'zy-catalog-pricing')
+      expect(call).toBeTruthy()
+      expect(call![1]).toMatchObject({
+        category: 'Conversion',
+        content: { type: 'zyad-catalog-pricing' },
+      })
+      expect(listListings).toHaveBeenCalledTimes(1)
+    })
+
+    it('guard duplikat: blok catalog-pricing kedua dihapus dan penulis diberi tahu', async () => {
+      useOrg('platform')
+      const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      editorStub.getWrapper.mockReturnValue({ find: () => [{}, {}] } as never)
+      const onAdd = onHandler('component:add')!
+      const remove = vi.fn()
+      onAdd({ get: (k: string) => (k === 'type' ? 'zyad-catalog-pricing' : undefined), remove })
+      expect(remove).toHaveBeenCalledTimes(1)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('Pricing Katalog sudah ada di halaman ini')
+    })
+
+    it('seleksi blok membuka panel Pricing Katalog di tab Konten', async () => {
+      useOrg('platform')
+      const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+      await flush()
+      onHandler('component:selected')!({
+        get: (k: string) => (k === 'type' ? 'zyad-catalog-pricing' : undefined),
+        getAttributes: () => ({}),
+        addAttributes: vi.fn(),
+      })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('Harga dan fitur diambil dari Sales → Produk.')
+    })
   })
 })

@@ -1,7 +1,10 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
+import { useLandingPageContext, type LandingPageContext } from './page-context'
 import ShadowPageRenderer from './ShadowPageRenderer.vue'
+import { SLOT_REGISTRY } from './slot-registry'
 
 const push = vi.fn()
 // Mock resolve: /media/* tanpa route, /nowhere* jatuh ke catch-all, selain itu route nyata.
@@ -254,5 +257,45 @@ describe('ShadowPageRenderer', () => {
     mounted.pop()!.unmount()
     await flushPromises()
     expect(fontStyles().length).toBe(0)
+  })
+
+  describe('page context', () => {
+    let ctx: LandingPageContext | null = null
+    beforeEach(() => {
+      ctx = null
+      SLOT_REGISTRY['ctx-probe'] = {
+        css: '',
+        component: defineComponent({
+          setup() {
+            ctx = useLandingPageContext()
+            return () => h('span', 'probe')
+          },
+        }),
+      }
+    })
+    afterEach(() => {
+      delete SLOT_REGISTRY['ctx-probe']
+    })
+
+    it('provides orgType that follows chrome and scrollToId that updates the hash', async () => {
+      history.replaceState({ back: '/x' }, '', '/')
+      const w = mountRenderer({
+        html: '<div data-zyad-slot="ctx-probe"></div><section id="harga"></section>',
+        css: '',
+        chrome: { orgType: 'platform' },
+      })
+      await flushPromises()
+      expect(ctx!.orgType.value).toBe('platform')
+      await w.setProps({ chrome: { orgType: 'customer' } })
+      expect(ctx!.orgType.value).toBe('customer')
+
+      const root = host(w).shadowRoot!
+      ctx!.scrollToId('harga')
+      expect(root.getElementById('harga')!.scrollIntoView).toHaveBeenCalled()
+      expect(location.hash).toBe('#harga')
+      expect(history.state).toEqual({ back: '/x' })
+      expect(() => ctx!.scrollToId('tidak-ada')).not.toThrow()
+      expect(location.hash).toBe('#harga')
+    })
   })
 })

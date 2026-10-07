@@ -79,4 +79,10 @@ describe('buildGrapesChrome', () => {
     const chrome = buildGrapesChrome({ Page: {}, Menus: [] }, 'Home')
     expect(chrome.nav).toEqual([])
   })
+
+  it('reads the organization type', () => {
+    expect(buildGrapesChrome({ OrganizationType: 'platform' }, 'x').orgType).toBe('platform')
+    expect(buildGrapesChrome({ organization_type: 'customer' }, 'x').orgType).toBe('customer')
+    expect(buildGrapesChrome({}, 'x').orgType).toBe('')
+  })
 })

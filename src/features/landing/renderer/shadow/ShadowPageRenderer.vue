@@ -7,11 +7,22 @@ let targetCounter = 0
 
 <script setup lang="ts">
 import DOMPurify from 'dompurify'
-import { nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  ref,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { GrapesChrome } from '../grapes/chrome'
 import { rewritePageCss } from '../grapes/page-css'
+import { LANDING_PAGE_CONTEXT } from './page-context'
 import { classifyLinkClick, hasAppRoute } from './link-handling'
 import { SLOT_REGISTRY, slotStyles } from './slot-registry'
 import baseCss from './base.css?inline'
@@ -81,6 +92,21 @@ function scrollToHash(smooth: boolean) {
     .getElementById(hashId(location.hash))
     ?.scrollIntoView(smooth ? { behavior: 'smooth', block: 'start' } : undefined)
 }
+
+// Scroll anchor bersama untuk klik hash dan konteks halaman (slot).
+function scrollToId(id: string) {
+  const el = root?.getElementById(id)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // Pertahankan history.state milik vue-router (back/position/scroll).
+  history.replaceState(history.state, '', `#${id}`)
+}
+
+provide(LANDING_PAGE_CONTEXT, {
+  orgType: computed(() => props.chrome?.orgType ?? ''),
+  interest: ref(''),
+  scrollToId,
+})
 
 function collectSlotTargets(page: Element): SlotTarget[] {
   const targets: SlotTarget[] = []
@@ -152,9 +178,7 @@ function onClick(event: Event) {
   )
   if (action.kind === 'hash') {
     e.preventDefault()
-    root?.getElementById(action.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    // Pertahankan history.state milik vue-router (back/position/scroll).
-    history.replaceState(history.state, '', `#${action.id}`)
+    scrollToId(action.id)
   } else if (action.kind === 'route' && hasAppRoute(router.resolve(action.path).matched)) {
     e.preventDefault()
     void router.push(action.path)

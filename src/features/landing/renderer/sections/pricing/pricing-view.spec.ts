@@ -7,7 +7,14 @@ import type {
 } from '@/features/public/api/public-catalog.api'
 import { formatCurrency } from '@/lib/utils'
 
-import { buildCards, checkoutTarget, defaultFrequency, frequenciesOf } from './pricing-view'
+import {
+  buildCards,
+  checkoutTarget,
+  defaultFrequency,
+  frequenciesOf,
+  maxYearlySavings,
+  yearlySavings,
+} from './pricing-view'
 
 function variant(over: Partial<PublicListingVariant>): PublicListingVariant {
   return {
@@ -160,5 +167,55 @@ describe('checkoutTarget', () => {
     expect(checkoutTarget('abc', false)).toBe(
       '/auth/register?redirect=' + encodeURIComponent('/app/checkout?product=abc'),
     )
+  })
+})
+
+describe('yearlySavings', () => {
+  const l = (m: string | null, y: string | null) =>
+    listing({
+      variants: [
+        ...(m ? [variant({ billing_frequency: 'monthly', price_with_tax: m })] : []),
+        ...(y ? [variant({ billing_frequency: 'annual', price_with_tax: y })] : []),
+      ],
+    })
+
+  it('computes rounded percentage', () => {
+    expect(yearlySavings(l('100000', '1000000'))).toBe(17)
+  })
+  it('null when a variant is missing', () => {
+    expect(yearlySavings(l('100000', null))).toBeNull()
+    expect(yearlySavings(l(null, '1000000'))).toBeNull()
+  })
+  it('null when a price is zero', () => {
+    expect(yearlySavings(l('0', '0'))).toBeNull()
+    expect(yearlySavings(l('100000', '0'))).toBeNull()
+    expect(yearlySavings(l('0', '1000000'))).toBeNull()
+  })
+  it('null when result <= 0', () => {
+    expect(yearlySavings(l('100000', '1300000'))).toBeNull()
+    expect(yearlySavings(l('100000', '1200000'))).toBeNull()
+  })
+  it('null for non-numeric prices', () => {
+    expect(yearlySavings(l('abc', '1000000'))).toBeNull()
+  })
+})
+
+describe('maxYearlySavings', () => {
+  const cat = (listings: PublicListing[]) =>
+    ({ id: 'c', name: 'C', position: 0, listings }) as PublicListingCategory
+  const l = (m: string, y: string | null) =>
+    listing({
+      variants: [
+        variant({ billing_frequency: 'monthly', price_with_tax: m }),
+        ...(y ? [variant({ billing_frequency: 'annual', price_with_tax: y })] : []),
+      ],
+    })
+
+  it('takes the largest across listings', () => {
+    expect(maxYearlySavings(cat([l('100000', '1000000'), l('100000', '600000')]))).toBe(50)
+  })
+  it('null when none (monthly-only category or empty)', () => {
+    expect(maxYearlySavings(cat([l('100000', null)]))).toBeNull()
+    expect(maxYearlySavings(cat([]))).toBeNull()
   })
 })

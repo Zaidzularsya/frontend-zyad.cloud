@@ -13,6 +13,7 @@ type RawRecord = Record<string, unknown>
 export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): GrapesChrome {
   const footer = useFooterContent(result, fallbackTitle)
   return {
+    orgType: pickString(result, 'OrganizationType', 'organization_type'),
     nav: headerLinks(result),
     brand: { name: footer.brandName, logoUrl: footer.logoUrl },
     footer: {

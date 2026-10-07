@@ -1,6 +1,8 @@
 import type { Component } from 'vue'
 
 import type { GrapesChrome } from '../grapes/chrome'
+import CatalogPricingSlot from './slots/CatalogPricingSlot.vue'
+import catalogPricingCss from './slots/catalog-pricing.slot.css?inline'
 import FooterSlot from './slots/FooterSlot.vue'
 import footerCss from './slots/footer.slot.css?inline'
 import HeaderSlot from './slots/HeaderSlot.vue'
@@ -24,6 +26,7 @@ export interface SlotDefinition {
 export const SLOT_REGISTRY: Record<string, SlotDefinition> = {
   'tenant-nav': { component: HeaderSlot, css: headerCss },
   'tenant-footer': { component: FooterSlot, css: footerCss },
+  'catalog-pricing': { component: CatalogPricingSlot, css: catalogPricingCss },
   'pricing-plans': { component: TenantPricingSlot, css: pricingCss },
 }
 
