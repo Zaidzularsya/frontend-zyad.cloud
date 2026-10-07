@@ -151,6 +151,65 @@ describe('zy-motion.css', () => {
     expect(css).toContain(`.${cls}`)
   })
 
+  it('uses no indigo/purple colors (DESIGN.md palette only)', () => {
+    expect(noComments).not.toMatch(/99\s+102\s+241|#465fff|indigo|purple|violet/i)
+    const hue = (r: number, g: number, b: number): number | null => {
+      const [R, G, B] = [r, g, b].map((v) => v / 255) as [number, number, number]
+      const max = Math.max(R, G, B)
+      const d = max - Math.min(R, G, B)
+      if (d < 0.1) return null
+      const h = max === R ? ((G - B) / d) % 6 : max === G ? (B - R) / d + 2 : (R - G) / d + 4
+      return (h * 60 + 360) % 360
+    }
+    const colors: Array<[number, number, number]> = []
+    for (const m of noComments.matchAll(/#([0-9a-f]{6})\b/gi)) {
+      const n = parseInt(m[1]!, 16)
+      colors.push([(n >> 16) & 255, (n >> 8) & 255, n & 255])
+    }
+    for (const m of noComments.matchAll(/rgb\(\s*(\d+)\s+(\d+)\s+(\d+)/g))
+      colors.push([Number(m[1]), Number(m[2]), Number(m[3])])
+    expect(colors.length).toBeGreaterThan(0)
+    for (const [r, g, b] of colors) {
+      const h = hue(r, g, b)
+      if (h !== null) expect(h < 235 || h > 330, `rgb(${r} ${g} ${b}) hue ${h}`).toBe(true)
+    }
+  })
+
+  it('stagger containers use an explicit entrance-effect list that excludes hero', () => {
+    expect(css).not.toContain(".zy-stagger[class*='zy-anim-']")
+    expect(css).toContain('.zy-stagger:is(')
+    const m = css.match(/\.zy-stagger:is\(([^)]*)\)/)
+    expect(m).not.toBeNull()
+    expect(m![1]).toContain('.zy-anim-fade-up')
+    expect(m![1]).not.toContain('hero')
+  })
+
+  it('does not lose the interactive transition once an entrance effect is revealed', () => {
+    expect(css).toMatch(/\.is-in\.zy-tilt\{transition:transform 150ms ease-out/)
+    expect(css).toMatch(/\.is-in\.zy-hover-lift\{transition:transform 150ms ease-out/)
+    expect(css).toMatch(/\.is-in\.zy-parallax-(slow|med|fast)[^{]*\{transition:none/)
+    expect(css).toMatch(/\.is-in\.zy-scale-in-scroll[^{]*\{transition:none/)
+  })
+
+  it('reduced motion stops hover-lift even on slot elements, without a slot exception on it', () => {
+    const block = css.match(/@media \(prefers-reduced-motion:reduce\)\{.*$/)![0]
+    expect(block).toMatch(/\.zy-hover-lift:hover\{transform:none ?!important/)
+    expect(block).toMatch(/\.zy-hover-lift[^{]*\{[^}]*transition:none ?!important/)
+    const hoverRule = block.match(/[^}]*\.zy-hover-lift:hover\{[^}]*\}/)![0]
+    expect(hoverRule).not.toContain('zy-slot')
+  })
+
+  it('keeps flow-cycle inactive text above readable opacity', () => {
+    const kf = css.match(/@keyframes zy-flow-cycle\{.*?\}\}/)![0]
+    for (const m of kf.matchAll(/opacity:([\d.]+)/g))
+      expect(Number(m[1])).toBeGreaterThanOrEqual(0.7)
+  })
+
+  it('aurora has no blur filter', () => {
+    const rule = css.match(/\.zy-aurora::before\{[^}]*\}/)![0]
+    expect(rule).not.toMatch(/filter|blur\(/)
+  })
+
   it('does not depend on :root or body (shadow root safe)', () => {
     expect(css).not.toMatch(/:root|(^|[\s,{}])body[\s,{]/)
   })

@@ -29,7 +29,7 @@ const heroAuroraBlock = `
     <div style="${CONTAINER};display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:40px;align-items:center">
       <div>
         ${eyebrow('[Badge]', COLOR.link)}
-        <h1 class="zy-anim-hero" style="font-size:clamp(32px,5vw,56px);line-height:1.1;font-weight:700;letter-spacing:-.02em;color:${COLOR.navy};margin:0 0 16px">[Judul utama] <span class="zy-text-shimmer" style="background:${GRADIENT};-webkit-background-clip:text;background-clip:text;color:${COLOR.link}">[frasa sorotan]</span></h1>
+        <h1 class="zy-anim-hero" style="font-size:clamp(32px,5vw,56px);line-height:1.1;font-weight:700;letter-spacing:-.02em;color:${COLOR.navy};margin:0 0 16px">[Judul utama] <span class="zy-text-shimmer" style="color:${COLOR.link}">[frasa sorotan]</span></h1>
         <p style="font-size:18px;line-height:1.6;color:${COLOR.muted};margin:0 0 28px">[Kalimat pendukung singkat yang menjelaskan nilai produk.]</p>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           ${btnPrimary('[Tombol utama]')}

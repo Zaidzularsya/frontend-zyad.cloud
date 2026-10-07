@@ -218,12 +218,15 @@ export function createPageRuntime(contentRoot: HTMLElement, env?: RuntimeEnv): P
   function updateProgress(): void {
     scrollRaf = 0
     const vh = win.innerHeight || 0
+    // Baca semua rect dulu, baru tulis style: menghindari layout thrash antar elemen.
+    const writes: Array<[HTMLElement, string]> = []
     for (const el of visible) {
       const r = el.getBoundingClientRect()
       const denom = vh + r.height
       if (denom <= 0) continue
-      el.style.setProperty('--zy-progress', clamp((vh - r.top) / denom, 0, 1).toFixed(3))
+      writes.push([el, clamp((vh - r.top) / denom, 0, 1).toFixed(3)])
     }
+    for (const [el, v] of writes) el.style.setProperty('--zy-progress', v)
   }
   function scheduleProgress(): void {
     if (scrollRaf) return
@@ -253,6 +256,18 @@ export function createPageRuntime(contentRoot: HTMLElement, env?: RuntimeEnv): P
   }
 
   // ----- marquee -----
+  // Klon hanya dekorasi: tak boleh bisa difokus, tak boleh menggandakan id/name.
+  function sanitizeClone(clone: HTMLElement): void {
+    clone.setAttribute('inert', '')
+    const all = [clone, ...clone.querySelectorAll<HTMLElement>('*')]
+    for (const n of all) {
+      n.removeAttribute('id')
+      n.removeAttribute('name')
+      // `inert` belum ada di browser lama: cadangkan dengan tabindex -1 pada yang bisa difokus.
+      if (n.matches('a,button,input,select,textarea,summary,[tabindex]'))
+        n.setAttribute('tabindex', '-1')
+    }
+  }
   function cloneMarquee(track: HTMLElement): void {
     if (track.hasAttribute('data-zy-cloned')) return
     track.setAttribute('data-zy-cloned', '')
@@ -260,6 +275,7 @@ export function createPageRuntime(contentRoot: HTMLElement, env?: RuntimeEnv): P
       const clone = child.cloneNode(true) as HTMLElement
       clone.setAttribute('aria-hidden', 'true')
       clone.setAttribute('data-zy-clone', '')
+      sanitizeClone(clone)
       track.appendChild(clone)
     }
     clonedTracks.add(track)

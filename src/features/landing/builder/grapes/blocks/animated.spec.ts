@@ -95,4 +95,41 @@ describe('ANIMATED_BLOCKS', () => {
       expect((out.match(/style="/g) ?? []).length).toBe((src.match(/style="/g) ?? []).length)
     }
   })
+
+  describe('hero highlight phrase', () => {
+    const lin = (v: number) => {
+      const c = v / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    const rgb = (hex: string): [number, number, number] => {
+      const n = parseInt(hex.slice(1), 16)
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    }
+    const lum = ([r, g, b]: [number, number, number]) =>
+      0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    const contrast = (a: [number, number, number], b: [number, number, number]) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number]
+      return (hi + 0.05) / (lo + 0.05)
+    }
+
+    it('lets the class draw the shimmer (no inline background) and keeps >= 3:1 over the whole gradient', () => {
+      const h = html('zy-anim-hero-aurora')
+      const span = h.match(/<span class="zy-text-shimmer"([^>]*)>/)
+      expect(span).not.toBeNull()
+      expect(span![1]).not.toMatch(/background/)
+      const base = span![1]!.match(/color:(#[0-9a-fA-F]{6})/)![1]!
+      const band = css.match(/--zy-shimmer,\s*(#[0-9a-fA-F]{6})/)![1]!
+      expect(css).toMatch(/background-size:\s*250% 100%/)
+      const bg = rgb('#F7F9FB')
+      const [a, b] = [rgb(base), rgb(band)]
+      const ratios: number[] = []
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20
+        const mix = a.map((v, k) => Math.round(v + (b[k]! - v) * t)) as [number, number, number]
+        ratios.push(contrast(mix, bg))
+      }
+      expect(Math.min(...ratios)).toBeGreaterThanOrEqual(3)
+      expect(contrast(rgb('#0EA5E9'), bg)).toBeLessThan(3) // alasan pasangan lama diganti
+    })
+  })
 })

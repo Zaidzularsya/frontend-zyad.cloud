@@ -187,6 +187,27 @@ describe('createPageRuntime', () => {
     expect(root.querySelector('.zy-marquee__track')!.hasAttribute('data-zy-cloned')).toBe(true)
   })
 
+  it('marks marquee clones inert and strips ids, names and positive tabindex from the clone subtree', () => {
+    const root = html(
+      '<div class="zy-marquee"><div class="zy-marquee__track"><a id="x" href="#" tabindex="3"><input name="q" id="y"></a></div></div>',
+    )
+    const rt = createPageRuntime(root, env)
+    rt.start()
+    const kids = root.querySelectorAll('.zy-marquee__track > a')
+    expect(kids.length).toBe(2)
+    const clone = kids[1] as HTMLElement
+    expect(clone.hasAttribute('inert')).toBe(true)
+    expect(clone.querySelectorAll('[id]').length + (clone.hasAttribute('id') ? 1 : 0)).toBe(0)
+    expect(clone.querySelector('[name]')).toBeNull()
+    expect(clone.getAttribute('tabindex')).toBe('-1')
+    expect(clone.querySelector('input')!.getAttribute('tabindex')).toBe('-1')
+    // Aslinya tidak disentuh.
+    const orig = kids[0] as HTMLElement
+    expect(orig.id).toBe('x')
+    expect(orig.getAttribute('tabindex')).toBe('3')
+    expect(orig.hasAttribute('inert')).toBe(false)
+  })
+
   it('refresh() observes only new elements', () => {
     const root = html('<div id="a" class="zy-anim-fade-up"></div>')
     const rt = createPageRuntime(root, env)
@@ -363,6 +384,48 @@ describe('parallax', () => {
     rt.stop()
     window.dispatchEvent(new Event('scroll'))
     expect(frames.size).toBe(0)
+  })
+})
+
+describe('parallax layout batching', () => {
+  it('reads every rect before writing any style', () => {
+    const root = html(
+      '<div id="a" class="zy-parallax-med"></div><div id="b" class="zy-parallax-fast"></div>',
+    )
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true })
+    const log: string[] = []
+    for (const el of root.querySelectorAll<HTMLElement>('div')) {
+      vi.spyOn(el, 'getBoundingClientRect').mockImplementation(() => {
+        log.push('read')
+        return {
+          top: 300,
+          height: 200,
+          left: 0,
+          width: 100,
+          right: 100,
+          bottom: 500,
+          x: 0,
+          y: 300,
+          toJSON() {},
+        } as DOMRect
+      })
+      const set = el.style.setProperty.bind(el.style)
+      vi.spyOn(el.style, 'setProperty').mockImplementation((...a: [string, string | null]) => {
+        log.push('write')
+        return set(...a)
+      })
+    }
+    const rt = createPageRuntime(root, env)
+    rt.start()
+    const vis = observers.find((o) => o.options?.threshold === 0)!
+    vis.cb(
+      [...root.querySelectorAll('div')].map((t) => ({ target: t, isIntersecting: true })) as never,
+      {} as IntersectionObserver,
+    )
+    log.length = 0
+    flushFrames(16)
+    expect(log.filter((l) => l === 'read').length).toBe(2)
+    expect(log.indexOf('write')).toBeGreaterThan(log.lastIndexOf('read'))
   })
 })
 

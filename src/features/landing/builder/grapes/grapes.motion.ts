@@ -35,6 +35,16 @@ body:not([${REPLAY_ATTR}]).zy-js [class*="zy-anim-"]:not(.is-in) {
   transition: none !important;
   animation: none !important;
 }
+
+/* Anak langsung kontainer stagger disembunyikan CSS lewat induknya, bukan lewat kelas sendiri. */
+body:not([${REPLAY_ATTR}]).zy-js .zy-stagger[class*="zy-anim-"]:not(.is-in) > * {
+  opacity: 1 !important;
+  transform: none !important;
+  clip-path: none !important;
+  filter: none !important;
+  transition: none !important;
+  animation: none !important;
+}
 `
 
 export interface CanvasMotion {

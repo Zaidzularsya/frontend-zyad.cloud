@@ -150,6 +150,20 @@ describe('attachCanvasMotion', () => {
     expect(css).toMatch(/opacity:\s*1\s*!important/)
   })
 
+  it('also neutralizes the hidden children of an un-revealed stagger container', () => {
+    attachCanvasMotion(editor)
+    loadFrame()
+    const css = frame.contentDocument!.head.querySelector('style[data-zy-motion]')!.textContent!
+    expect(css).toMatch(
+      new RegExp(
+        `body:not\\(\\[${REPLAY_ATTR}\\]\\)\\.zy-js \\.zy-stagger\\[class\\*="zy-anim-"\\]:not\\(\\.is-in\\) > \\*`,
+      ),
+    )
+    const rule = css.slice(css.indexOf('.zy-stagger[class*="zy-anim-"]:not(.is-in) > *'))
+    expect(rule).toMatch(/opacity:\s*1\s*!important/)
+    expect(rule).toMatch(/transform:\s*none\s*!important/)
+  })
+
   it('getHtml()/getCss() stay free of runtime artifacts after the runtime runs', () => {
     editor.setComponents(
       `<section class="zy-stagger"><h1 class="zy-anim-fade-up zy-delay-200">Hai</h1>` +
