@@ -15,6 +15,8 @@ export interface GrapesChromePricingPlan {
   isFeatured: boolean
 }
 export interface GrapesChrome {
+  /** Tipe organisasi pemilik halaman ('platform' | 'customer' | ''). */
+  orgType?: string
   nav?: GrapesChromeLink[]
   /** Tenant brand for the header sentinel (logo + name next to the nav). */
   brand?: { name?: string; logoUrl?: string }

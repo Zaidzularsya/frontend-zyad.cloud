@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, Rocket, Sparkles } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { http } from '@/lib/http'
+import { useTenantStore } from '@/stores/tenant.store'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
 import GrapesPageRenderer from '../components/GrapesPageRenderer.vue'
@@ -16,6 +17,7 @@ type RawRecord = Record<string, unknown>
 
 const route = useRoute()
 const router = useRouter()
+const tenantStore = useTenantStore()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -87,6 +89,9 @@ async function loadAdminPreview(id: string) {
     const doc = await landingApi.getDocument(id)
     grapesHtml.value = doc.data.html
     grapesCss.value = doc.data.css
+    grapesChrome.value = {
+      orgType: tenantStore.isPlatformOrganization ? 'platform' : 'customer',
+    }
     return
   }
 
