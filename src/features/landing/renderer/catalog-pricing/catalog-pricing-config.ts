@@ -8,7 +8,7 @@ export interface CatalogPricingConfig {
   title: string
   subtitle: string
   categoryIds: string[]
-  defaultFrequency: 'monthly' | 'yearly'
+  defaultFrequency: 'monthly' | 'annual'
   featuredCode: string | null
   showYearlySavings: boolean
   enterpriseCard: { enabled: boolean; title: string; points: string[] }
@@ -90,7 +90,7 @@ export function parseCatalogPricingConfig(raw: string | null | undefined): Catal
         ? [...(o.categoryIds as string[])]
         : [],
     defaultFrequency:
-      o.defaultFrequency === 'monthly' || o.defaultFrequency === 'yearly'
+      o.defaultFrequency === 'monthly' || o.defaultFrequency === 'annual'
         ? o.defaultFrequency
         : d.defaultFrequency,
     featuredCode: typeof o.featuredCode === 'string' ? o.featuredCode : null,

@@ -40,23 +40,7 @@ const config = computed<CatalogPricingConfig>(() =>
   parseCatalogPricingConfig(props.dataset.zyadConfig),
 )
 
-// Nilai frekuensi tahunan di katalog adalah 'annual', sedangkan helper hemat tahunan
-// dan config memakai 'yearly'. Dinormalisasi di sini supaya badge hemat benar-benar muncul.
-const YEARLY = 'annual'
-function withYearlyAlias(listing: PublicListing): PublicListing {
-  return {
-    ...listing,
-    variants: listing.variants.map((v) =>
-      v.billing_frequency === YEARLY ? { ...v, billing_frequency: 'yearly' } : v,
-    ),
-  }
-}
-function savingsOf(listing: PublicListing): number | null {
-  return yearlySavings(withYearlyAlias(listing))
-}
-function maxSavingsOf(category: PublicListingCategory): number | null {
-  return maxYearlySavings({ ...category, listings: category.listings.map(withYearlyAlias) })
-}
+const ANNUAL = 'annual'
 
 const isPlatform = computed(() => ctx.orgType.value === 'platform')
 const categories = ref<PublicListingCategory[]>([])
@@ -98,15 +82,15 @@ const activeFrequency = computed<string | null>(() => {
   if (!category) return null
   const chosen = chosenFrequency.value[category.id]
   if (chosen && frequencies.value.includes(chosen)) return chosen
-  const preferred = config.value.defaultFrequency === 'yearly' ? YEARLY : 'monthly'
+  const preferred = config.value.defaultFrequency === 'annual' ? ANNUAL : 'monthly'
   if (frequencies.value.includes(preferred)) return preferred
   return defaultFrequency(frequencies.value)
 })
-const isYearly = computed(() => activeFrequency.value === YEARLY)
+const isYearly = computed(() => activeFrequency.value === ANNUAL)
 const showSavings = computed(() => config.value.showYearlySavings)
 const toggleSavings = computed(() => {
   const category = activeCategory.value
-  return showSavings.value && category ? maxSavingsOf(category) : null
+  return showSavings.value && category ? maxYearlySavings(category) : null
 })
 
 interface CardView {
@@ -123,7 +107,7 @@ const cards = computed<CardView[]>(() => {
     card,
     listing: sorted[i]!,
     featured: card.code === config.value.featuredCode,
-    savings: isYearly.value && showSavings.value ? savingsOf(sorted[i]!) : null,
+    savings: isYearly.value && showSavings.value ? yearlySavings(sorted[i]!) : null,
   }))
 })
 
@@ -221,7 +205,7 @@ function setFrequency(frequency: string) {
         >
           {{ frequencyLabel(frequency) }}
           <span
-            v-if="frequency === YEARLY && toggleSavings"
+            v-if="frequency === ANNUAL && toggleSavings"
             class="zy-slot-catalog-pricing__savings"
             >Hemat s.d. {{ toggleSavings }}%</span
           >

@@ -127,8 +127,12 @@ describe('parseCatalogPricingConfig', () => {
     expect(parse({ enterpriseCard: { enabled: 0 } }).enterpriseCard.enabled).toBe(true)
   })
 
-  it('defaultFrequency accepts yearly', () => {
-    expect(parse({ defaultFrequency: 'yearly' }).defaultFrequency).toBe('yearly')
+  it('defaultFrequency accepts annual', () => {
+    expect(parse({ defaultFrequency: 'annual' }).defaultFrequency).toBe('annual')
+  })
+
+  it("defaultFrequency 'yearly' is invalid → default", () => {
+    expect(parse({ defaultFrequency: 'yearly' }).defaultFrequency).toBe(D.defaultFrequency)
   })
 
   it('returns fresh arrays (defaults not shared/mutable)', () => {

@@ -175,7 +175,7 @@ describe('yearlySavings', () => {
     listing({
       variants: [
         ...(m ? [variant({ billing_frequency: 'monthly', price_with_tax: m })] : []),
-        ...(y ? [variant({ billing_frequency: 'yearly', price_with_tax: y })] : []),
+        ...(y ? [variant({ billing_frequency: 'annual', price_with_tax: y })] : []),
       ],
     })
 
@@ -207,7 +207,7 @@ describe('maxYearlySavings', () => {
     listing({
       variants: [
         variant({ billing_frequency: 'monthly', price_with_tax: m }),
-        ...(y ? [variant({ billing_frequency: 'yearly', price_with_tax: y })] : []),
+        ...(y ? [variant({ billing_frequency: 'annual', price_with_tax: y })] : []),
       ],
     })
 

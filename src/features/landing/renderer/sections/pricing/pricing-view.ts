@@ -124,9 +124,9 @@ function priceOf(listing: PublicListing, frequency: string): number | null {
 /** Persen hemat tahunan vs 12× bulanan (price_with_tax); null bila tidak berlaku. */
 export function yearlySavings(listing: PublicListing): number | null {
   const monthly = priceOf(listing, 'monthly')
-  const yearly = priceOf(listing, 'yearly')
-  if (monthly === null || yearly === null) return null
-  const percent = Math.round((1 - yearly / (monthly * 12)) * 100)
+  const annual = priceOf(listing, 'annual')
+  if (monthly === null || annual === null) return null
+  const percent = Math.round((1 - annual / (monthly * 12)) * 100)
   return percent > 0 ? percent : null
 }
 
