@@ -240,6 +240,28 @@ describe('GrapesEditor', () => {
     expect(wrapper.find('.grapes-starter').exists()).toBe(false)
   })
 
+  it('does not offer the platform-only Zyad Marketing starter to a tenant org', async () => {
+    useOrg('customer')
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+    const names = wrapper.findAll('.grapes-starter-name').map((n) => n.text())
+    expect(names.length).toBeGreaterThan(0)
+    expect(names).not.toContain('Zyad Marketing')
+  })
+
+  it('offers the Zyad Marketing starter on the platform org and applies it', async () => {
+    useOrg('platform')
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    await flush()
+    const options = wrapper.findAll('.grapes-starter-option')
+    const idx = options.findIndex((o) => o.text().includes('Zyad Marketing'))
+    expect(idx).toBeGreaterThanOrEqual(0)
+    await options[idx]!.trigger('click')
+    expect(editorStub.setComponents).toHaveBeenCalledWith(
+      expect.stringContaining('data-zyad-slot="catalog-pricing"'),
+    )
+  })
+
   it('hides the starter picker when the document already has content', async () => {
     getDocument.mockResolvedValue({
       data: {

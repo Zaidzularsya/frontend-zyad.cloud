@@ -42,6 +42,11 @@ const chrome = useLandingChromeStore()
 const pricing = useLandingPricingStore()
 const tenantStore = useTenantStore()
 
+// Starter platform-only (mis. Zyad Marketing) tidak ditawarkan di editor tenant biasa.
+const availableStarters = computed(() =>
+  GRAPES_STARTERS.filter((s) => !s.platformOnly || tenantStore.isPlatformOrganization),
+)
+
 // The selected `zyad-tenant-header` / `zyad-tenant-footer` / `zyad-pricing-plans`
 // component (if any) → swaps the right pane for GrapesHeaderPanel /
 // GrapesFooterPanel / GrapesPricingPanel. Typed loosely: it's a GrapesJS
@@ -576,7 +581,7 @@ defineExpose({ editor })
           <p>Pilih kerangka awal — semua isinya bisa diubah setelah dimuat.</p>
           <div class="grapes-starter-grid">
             <button
-              v-for="starter in GRAPES_STARTERS"
+              v-for="starter in availableStarters"
               :key="starter.id"
               type="button"
               class="grapes-starter-option"
