@@ -6,6 +6,7 @@ const envSchema = z.object({
   VITE_AUTH_MODE: z.enum(['cookie', 'bearer']).default('cookie'),
   VITE_TENANT_HEADER: z.string().default('X-Organization-ID'),
   VITE_GOOGLE_CLIENT_ID: z.string().default(''),
+  VITE_SUPPORT_EMAIL: z.string().default(''),
 })
 
 export const env = envSchema.parse(import.meta.env)

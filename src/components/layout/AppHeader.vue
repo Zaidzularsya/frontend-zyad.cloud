@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
               @click="accountMenuOpen = false"
             >
               <CreditCard class="size-4 text-gray-500" />
-              Tagihan
+              Langganan
             </RouterLink>
             <RouterLink
               :to="{ name: 'ticketing' }"

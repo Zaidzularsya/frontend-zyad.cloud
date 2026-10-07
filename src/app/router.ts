@@ -53,6 +53,20 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    // Workspace ditangguhkan: di luar /app supaya tidak kena guard tenant aktif.
+    path: '/app/suspended',
+    component: () => import('@/layouts/PublicLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'workspace-suspended',
+        component: () => import('@/features/customer/pages/WorkspaceSuspendedPage.vue'),
+        meta: { title: 'Workspace Ditangguhkan' },
+      },
+    ],
+  },
+  {
     // Link penawaran untuk customer: tanpa login/tenant. Dua segmen path, jadi tidak
     // bertabrakan dengan `/:slug` landing page di bawah MarketingLayout.
     path: '/q/:token',
@@ -241,8 +255,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'billing',
         name: 'billing',
-        component: () => import('@/features/customer/pages/PlanUpgradePage.vue'),
-        meta: { title: 'Billing' },
+        component: () => import('@/features/customer/pages/SubscriptionPage.vue'),
+        meta: { title: 'Langganan' },
       },
       {
         path: 'checkout',
