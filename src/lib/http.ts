@@ -3,6 +3,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { env } from '@/config/env'
 import { tokenStorage } from '@/lib/auth'
 import { tenantStorage } from '@/lib/tenant'
+import { WORKSPACE_SUSPENDED_EVENT } from '@/lib/workspace-suspended'
 import type { ApiErrorPayload } from '@/types/api'
 
 interface RetryableRequest extends InternalAxiosRequestConfig {
@@ -70,6 +71,13 @@ export function refreshAccessToken(): Promise<string | undefined> {
 http.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiErrorPayload>) => {
+    // Backend menaruh `code` di level atas body (lihat corehttp.Fail).
+    const body = error.response?.data as { code?: string } | undefined
+    if (error.response?.status === 403 && body?.code === 'ORGANIZATION_NOT_ACTIVE') {
+      window.dispatchEvent(new CustomEvent(WORKSPACE_SUSPENDED_EVENT))
+      return Promise.reject(error)
+    }
+
     const request = error.config as RetryableRequest | undefined
     const isAuthEndpoint = request?.url?.includes('/auth/')
 
