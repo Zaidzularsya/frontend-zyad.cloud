@@ -3,6 +3,7 @@ import {
   BadgeInfo,
   CheckSquare2,
   FileText,
+  Inbox,
   Folders,
   Globe2,
   Layers3,
@@ -11,6 +12,8 @@ import {
   Waypoints,
 } from 'lucide-vue-next'
 import type { RouteRecordRaw } from 'vue-router'
+
+import type { Permission } from '@/types/auth'
 
 export type LandingMenuTone = 'sky' | 'violet' | 'emerald' | 'amber' | 'rose' | 'cyan' | 'slate'
 
@@ -34,6 +37,7 @@ export interface LandingMenuPageDefinition {
   stats: LandingMenuStat[]
   sections: LandingMenuSection[]
   hiddenFromMenu?: boolean
+  permission?: Permission
 }
 
 export const landingMenuPages: LandingMenuPageDefinition[] = [
@@ -160,6 +164,30 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
       },
     ],
   },
+  {
+    key: 'submissions',
+    routeNameSuffix: 'submissions',
+    label: 'Submissions',
+    description:
+      'Lihat kiriman form landing page, status sinkron ke CRM, dan kirim ulang yang gagal.',
+    icon: Inbox,
+    tone: 'amber',
+    permission: 'landing.submission.read',
+    stats: [
+      { label: 'Status CRM', value: '4' },
+      { label: 'Per halaman', value: '20' },
+    ],
+    sections: [
+      {
+        title: 'Kiriman form',
+        items: ['Tanggal', 'Halaman', 'Nama, email, WhatsApp'],
+      },
+      {
+        title: 'Sinkron CRM',
+        items: ['Lead dibuat', 'Digabung ke lead', 'Tidak dikirim', 'Gagal + kirim ulang'],
+      },
+    ],
+  },
 ]
 
 const toneRoute = {
@@ -185,6 +213,7 @@ export function buildLandingManagementMenuItems(routePrefix: string) {
       icon: page.icon,
       tone: page.tone,
       description: page.description,
+      permission: page.permission,
     }))
 }
 
@@ -203,7 +232,9 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
             ? () => import('../pages/LandingTemplatesManagementPage.vue')
             : page.key === 'domains'
               ? () => import('@/features/domains/pages/DomainManagementPage.vue')
-              : () => import('../pages/LandingMenuDetailPage.vue'),
+              : page.key === 'submissions'
+                ? () => import('../pages/LandingSubmissionsPage.vue')
+                : () => import('../pages/LandingMenuDetailPage.vue'),
     props:
       page.key === 'pages'
         ? {
@@ -239,12 +270,17 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                   mode: isPlatformRoute ? 'platform' : 'workspace',
                   parentRouteName: routePrefix,
                 }
-              : {
-                  definition: page,
-                  parentRouteName: routePrefix,
-                  parentLabel: 'Landing Page',
-                },
-    meta: { title: page.label },
+              : page.key === 'submissions'
+                ? {}
+                : {
+                    definition: page,
+                    parentRouteName: routePrefix,
+                    parentLabel: 'Landing Page',
+                  },
+    meta: {
+      title: page.label,
+      ...(page.permission ? { permissions: [page.permission] } : {}),
+    },
   }))
 }
 

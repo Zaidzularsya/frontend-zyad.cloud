@@ -86,3 +86,78 @@ describe('buildGrapesChrome', () => {
     expect(buildGrapesChrome({}, 'x').orgType).toBe('')
   })
 })
+
+describe('buildGrapesChrome — forms', () => {
+  it('maps PascalCase Forms and sorts fields by SortOrder', () => {
+    const chrome = buildGrapesChrome(
+      {
+        Page: { title: 'Home', settings: {} },
+        Forms: [
+          {
+            ID: 'f1',
+            SubmitLabel: 'Kirim',
+            SuccessMessage: 'Terima kasih',
+            RedirectURL: 'javascript:alert(1)',
+            Fields: [
+              {
+                Key: 'email',
+                Type: 'email',
+                Label: 'Email',
+                Placeholder: 'x',
+                Options: [],
+                IsRequired: true,
+                SortOrder: 2,
+              },
+              {
+                Key: 'name',
+                Type: 'text',
+                Label: 'Nama',
+                Placeholder: '',
+                Options: null,
+                IsRequired: false,
+                SortOrder: 1,
+              },
+            ],
+          },
+        ],
+      },
+      'Home',
+    )
+    expect(chrome.forms).toHaveLength(1)
+    const form = chrome.forms![0]!
+    expect(form.id).toBe('f1')
+    expect(form.submitLabel).toBe('Kirim')
+    expect(form.successMessage).toBe('Terima kasih')
+    expect(form.redirectUrl).toBe('')
+    expect(form.fields.map((f) => f.key)).toEqual(['name', 'email'])
+    expect(form.fields[1]!).toMatchObject({ required: true, type: 'email', placeholder: 'x' })
+    expect(form.fields[0]!.options).toEqual([])
+  })
+
+  it('keeps a safe redirect and accepts snake_case; missing Forms gives []', () => {
+    const chrome = buildGrapesChrome(
+      {
+        Page: { title: 'Home', settings: {} },
+        forms: [{ id: 'f2', submit_label: 'Go', redirect_url: '/terima-kasih', fields: [] }],
+      },
+      'Home',
+    )
+    expect(chrome.forms![0]).toMatchObject({
+      id: 'f2',
+      submitLabel: 'Go',
+      redirectUrl: '/terima-kasih',
+    })
+    expect(buildGrapesChrome({ Page: { title: 'x', settings: {} } }, 'x').forms).toEqual([])
+  })
+
+  it.each(['mailto:a@b.id', 'tel:123', '//evil.com', 'data:text/html,x'])(
+    'drops redirect %s that is not a path or http(s)',
+    (redirect_url) => {
+      const chrome = buildGrapesChrome(
+        { Page: { title: 'x', settings: {} }, forms: [{ id: 'f', redirect_url, fields: [] }] },
+        'x',
+      )
+      expect(chrome.forms![0]!.redirectUrl).toBe('')
+    },
+  )
+})

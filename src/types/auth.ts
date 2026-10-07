@@ -48,6 +48,8 @@ export type Permission =
   | 'contact.update'
   | 'contact.delete'
   | 'contact.restore'
+  | 'landing.submission.read'
+  | 'landing.submission.update'
   | 'lead.read'
   | 'lead.create'
   | 'lead.update'

@@ -9,7 +9,8 @@ import { useTenantStore } from '@/stores/tenant.store'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
 import GrapesPageRenderer from '../components/GrapesPageRenderer.vue'
-import type { GrapesChrome } from '../grapes/chrome'
+import type { GrapesChrome, GrapesChromeForm } from '../grapes/chrome'
+import { safeHref } from '../grapes/chrome'
 import { buildGrapesChrome } from '../composables/useGrapesChrome'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
@@ -91,12 +92,43 @@ async function loadAdminPreview(id: string) {
     grapesCss.value = doc.data.css
     grapesChrome.value = {
       orgType: tenantStore.isPlatformOrganization ? 'platform' : 'customer',
+      forms: await loadPreviewForms(id),
     }
     return
   }
 
   const sectionResponse = await landingApi.getSections(id)
   sections.value = sectionResponse.data
+}
+
+// GET /forms returns each form with its fields (normalised in landing.api.ts).
+async function loadPreviewForms(id: string): Promise<GrapesChromeForm[]> {
+  try {
+    const response = await landingApi.getForms(id)
+    return response.data
+      .filter((form) => form.is_active)
+      .map((form) => ({
+        id: form.id,
+        submitLabel: form.submit_label,
+        successMessage: form.success_message,
+        redirectUrl:
+          form.redirect_url && safeHref(form.redirect_url) !== '#' ? form.redirect_url.trim() : '',
+        fields: [...(form.fields ?? [])]
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((f) => ({
+            key: f.key,
+            type: f.type,
+            label: f.label,
+            placeholder: f.placeholder ?? '',
+            options: f.options ?? [],
+            required: f.required,
+          })),
+      }))
+  } catch (error) {
+    // Preview must still render when forms cannot be loaded.
+    console.error('LandingPreviewPage: failed to load forms', error)
+    return []
+  }
 }
 
 async function resolveTemplateIdBySlug(templateSlug: string) {

@@ -67,3 +67,145 @@ describe('landingApi — GrapesJS document', () => {
     expect(res.data.updated_at).toBe('2026-09-10T09:00:00Z')
   })
 })
+
+import { normalizeForm, normalizeSubmission } from './landing.api'
+
+describe('normalizeSubmission', () => {
+  it('reads PascalCase domain structs (admin list / retry)', () => {
+    const s = normalizeSubmission({
+      ID: 's1',
+      LandingPageID: 'p1',
+      FormID: 'f1',
+      Reference: 'SUB-1',
+      Status: 'new',
+      SubmittedData: { name: 'A' },
+      SubmittedAt: '2026-10-07T01:00:00Z',
+      CRMLeadID: '',
+      CRMSyncStatus: 'failed',
+      CRMSyncError: 'LANDING_FORM_OWNER_MISSING: x',
+    })
+    expect(s).toEqual({
+      id: 's1',
+      landing_page_id: 'p1',
+      form_id: 'f1',
+      reference: 'SUB-1',
+      status: 'new',
+      submitted_data: { name: 'A' },
+      submitted_at: '2026-10-07T01:00:00Z',
+      crm_lead_id: null,
+      crm_sync_status: 'failed',
+      crm_sync_error: 'LANDING_FORM_OWNER_MISSING: x',
+    })
+  })
+
+  it('reads snake_case DTOs and defaults unknown sync status to skipped', () => {
+    const s = normalizeSubmission({
+      id: 's2',
+      crm_lead_id: 'l1',
+      crm_sync_status: 'weird',
+      crm_sync_error: null,
+    })
+    expect(s.crm_lead_id).toBe('l1')
+    expect(s.crm_sync_status).toBe('skipped')
+    expect(s.crm_sync_error).toBeNull()
+    expect(s.submitted_data).toEqual({})
+  })
+})
+
+describe('normalizeForm — CRM fields', () => {
+  it('maps create_crm_lead and lead_owner_user_id from both shapes', () => {
+    expect(normalizeForm({ ID: 'f', CreateCRMLead: true, LeadOwnerUserID: '' })).toMatchObject({
+      create_crm_lead: true,
+      lead_owner_user_id: null,
+    })
+    expect(
+      normalizeForm({ id: 'f', create_crm_lead: false, lead_owner_user_id: 'u1' }),
+    ).toMatchObject({
+      create_crm_lead: false,
+      lead_owner_user_id: 'u1',
+    })
+  })
+})
+
+describe('normalizeForm — fields', () => {
+  it('maps PascalCase Fields sorted by SortOrder, null/missing options become []', () => {
+    const f = normalizeForm({
+      ID: 'f',
+      Fields: [
+        { ID: 'b', Key: 'email', Type: 'email', Label: 'Email', IsRequired: true, SortOrder: 2 },
+        {
+          ID: 'a',
+          Key: 'size',
+          Type: 'select',
+          Label: 'Ukuran',
+          Options: ['1–10'],
+          Placeholder: 'x',
+          IsRequired: false,
+          SortOrder: 1,
+        },
+        { ID: 'c', Key: 'n', Type: 'text', Label: 'N', Options: null, SortOrder: 3 },
+      ],
+    })
+    expect(f.fields?.map((x) => x.key)).toEqual(['size', 'email', 'n'])
+    expect(f.fields?.[0]).toMatchObject({ options: ['1–10'], placeholder: 'x', required: false })
+    expect(f.fields?.[1]).toMatchObject({ required: true, options: [] })
+    expect(f.fields?.[2]!.options).toEqual([])
+  })
+
+  it('maps snake_case fields and keeps fields undefined when absent', () => {
+    expect(
+      normalizeForm({ id: 'f', fields: [{ key: 'k', type: 'text', label: 'K', required: true }] })
+        .fields,
+    ).toMatchObject([{ key: 'k', required: true }])
+    expect(normalizeForm({ id: 'f' }).fields).toBeUndefined()
+    expect(normalizeForm({ ID: 'f', Fields: [] }).fields).toEqual([])
+  })
+})
+
+describe('landingApi — submissions', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('listSubmissions normalises a bare array and sends params', async () => {
+    httpGet.mockResolvedValue({
+      data: { success: true, data: [{ ID: 's1', CRMSyncStatus: 'created' }] },
+    })
+    const res = await landingApi.listSubmissions({ page: 2, per_page: 20, landing_page_id: 'p1' })
+    expect(httpGet).toHaveBeenCalledWith('/admin/landing-submissions', {
+      params: { page: 2, per_page: 20, landing_page_id: 'p1' },
+    })
+    expect(res.data[0]!.id).toBe('s1')
+    expect(res.meta.total).toBe(1)
+  })
+
+  it('retrySubmissionCrmSync posts and normalises', async () => {
+    httpPost.mockResolvedValue({
+      data: { success: true, data: { ID: 's1', CRMSyncStatus: 'merged' } },
+    })
+    const res = await landingApi.retrySubmissionCrmSync('s1')
+    expect(httpPost).toHaveBeenCalledWith('/admin/landing-submissions/s1/crm-sync', undefined)
+    expect(res.crm_sync_status).toBe('merged')
+  })
+
+  it('submitPublicForm sends Idempotency-Key and throws SubmitFormError with status', async () => {
+    httpPost.mockResolvedValueOnce({ data: { success: true } })
+    await landingApi.submitPublicForm(
+      'f1',
+      { fields: { name: 'A' }, consent: true, website: '', context: {} },
+      'key-1',
+    )
+    expect(httpPost).toHaveBeenCalledWith(
+      '/public/landing/forms/f1/submissions',
+      { fields: { name: 'A' }, consent: true, website: '', context: {} },
+      { headers: { 'Idempotency-Key': 'key-1' } },
+    )
+
+    httpPost.mockRejectedValueOnce({ response: { status: 429, data: { code: 'RATE_LIMITED' } } })
+    await expect(
+      landingApi.submitPublicForm(
+        'f1',
+        { fields: {}, consent: true, website: '', context: {} },
+        'k',
+      ),
+    ).rejects.toMatchObject({ name: 'SubmitFormError', status: 429, code: 'RATE_LIMITED' })
+  })
+})

@@ -27,8 +27,11 @@ import {
   CATALOG_PRICING_TYPE,
   registerCatalogPricing,
 } from './grapes.catalog-pricing-component'
+import { LEAD_FORM_BLOCK_ID, LEAD_FORM_TYPE, registerLeadForm } from './grapes.lead-form-component'
+import type { LandingFormWithFields } from '../../shared/types/landing.types'
 import GrapesPricingPanel from './GrapesPricingPanel.vue'
 import GrapesCatalogPricingPanel from './GrapesCatalogPricingPanel.vue'
+import GrapesLeadFormPanel from './GrapesLeadFormPanel.vue'
 
 const props = defineProps<{ pageId: string }>()
 
@@ -49,6 +52,9 @@ const headerComponent = shallowRef<TenantComponent | null>(null)
 const footerComponent = shallowRef<TenantComponent | null>(null)
 const pricingComponent = shallowRef<TenantComponent | null>(null)
 const catalogPricingComponent = shallowRef<TenantComponent | null>(null)
+const leadFormComponent = shallowRef<TenantComponent | null>(null)
+// Form halaman (dengan field) untuk pratinjau kanvas blok Form Konsultasi.
+const leadForms = shallowRef<LandingFormWithFields[]>([])
 // Listing publik (Sales → Produk) untuk pratinjau kanvas + panel; hanya diambil untuk org platform.
 const catalogCategories = shallowRef<PublicListingCategory[]>([])
 const duplicateNotice = ref('')
@@ -90,7 +96,8 @@ const tenantPanelActive = computed(
     !!headerComponent.value ||
     !!footerComponent.value ||
     !!pricingComponent.value ||
-    !!catalogPricingComponent.value,
+    !!catalogPricingComponent.value ||
+    !!leadFormComponent.value,
 )
 
 function setDevice(name: string) {
@@ -274,6 +281,21 @@ onMounted(async () => {
       .catch((err) => console.error('GrapesEditor: failed to load public catalog listings', err))
   }
 
+  // "Form Konsultasi" tersedia untuk semua organisasi (platform dan tenant).
+  registerLeadForm(ed, () => leadForms.value)
+  ed.Blocks.add(LEAD_FORM_BLOCK_ID, {
+    label: 'Form Konsultasi',
+    category: 'Conversion',
+    content: { type: LEAD_FORM_TYPE },
+  })
+  landingApi
+    .getForms(props.pageId)
+    .then((response) => {
+      leadForms.value = response.data.map((f) => ({ ...f, fields: f.fields ?? [] }))
+      rerenderTenantSlot('lead-form')
+    })
+    .catch((err) => console.error('GrapesEditor: failed to load page forms', err))
+
   ed.on('component:selected', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown } | undefined
     const type = model?.get?.('type')
@@ -281,11 +303,13 @@ onMounted(async () => {
       type === TENANT_HEADER_TYPE ||
       type === TENANT_FOOTER_TYPE ||
       type === TENANT_PRICING_TYPE ||
-      type === CATALOG_PRICING_TYPE
+      type === CATALOG_PRICING_TYPE ||
+      type === LEAD_FORM_TYPE
     headerComponent.value = type === TENANT_HEADER_TYPE ? (component as never) : null
     footerComponent.value = type === TENANT_FOOTER_TYPE ? (component as never) : null
     pricingComponent.value = type === TENANT_PRICING_TYPE ? (component as never) : null
     catalogPricingComponent.value = type === CATALOG_PRICING_TYPE ? (component as never) : null
+    leadFormComponent.value = type === LEAD_FORM_TYPE ? (component as never) : null
     // Default to the custom content panel on selection, but leave Style/Setelan
     // reachable via the tab bar — GrapesJS's Style Manager already has the
     // sectors (Dekorasi: background/opacity, Posisi: position/z-index) needed
@@ -299,6 +323,7 @@ onMounted(async () => {
     footerComponent.value = null
     pricingComponent.value = null
     catalogPricingComponent.value = null
+    leadFormComponent.value = null
     if (rightTab.value === 'content') rightTab.value = 'styles'
   })
 
@@ -313,12 +338,14 @@ onMounted(async () => {
     [TENANT_FOOTER_TYPE]: 'tenant-footer',
     [TENANT_PRICING_TYPE]: 'pricing-plans',
     [CATALOG_PRICING_TYPE]: 'catalog-pricing',
+    [LEAD_FORM_TYPE]: 'lead-form',
   }
   const TENANT_LABEL_BY_TYPE: Record<string, string> = {
     [TENANT_HEADER_TYPE]: 'Header tenant',
     [TENANT_FOOTER_TYPE]: 'Footer tenant',
     [TENANT_PRICING_TYPE]: 'Pricing tenant',
     [CATALOG_PRICING_TYPE]: 'Pricing Katalog',
+    [LEAD_FORM_TYPE]: 'Form Konsultasi',
   }
   ed.on('component:add', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown; remove?: () => void } | undefined
@@ -359,7 +386,14 @@ onMounted(async () => {
   const removedFooterDup = dedupeTenantSlot('tenant-footer')
   const removedPricingDup = dedupeTenantSlot('pricing-plans')
   const removedCatalogDup = dedupeTenantSlot('catalog-pricing')
-  if (removedNavDup || removedFooterDup || removedPricingDup || removedCatalogDup) {
+  const removedLeadFormDup = dedupeTenantSlot('lead-form')
+  if (
+    removedNavDup ||
+    removedFooterDup ||
+    removedPricingDup ||
+    removedCatalogDup ||
+    removedLeadFormDup
+  ) {
     store.applyEditorSnapshot({
       project: ed.getProjectData() as Record<string, unknown>,
       html: ed.getHtml(),
@@ -385,6 +419,11 @@ onMounted(async () => {
   ed.on('component:remove', onChange)
   ed.on('style:update', onChange)
 })
+
+function onLeadFormsChange(forms: LandingFormWithFields[]) {
+  leadForms.value = forms
+  rerenderTenantSlot('lead-form')
+}
 
 function rerenderTenantSlot(slotName: string) {
   editor.value
@@ -583,6 +622,15 @@ defineExpose({ editor })
           :component="catalogPricingComponent"
           :categories="catalogCategories"
           class="grapes-pane"
+        />
+
+        <GrapesLeadFormPanel
+          v-if="leadFormComponent"
+          v-show="rightTab === 'content'"
+          :component="leadFormComponent"
+          :page-id="pageId"
+          class="grapes-pane"
+          @forms-change="onLeadFormsChange"
         />
 
         <div v-show="rightTab === 'styles'" ref="stylesRef" class="grapes-pane"></div>
