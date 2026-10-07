@@ -167,6 +167,27 @@ feel like it _breathes_.
 - No gradient on body text or small UI text.
 - No stock "AI-startup" hero: purple glow, floating 3D blobs everywhere, giant emoji.
 
+## Aturan isi
+
+Berlaku untuk halaman marketing platform (starter "Zyad Marketing") dan setiap
+perubahan copy-nya.
+
+- **Hanya klaim fitur yang sudah ada di produksi:** CRM + playbook lead, pipeline & deal,
+  quotation (PDF, kirim WA/email, setujui online), sales order, invoice & tagihan
+  berulang + pembayaran DOKU, katalog produk, landing page builder + domain sendiri,
+  integrasi WhatsApp, user & role management. Checklist klaim diverifikasi di QA
+  produksi sebelum publish; fitur yang belum rilis tidak boleh disebut.
+- **Tidak ada konten karangan (K15):** tidak ada testimoni, logo klien, angka statistik,
+  atau nama merek pesaing. Strip "Fakta produk" hanya boleh berisi fakta yang bisa
+  dibuktikan dari produk itu sendiri.
+- **Bahasa Indonesia, sapaan "Anda".** Tanpa "kamu", tanpa campuran bahasa Inggris yang
+  tidak perlu (istilah teknis seperti CRM, invoice, lead tetap).
+- **Copy final hanya lewat starter.** Konten final dibawa kode (`starters/zyad-marketing.ts`)
+  supaya DEV dan produksi identik. Editan langsung di editor DEV tidak terbawa ke
+  produksi; ubah copy di starter, bukan di halaman.
+- **Pagar visual:** satu `zy-aurora` per halaman (hero), elemen LCP hero memakai
+  `zy-anim-hero`, gradient sky→teal hanya sebagai aksen fokus.
+
 ## Extending to the app UI later
 
 If the tenant dashboard adopts this direction: replace the indigo `--color-brand-*`
