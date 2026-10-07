@@ -26,6 +26,8 @@ import { LANDING_PAGE_CONTEXT } from './page-context'
 import { classifyLinkClick, hasAppRoute } from './link-handling'
 import { SLOT_REGISTRY, slotStyles } from './slot-registry'
 import baseCss from './base.css?inline'
+import { createPageRuntime, defaultRuntimeEnv, type PageRuntime } from '../motion/page-runtime'
+import motionCss from '../motion/zy-motion.css?inline'
 
 /**
  * Renderer halaman GrapesJS di shadow root (pengganti <iframe srcdoc>).
@@ -57,6 +59,37 @@ let root: ShadowRoot | null = null
 let generation = 0
 let rendered = false
 let unmounted = false
+
+// Runtime animasi (R5-S2): hidup dari selesai render sampai render ulang / unmount.
+let runtime: PageRuntime | null = null
+let slotObserver: MutationObserver | null = null
+
+function stopRuntime() {
+  slotObserver?.disconnect()
+  slotObserver = null
+  runtime?.stop()
+  runtime = null
+}
+
+function startRuntime(page: HTMLElement) {
+  const env = defaultRuntimeEnv()
+  // Reduced motion: tidak ada observer/listener sama sekali; konten tetap di state akhir
+  // karena state tersembunyi hanya berlaku di bawah `.zy-js`.
+  if (env.reducedMotion) return
+  runtime = createPageRuntime(page, env)
+  runtime.start()
+  // Slot Vue (mis. katalog yang dimuat async) menambah elemen setelah mount: amati hanya
+  // penambahan elemen baru supaya animasi/counter di dalamnya ikut terpasang.
+  if (typeof MutationObserver === 'function') {
+    const rt = runtime
+    slotObserver = new MutationObserver((records) => {
+      if (records.some((r) => Array.from(r.addedNodes).some((n) => n.nodeType === 1))) {
+        rt.refresh()
+      }
+    })
+    slotObserver.observe(page, { childList: true, subtree: true })
+  }
+}
 
 function removeFonts() {
   document.head.querySelectorAll(`style[data-zy-fonts="${instanceId}"]`).forEach((n) => n.remove())
@@ -128,6 +161,8 @@ function collectSlotTargets(page: Element): SlotTarget[] {
 async function render() {
   const token = ++generation
   const first = !rendered
+  // 0. Hentikan runtime sebelum DOM lama diganti (listener/observer harus lepas dari node lama).
+  stopRuntime()
   // 1. Lepas teleport lama, tunggu ter-unmount, baru bersihkan font.
   slotTargets.value = []
   removeFonts()
@@ -146,7 +181,7 @@ async function render() {
   const page = document.createElement('div')
   page.className = 'zy-page'
   page.innerHTML = sanitize(props.html)
-  root.replaceChildren(makeStyle(`${baseCss}\n${slotStyles()}`), makeStyle(css), page)
+  root.replaceChildren(makeStyle(`${baseCss}\n${motionCss}\n${slotStyles()}`), makeStyle(css), page)
   rendered = true
 
   // 3. Font tidak jalan di dalam shadow root: hoist ke head.
@@ -161,6 +196,12 @@ async function render() {
 
   // 7. Hash di URL (mis. dibuka langsung di /#harga).
   scrollToHash(false)
+
+  // 8. Nyalakan animasi setelah teleport slot ter-mount. Render yang tersela
+  //    (token berubah / unmount) tidak boleh menyalakan runtime.
+  await nextTick()
+  if (token !== generation || unmounted) return
+  startRuntime(page)
 }
 
 function onClick(event: Event) {
@@ -201,6 +242,7 @@ watch(
 onBeforeUnmount(() => {
   unmounted = true
   generation++
+  stopRuntime()
   root?.removeEventListener('click', onClick)
   removeFonts()
   slotTargets.value = []

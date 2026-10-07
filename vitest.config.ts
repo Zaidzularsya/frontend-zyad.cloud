@@ -14,7 +14,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     // Slot CSS is imported with `?inline` and asserted as a string; vitest empties CSS by default.
-    css: { include: [/\.slot\.css/, /shadow[\\/]base\.css/] },
+    css: { include: [/\.slot\.css/, /shadow[\\/]base\.css/, /zy-motion\.css/] },
     setupFiles: ['./tests/setup.ts'],
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
   },

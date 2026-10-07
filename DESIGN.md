@@ -4,7 +4,7 @@ Design direction for **landing pages, marketing, and public-facing surfaces** of
 Cloud (PT Zyad Technovation Indonesia). Read this before any UI or copy work on those
 surfaces, then apply the `antislop` skills as the filter.
 
-`Dial: ENERGY 2 / RHYTHM 2 / MOTION 1`
+`Dial: ENERGY 3 / RHYTHM 2 / MOTION 3`
 
 > Scope note: this file governs **landing / marketing / public** pages. The tenant
 > admin dashboard currently uses the legacy TailAdmin indigo token ramp
@@ -113,16 +113,29 @@ Derived from the logo shape. Apply consistently so the design "belongs" to Zyad:
 - Predictable, not wild — scale and alignment shift between sections, but the reader
   always knows where they are.
 
-## Motion (MOTION 1)
+## Motion (MOTION 3)
 
-Functional feedback plus one ambient hero effect. Nothing moves for show.
+Ekspresif tapi terkendali. Kosakata di bawah dikelola `zy-motion.css` + runtime
+`createPageRuntime` (tanpa dependency) dan tersedia lewat panel "Animasi" GrapesJS.
 
-- Scroll reveal: existing `.fade-up` (0.8s ease-out) — already respects
-  `prefers-reduced-motion`.
-- Hover: 150ms colour/opacity; `.hover-lift` (translateY −4px) on interactive cards.
-- Ambient: `aurora-blob` / `animate-float` allowed **only** on the top hero, one
-  instance, blurred, behind content. Not on inner sections.
-- No parallax on text, no scroll-jacking, no entrance animation on every element.
+| Kelompok   | Kelas                                                                                                                                                                                   | Mekanisme                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Efek masuk | `zy-anim-fade-up`, `zy-anim-fade-in`, `zy-anim-zoom-in`, `zy-anim-slide-left`, `zy-anim-slide-right`, `zy-anim-blur-in`, `zy-anim-clip-reveal`                                          | runtime menambah `is-in` saat masuk viewport (sekali); geser 32 px (16 px di bawah 768 px); slide-left datang dari kiri, slide-right dari kanan |
+| Pengatur   | `zy-delay-100` … `zy-delay-800` (kelipatan 100), `zy-dur-fast` (400 ms), `zy-dur-slow` (1200 ms; default 700 ms), `zy-stagger` (anak langsung mendapat delay bertahap 80 ms)            | CSS + runtime (stagger)                                                                                                                         |
+| Hero       | `zy-anim-hero`                                                                                                                                                                          | keyframes langsung saat load, tidak menunggu runtime                                                                                            |
+| Scroll     | `zy-parallax-slow` (×0.1), `zy-parallax-med` (×0.2), `zy-parallax-fast` (×0.35), `zy-scale-in-scroll` (0.94 → 1)                                                                        | runtime menulis `--zy-progress` (0–1)                                                                                                           |
+| Interaksi  | `zy-tilt` (maks 6°), `zy-hover-lift` (−4 px), `zy-hover-glow`                                                                                                                           | pointer (runtime), hover (CSS 150 ms)                                                                                                           |
+| Ambient    | `zy-aurora`, `zy-float`, `zy-text-shimmer`                                                                                                                                              | CSS keyframes; `zy-text-shimmer` menganimasikan `background-position` (6 s), satu-satunya pengecualian non-compositor                           |
+| Data       | `zy-count` (angka dihitung naik 1,2 s saat terlihat; prefix/sufiks seperti `+`, `%`, `rb` dipertahankan), `zy-marquee` (isi digandakan sekali, 40 s per siklus, pause saat hover/fokus) | runtime                                                                                                                                         |
+
+### Pagar kualitas
+
+1. Konten tidak pernah tersembunyi karena JS gagal: state awal tersembunyi hanya di bawah `.zy-js`.
+2. `prefers-reduced-motion: reduce` → semua animasi mati, state akhir langsung.
+3. Lebar < 768 px atau perangkat tanpa hover → parallax, tilt, scale-in-scroll mati; jarak gerak efek masuk 16 px (desktop 32 px).
+4. Hanya `transform`, `opacity`, `clip-path`, `filter` yang dianimasikan (pengecualian tercatat: `zy-text-shimmer`).
+5. Satu `zy-aurora` per halaman (pedoman DESIGN.md).
+6. Elemen LCP hero memakai `zy-anim-hero` (keyframes CSS), bukan efek masuk berbasis observer.
 
 ## Mood
 
@@ -132,11 +145,11 @@ feel like it _breathes_.
 
 ## Dials — hold from first section to last
 
-- **ENERGY 2** — says hello politely: one confident hero statement with the brand
-  gradient, then calm. Not GOV.UK-flat, not Awwwards-loud.
+- **ENERGY 3** — confident and visibly alive: a strong hero statement with the brand
+  gradient, motion that supports the story. Not GOV.UK-flat, not Awwwards-loud.
 - **RHYTHM 2** — real variation in layout and scale, but predictable.
-- **MOTION 1** — motion is feedback plus a single hero ambient effect; nothing
-  decorative.
+- **MOTION 3** — ekspresif tapi terkendali: reveal, parallax, tilt, ambient — selalu
+  dengan pagar kualitas di atas.
 
 ## Do
 
@@ -149,7 +162,7 @@ feel like it _breathes_.
 
 - No indigo / purple. `#465fff` is the legacy admin token — keep it out of
   landing / marketing.
-- No glassmorphism on marketing pages except the single hero panel.
+- No glassmorphism on marketing pages except the single hero panel and the sticky header.
 - No 4+ colours competing on one screen.
 - No gradient on body text or small UI text.
 - No stock "AI-startup" hero: purple glow, floating 3D blobs everywhere, giant emoji.
