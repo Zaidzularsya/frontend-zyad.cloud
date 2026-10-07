@@ -33,6 +33,7 @@ import GrapesPricingPanel from './GrapesPricingPanel.vue'
 import GrapesCatalogPricingPanel from './GrapesCatalogPricingPanel.vue'
 import GrapesLeadFormPanel from './GrapesLeadFormPanel.vue'
 import GrapesAnimationPanel from './GrapesAnimationPanel.vue'
+import { attachCanvasMotion, type CanvasMotion } from './grapes.motion'
 
 const props = defineProps<{ pageId: string }>()
 
@@ -61,8 +62,12 @@ type AnimatableComponent = {
   removeClass: (c: string | string[]) => unknown
 }
 const animationComponent = shallowRef<AnimatableComponent | null>(null)
-// Diisi oleh attachCanvasMotion (R5-S2-T4); sampai itu terpasang, refresh adalah no-op.
-const motion = shallowRef<{ refresh: () => void } | null>(null)
+// Diisi oleh attachCanvasMotion setelah editor init; sebelum itu, refresh/replay adalah no-op.
+const motion = shallowRef<CanvasMotion | null>(null)
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 // Form halaman (dengan field) untuk pratinjau kanvas blok Form Konsultasi.
 const leadForms = shallowRef<LandingFormWithFields[]>([])
 // Listing publik (Sales → Produk) untuk pratinjau kanvas + panel; hanya diambil untuk org platform.
@@ -112,6 +117,10 @@ const tenantPanelActive = computed(
 
 function onAnimationChanged() {
   motion.value?.refresh()
+}
+
+function replayAnimations() {
+  motion.value?.replay()
 }
 
 function setDevice(name: string) {
@@ -379,6 +388,10 @@ onMounted(async () => {
     }
   })
 
+  // Setelah guard duplikat (guard bisa menghapus komponen sebelum refresh animasi), dan
+  // sebelum `await` agar event `canvas:frame:load` tidak terlewat.
+  motion.value = attachCanvasMotion(ed)
+
   await store.load(props.pageId)
   const project = store.project
   if (
@@ -476,6 +489,8 @@ watch(
 
 onBeforeUnmount(() => {
   if (saveDebounce) clearTimeout(saveDebounce)
+  motion.value?.detach()
+  motion.value = null
   editor.value?.destroy()
   editor.value = null
   ready = false
@@ -516,6 +531,19 @@ defineExpose({ editor })
         </button>
         <button type="button" class="grapes-icon-btn" title="Ulangi" @click="redo">
           <Redo2 class="size-4" />
+        </button>
+        <button
+          type="button"
+          class="grapes-motion-btn"
+          :disabled="prefersReducedMotion"
+          :title="
+            prefersReducedMotion
+              ? 'Animasi dimatikan karena pengaturan sistem Anda (kurangi gerakan)'
+              : 'Putar ulang semua animasi di kanvas'
+          "
+          @click="replayAnimations"
+        >
+          ▶ Putar animasi
         </button>
         <span
           class="grapes-saved"
@@ -737,6 +765,31 @@ defineExpose({ editor })
   gap: 4px;
 }
 .grapes-dev-btn,
+.grapes-motion-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.grapes-motion-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.grapes-motion-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .grapes-icon-btn {
   display: inline-flex;
   align-items: center;

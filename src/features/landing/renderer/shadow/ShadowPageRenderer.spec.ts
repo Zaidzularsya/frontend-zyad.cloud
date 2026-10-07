@@ -1,5 +1,5 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 import { useLandingPageContext, type LandingPageContext } from './page-context'
@@ -14,6 +14,27 @@ const resolve = (path: string) => ({
     : [{ path: path.startsWith('/nowhere') ? '/:pathMatch(.*)*' : path }],
 })
 vi.mock('vue-router', () => ({ useRouter: () => ({ push, resolve }) }))
+
+// Runtime asli dibungkus spy: perilaku nyata tetap jalan, panggilan start/stop tercatat.
+const rt = vi.hoisted(() => ({ created: [] as Array<{ stop: () => void; start: () => void }> }))
+vi.mock('../motion/page-runtime', async (orig) => {
+  const actual = await orig<typeof import('../motion/page-runtime')>()
+  return {
+    ...actual,
+    createPageRuntime: vi.fn((root: HTMLElement, env?: never) => {
+      const real = actual.createPageRuntime(root, env)
+      const rec = {
+        start: vi.fn(() => real.start()),
+        stop: vi.fn(() => real.stop()),
+        replay: real.replay,
+        refresh: vi.fn(() => real.refresh()),
+      }
+      rt.created.push(rec)
+      return rec
+    }),
+  }
+})
+import { createPageRuntime } from '../motion/page-runtime'
 
 const FONT_CSS = '@font-face{font-family:X;src:url(/f.woff2)}'
 const FOOTER = { brandName: 'Zyad', columns: [] }
@@ -45,6 +66,8 @@ function click(el: Element, init: MouseEventInit = {}) {
 
 beforeEach(() => {
   push.mockClear()
+  vi.mocked(createPageRuntime).mockClear()
+  rt.created.length = 0
   Element.prototype.scrollIntoView = vi.fn()
   history.replaceState(null, '', '/')
 })
@@ -257,6 +280,95 @@ describe('ShadowPageRenderer', () => {
     mounted.pop()!.unmount()
     await flushPromises()
     expect(fontStyles().length).toBe(0)
+  })
+
+  describe('motion runtime', () => {
+    const rts = () => rt.created as unknown as Array<{ start: Mock; stop: Mock; refresh: Mock }>
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('ships zy-motion.css in the platform stylesheet (.zy-js)', () => {
+      const w = mountRenderer({ html: '<p>a</p>', css: '' })
+      const css = host(w).shadowRoot!.querySelector('style')!.textContent!
+      expect(css).toContain('.zy-js')
+      expect(css).toContain('.zy-anim-fade-up')
+    })
+
+    it('creates and starts the runtime once on div.zy-page after mount (slots included)', async () => {
+      const w = mountRenderer({
+        html: `<h1 class="zy-anim-fade-up">a</h1>${FOOTER_HTML}`,
+        css: '',
+        chrome: { footer: FOOTER },
+      })
+      await flushPromises()
+      const root = host(w).shadowRoot!
+      expect(createPageRuntime).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(createPageRuntime).mock.calls[0]![0]).toBe(root.querySelector('.zy-page'))
+      expect(rts()[0]!.start).toHaveBeenCalledTimes(1)
+      // Slot sudah ter-mount saat runtime menyala.
+      expect(root.querySelector('.zyad-tenant-footer')).not.toBeNull()
+      expect(root.querySelector('.zy-page')!.classList.contains('zy-js')).toBe(true)
+    })
+
+    it('stops the runtime when html changes, then starts a fresh one', async () => {
+      const w = mountRenderer({ html: '<p class="zy-anim-fade-up">a</p>', css: '' })
+      await flushPromises()
+      const first = rts()[0]!
+      await w.setProps({ html: '<p class="zy-anim-fade-up">b</p>' })
+      await flushPromises()
+      expect(first.stop).toHaveBeenCalled()
+      expect(rts()).toHaveLength(2)
+      expect(rts()[1]!.start).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not start the runtime twice for back-to-back changes', async () => {
+      const w = mountRenderer({ html: '<p>satu</p>', css: '' })
+      await flushPromises()
+      void w.setProps({ html: '<p>dua</p>' })
+      await w.setProps({ html: '<p>tiga</p>' })
+      await flushPromises()
+      // 1 untuk render awal + 1 untuk render terakhir; render "dua" yang tersela tidak menyala.
+      expect(rts()).toHaveLength(2)
+      const alive = rts().filter((r) => r.start.mock.calls.length > r.stop.mock.calls.length)
+      expect(alive).toHaveLength(1)
+    })
+
+    it('stops the runtime on unmount and ignores a render that settles afterwards', async () => {
+      const w = mountRenderer({ html: '<p>a</p>', css: '' })
+      await flushPromises()
+      const first = rts()[0]!
+      void w.setProps({ html: '<p>b</p>' })
+      mounted.pop()!.unmount()
+      await flushPromises()
+      expect(first.stop).toHaveBeenCalled()
+      expect(rts()).toHaveLength(1)
+    })
+
+    it('refreshes when a slot adds elements after the runtime started', async () => {
+      const w = mountRenderer({ html: '<p class="zy-anim-fade-up">a</p>', css: '' })
+      await flushPromises()
+      const page = host(w).shadowRoot!.querySelector('.zy-page')!
+      page.appendChild(document.createElement('div'))
+      await flushPromises()
+      expect(rts()[0]!.refresh).toHaveBeenCalled()
+    })
+
+    it('installs nothing under prefers-reduced-motion', async () => {
+      vi.stubGlobal(
+        'matchMedia',
+        (q: string) =>
+          ({ matches: q.includes('prefers-reduced-motion'), media: q }) as MediaQueryList,
+      )
+      const mo = vi.spyOn(window, 'MutationObserver')
+      const w = mountRenderer({ html: '<p class="zy-anim-fade-up">a</p>', css: '' })
+      await flushPromises()
+      expect(createPageRuntime).not.toHaveBeenCalled()
+      expect(mo).not.toHaveBeenCalled()
+      expect(host(w).shadowRoot!.querySelector('.zy-page')!.classList.contains('zy-js')).toBe(false)
+      mo.mockRestore()
+    })
   })
 
   describe('page context', () => {

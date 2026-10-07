@@ -19,6 +19,7 @@ const editorStub = {
   setDevice: vi.fn(),
   runCommand: vi.fn(),
   on: vi.fn(),
+  off: vi.fn(),
   destroy: vi.fn(),
   AssetManager: assetManagerStub,
   Components: { addType: vi.fn() },
@@ -168,6 +169,15 @@ describe('GrapesEditor', () => {
     const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
     wrapper.unmount()
     expect(editorStub.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the "Putar animasi" button and detaches canvas motion on unmount', async () => {
+    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
+    const btn = wrapper.get('.grapes-motion-btn')
+    expect(btn.text()).toContain('Putar animasi')
+    await btn.trigger('click') // belum ada frame: no-op, tidak melempar
+    wrapper.unmount()
+    expect(editorStub.off).toHaveBeenCalledWith('canvas:frame:load', expect.any(Function))
   })
 
   it('switches device from the top bar', async () => {
