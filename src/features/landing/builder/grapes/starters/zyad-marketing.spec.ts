@@ -303,5 +303,10 @@ describe('ZYAD_MARKETING_STARTER', () => {
 
   it('respects reduced motion and no-js content visibility', () => {
     expect(css).toMatch(/\.zy-page:not\(\.zy-js\) \.zm-marquee/)
+    // Runtime hanya menggandakan track sekali: satu salinan harus >= 1200px (5 x >= 240px).
+    const chipRule = css.match(/\.zm-chip \{[^}]*\}/)![0]
+    const minWidth = Number(chipRule.match(/min-width:\s*(\d+)px/)?.[1] ?? 0)
+    expect(minWidth * 5).toBeGreaterThanOrEqual(1200)
+    expect(chipRule).toMatch(/text-align:\s*center/)
   })
 })

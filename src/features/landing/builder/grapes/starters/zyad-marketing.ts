@@ -296,7 +296,7 @@ body { margin: 0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; font-
 
 /* Marquee */
 .zm-marquee { padding: 4px 0; }
-.zm-chip { flex: none; margin-right: 16px; padding: 14px 28px; border: 1px solid #E0E3E5; border-radius: 12px; background: #F7F9FB; font-size: 16px; font-weight: 600; color: #0B1F3A; white-space: nowrap; }
+.zm-chip { flex: none; box-sizing: border-box; min-width: 260px; text-align: center; margin-right: 16px; padding: 14px 28px; border: 1px solid #E0E3E5; border-radius: 12px; background: #F7F9FB; font-size: 16px; font-weight: 600; color: #0B1F3A; white-space: nowrap; }
 .zy-page:not(.zy-js) .zm-marquee .zy-marquee__track { width: auto; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .zy-page:not(.zy-js) .zm-marquee .zm-chip { margin-right: 0; }
 
