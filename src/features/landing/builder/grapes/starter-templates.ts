@@ -15,12 +15,16 @@
  * never a real name, statistic, or testimonial standing in as if final.
  */
 
+import { ZYAD_MARKETING_STARTER } from './starters/zyad-marketing'
+
 export interface GrapesStarter {
   id: string
   label: string
   description: string
   html: string
   css: string
+  /** Hanya ditawarkan di editor organisasi platform (mis. halaman marketing Zyad). */
+  platformOnly?: boolean
 }
 
 const BASE_CSS = `
@@ -282,4 +286,5 @@ export const GRAPES_STARTERS: GrapesStarter[] = [
 </section>`,
     css: BASE_CSS,
   },
+  ZYAD_MARKETING_STARTER,
 ]

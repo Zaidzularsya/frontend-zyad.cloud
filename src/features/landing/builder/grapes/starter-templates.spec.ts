@@ -26,4 +26,9 @@ describe('GRAPES_STARTERS', () => {
       expect(starter.css).not.toMatch(/@import/i)
     }
   })
+
+  it('registers Zyad Marketing as the only platform-only starter', () => {
+    const platformOnly = GRAPES_STARTERS.filter((s) => s.platformOnly)
+    expect(platformOnly.map((s) => s.id)).toEqual(['zyad-marketing'])
+  })
 })
