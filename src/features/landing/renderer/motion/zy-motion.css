@@ -396,8 +396,10 @@
 /* ---------- Reduced motion: matikan semua gerak, paksa state akhir ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .zy-js [class*='zy-'],
-  [class*='zy-'] {
+  .zy-js [class^='zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-']),
+  .zy-js [class*=' zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-']),
+  [class^='zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-']),
+  [class*=' zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-']) {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
@@ -406,10 +408,14 @@
     filter: none !important;
   }
 
-  .zy-js [class*='zy-']::before,
-  .zy-js [class*='zy-']::after,
-  [class*='zy-']::before,
-  [class*='zy-']::after {
+  .zy-js [class^='zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::before,
+  .zy-js [class*=' zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::before,
+  [class^='zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::before,
+  [class*=' zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::before,
+  .zy-js [class^='zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::after,
+  .zy-js [class*=' zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::after,
+  [class^='zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::after,
+  [class*=' zy-']:not(.zy-page):not(.zy-page-host):not([class*='zy-slot-'])::after {
     animation: none !important;
     transition: none !important;
   }

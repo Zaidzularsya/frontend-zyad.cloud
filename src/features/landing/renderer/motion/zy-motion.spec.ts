@@ -54,6 +54,17 @@ describe('zy-motion.css', () => {
     expect(block).toContain('filter:none!important')
   })
 
+  it('reduced-motion block matches zy- class tokens, not substrings', () => {
+    const m = css.match(/@media \(prefers-reduced-motion:reduce\)\{.*$/)
+    expect(m).not.toBeNull()
+    const block = m![0]!
+    expect(block).not.toContain("[class*='zy-']")
+    expect(block).toContain("[class^='zy-']")
+    expect(block).toContain("[class*=' zy-']")
+    expect(block).toContain(':not(.zy-page)')
+    expect(block).toContain(':not(.zy-page-host)')
+  })
+
   it('animates only compositor-friendly properties', () => {
     const layout = /\b(width|height|top|left|right|bottom|margin|padding|inset)\b/
     for (const t of css.match(/transition(-property)?:[^;}]+/g) ?? []) expect(t).not.toMatch(layout)
