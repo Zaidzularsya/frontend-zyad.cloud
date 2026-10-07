@@ -158,8 +158,9 @@ describe('TenantPricingSlot', () => {
 })
 
 describe('slot registry', () => {
-  it('registers the three slots', () => {
+  it('registers the four slots', () => {
     expect(Object.keys(SLOT_REGISTRY).sort()).toEqual([
+      'catalog-pricing',
       'pricing-plans',
       'tenant-footer',
       'tenant-nav',
@@ -170,5 +171,6 @@ describe('slot registry', () => {
     expect(css).toMatch(/\.zyad-tenant-footer\s*\{/)
     expect(css).toMatch(/\.zyad-pricing-plans\s*\{/)
     expect(css).toContain('.zyad-tenant-header-host--sticky')
+    expect(css).toContain('.zy-slot-catalog-pricing__card')
   })
 })
