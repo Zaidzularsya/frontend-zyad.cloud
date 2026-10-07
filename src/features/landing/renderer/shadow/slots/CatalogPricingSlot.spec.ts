@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, ref } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { computed, nextTick, ref, type Ref } from 'vue'
 
 import type {
   PublicListing,
@@ -65,9 +65,9 @@ function category(id: string, over: Partial<PublicListingCategory> = {}): Public
 const monthlyOnly = (code: string, name: string): PublicListing =>
   listing({ code, name, variants: [variant({ product_id: `${code}-m` })] })
 
-function ctxFor(orgType = 'platform') {
+function ctxFor(orgType = 'platform', orgTypeRef?: Ref<string>) {
   return {
-    orgType: computed(() => orgType),
+    orgType: orgTypeRef ?? computed(() => orgType),
     interest: ref(''),
     scrollToId: vi.fn(),
   }
@@ -212,5 +212,63 @@ describe('CatalogPricingSlot', () => {
     expect(btn.text()).toBe('Hubungi sales')
     await btn.trigger('click')
     expect(ctx.scrollToId).toHaveBeenCalledWith('konsultasi')
+  })
+
+  it('loads once when orgType becomes platform after mount', async () => {
+    listListings.mockResolvedValue([category('c1')])
+    const orgType = ref('')
+    const { w } = mountSlot({}, ctxFor('', orgType))
+    await flushPromises()
+    expect(listListings).not.toHaveBeenCalled()
+    expect(w.html()).not.toContain('zy-slot-catalog-pricing')
+    orgType.value = 'platform'
+    await nextTick()
+    await flushPromises()
+    expect(listListings).toHaveBeenCalledTimes(1)
+    expect(w.findAll('article').length).toBeGreaterThan(0)
+    orgType.value = 'customer'
+    await nextTick()
+    orgType.value = 'platform'
+    await flushPromises()
+    expect(listListings).toHaveBeenCalledTimes(1)
+  })
+
+  describe('contact destination', () => {
+    const assign = vi.fn()
+    const realLocation = window.location
+
+    beforeEach(() => {
+      assign.mockReset()
+      vi.stubGlobal('location', { assign })
+    })
+    afterEach(() => {
+      vi.stubGlobal('location', realLocation)
+    })
+
+    async function clickEnterprise(contactHref: string) {
+      listListings.mockResolvedValue([category('c1')])
+      const { w, ctx } = mountSlot({ contactHref })
+      await flushPromises()
+      await w
+        .find('.zy-slot-catalog-pricing__card--enterprise .zy-slot-catalog-pricing__cta')
+        .trigger('click')
+      return ctx
+    }
+
+    it('internal path uses router.push', async () => {
+      await clickEnterprise('/kontak')
+      expect(push).toHaveBeenCalledWith('/kontak')
+      expect(assign).not.toHaveBeenCalled()
+    })
+
+    it.each(['https://example.com/x', 'mailto:sales@example.com', 'tel:+62211234'])(
+      '%s navigates via window.location.assign',
+      async (href) => {
+        const ctx = await clickEnterprise(href)
+        expect(assign).toHaveBeenCalledWith(href)
+        expect(push).not.toHaveBeenCalled()
+        expect(ctx.scrollToId).not.toHaveBeenCalled()
+      },
+    )
   })
 })

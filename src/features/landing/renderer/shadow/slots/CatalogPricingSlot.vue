@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import {
@@ -44,13 +44,15 @@ const ANNUAL = 'annual'
 
 const isPlatform = computed(() => ctx.orgType.value === 'platform')
 const categories = ref<PublicListingCategory[]>([])
-const loading = ref(true)
+const loading = ref(false)
+let loaded = false
 const failed = ref(false)
 const activeCategoryId = ref('')
 const chosenFrequency = ref<Record<string, string>>({})
 
-onMounted(async () => {
-  if (!isPlatform.value) return
+async function loadCatalog() {
+  loaded = true
+  loading.value = true
   try {
     const all = (await publicCatalogApi.listListings())
       .filter((c) => c.listings.length > 0)
@@ -65,7 +67,16 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+// orgType can resolve after mount (admin preview before the tenant store hydrates).
+watch(
+  isPlatform,
+  (platform) => {
+    if (platform && !loaded) void loadCatalog()
+  },
+  { immediate: true },
+)
 
 const visible = computed(
   () => isPlatform.value && (loading.value || failed.value || categories.value.length > 0),
@@ -118,7 +129,12 @@ function goContact(interest: string) {
     ctx.scrollToId(href.slice(1))
     return
   }
-  void router.push(href)
+  if (href.startsWith('/')) {
+    void router.push(href)
+    return
+  }
+  // https:, mailto:, tel: — the router cannot navigate to these.
+  window.location.assign(href)
 }
 
 function onCta(view: CardView) {
