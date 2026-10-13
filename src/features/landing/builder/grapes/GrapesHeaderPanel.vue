@@ -6,6 +6,7 @@ import LogoUploadField from '@/features/landing/builder/components/fields/LogoUp
 import {
   buildDestination,
   destinationForApi,
+  validateDestinationForm,
   formFromItem,
   hrefForItem,
   normalizeLinkType,
@@ -170,6 +171,16 @@ async function submitItem() {
   formError.value = ''
   if (!itemForm.label.trim()) {
     formError.value = 'Label wajib diisi.'
+    return
+  }
+  const formInvalid = validateDestinationForm({
+    link_type: itemForm.link_type,
+    slug: itemForm.slug,
+    anchor: itemForm.anchor,
+    externalUrl: itemForm.externalUrl,
+  })
+  if (formInvalid) {
+    formError.value = formInvalid
     return
   }
   const destination = destinationForApi({

@@ -6,6 +6,7 @@ import {
   formFromItem,
   hrefForItem,
   normalizeLinkType,
+  validateDestinationForm,
 } from './destination'
 
 describe('nav destination helpers', () => {
@@ -80,5 +81,18 @@ describe('nav destination helpers', () => {
       externalUrl: '',
     })
     expect(destinationForApi(seeded)).toBe('pricing')
+  })
+
+  it('validateDestinationForm rejects an anchor typed as an internal page slug', () => {
+    const base = { anchor: '', externalUrl: '' }
+    expect(
+      validateDestinationForm({ ...base, link_type: 'internal_page', slug: '#konsultasi' }),
+    ).toMatch(/Anchor/)
+    expect(validateDestinationForm({ ...base, link_type: 'internal_page', slug: 'pricing' })).toBe(
+      '',
+    )
+    expect(validateDestinationForm({ ...base, link_type: 'anchor', slug: '', anchor: 'faq' })).toBe(
+      '',
+    )
   })
 })
