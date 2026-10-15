@@ -71,6 +71,8 @@ async function onSubmit() {
   if (saving.value) return
   generalError.value = ''
   errors.value = validateTemplateMeta(form)
+  // Slug tidak diubah lewat PATCH dan tidak ditampilkan pada mode edit.
+  if (props.mode === 'edit') delete errors.value.slug
   if (Object.keys(errors.value).length > 0) return
 
   saving.value = true

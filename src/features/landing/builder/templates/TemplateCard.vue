@@ -20,6 +20,8 @@ const props = defineProps<{
   chrome: GrapesChrome
   queue: ReturnType<typeof createRenderQueue>
   loadDetail: (id: string) => Promise<PageTemplateDetail>
+  /** Hanya thumbnail (tabel kelola): tanpa teks, lebar mengikuti pembungkus. */
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{ open: [template: PageTemplateSummary] }>()
@@ -122,6 +124,7 @@ function open() {
     role="button"
     tabindex="0"
     class="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:border-gray-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-gray-800 dark:bg-gray-900"
+    :class="{ 'w-40': compact }"
     :aria-label="`Lihat template ${template.name}`"
     @click="open"
     @keydown.enter.prevent="open"
@@ -158,7 +161,7 @@ function open() {
         {{ failed ? template.name : '' }}
       </div>
     </div>
-    <div class="flex flex-1 flex-col gap-1 p-4">
+    <div v-if="!compact" class="flex flex-1 flex-col gap-1 p-4">
       <p class="text-xs font-medium tracking-wide text-gray-500">{{ categoryLabel }}</p>
       <h4 class="font-semibold text-gray-900 dark:text-gray-100">{{ template.name }}</h4>
       <p class="line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
