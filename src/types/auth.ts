@@ -50,6 +50,7 @@ export type Permission =
   | 'contact.restore'
   | 'landing.submission.read'
   | 'landing.submission.update'
+  | 'landing.page_template.manage'
   | 'lead.read'
   | 'lead.create'
   | 'lead.update'
