@@ -54,6 +54,7 @@ const builder = computed(() => currentPage.value?.builder ?? null)
         :key="selectedPageId"
         :page-id="selectedPageId"
         :page-status="currentPage?.status ?? null"
+        :page-name="currentPage?.name"
       >
         <template #topbar-left>
           <LandingPagePicker v-model="selectedPageId" :pages="pages" compact />

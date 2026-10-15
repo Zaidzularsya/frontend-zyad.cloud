@@ -5,6 +5,7 @@ import grapesjs, { type Editor } from 'grapesjs'
 import {
   LayoutTemplate,
   Loader2,
+  MoreHorizontal,
   Monitor,
   Redo2,
   Rocket,
@@ -20,6 +21,10 @@ import { useLandingDocumentStore } from '@/stores/landingDocument'
 import { useLandingChromeStore } from '@/stores/landingChrome'
 import { useLandingPricingStore } from '@/stores/landingPricing'
 import { useTenantStore } from '@/stores/tenant.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { useToast } from '@/components/ui/toast'
+import { pageTemplatesApi } from '@/features/landing/shared/api/page-templates.api'
+import type { PageTemplateAdminSummary } from '@/features/landing/shared/types/page-template.types'
 import {
   publicCatalogApi,
   type PublicListingCategory,
@@ -28,6 +33,8 @@ import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import TemplateGalleryDialog from '../templates/TemplateGalleryDialog.vue'
+import SaveAsTemplateDialog from '../templates/SaveAsTemplateDialog.vue'
+import { sourceTemplateForPage } from '../templates/template-admin-logic'
 import {
   readBannerDismissed,
   shouldShowTemplateBanner,
@@ -52,12 +59,14 @@ import GrapesLeadFormPanel from './GrapesLeadFormPanel.vue'
 import GrapesAnimationPanel from './GrapesAnimationPanel.vue'
 import { attachCanvasMotion, type CanvasMotion } from './grapes.motion'
 
-const props = defineProps<{ pageId: string; pageStatus?: string | null }>()
+const props = defineProps<{ pageId: string; pageStatus?: string | null; pageName?: string }>()
 
 const store = useLandingDocumentStore()
 const chrome = useLandingChromeStore()
 const pricing = useLandingPricingStore()
 const tenantStore = useTenantStore()
+const authStore = useAuthStore()
+const toast = useToast()
 
 // The selected `zyad-tenant-header` / `zyad-tenant-footer` / `zyad-pricing-plans`
 // component (if any) → swaps the right pane for GrapesHeaderPanel /
@@ -243,6 +252,88 @@ async function wireAssetManager(ed: Editor) {
   }
 }
 
+// ── Template (platform) ─────────────────────────────────────────────────────
+
+// Hanya org platform dengan permission kelola; owner tenant juga punya permission itu
+// (diberikan ke peran organization_owner), jadi org platform wajib dicek.
+const canManageTemplates = computed(
+  () => tenantStore.isPlatformOrganization && authStore.can('landing.page_template.manage'),
+)
+const sourceTemplate = ref<PageTemplateAdminSummary | null>(null)
+const moreMenuOpen = ref(false)
+const saveTemplateOpen = ref(false)
+
+async function flushSave() {
+  await store.save()
+  // save() tidak melempar; jangan membuat template dari isi yang gagal tersimpan.
+  if (store.saveError) throw new Error('Halaman belum tersimpan. Coba lagi.')
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return (
+    (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (error instanceof Error ? error.message : '') ||
+    fallback
+  )
+}
+
+async function loadSourceTemplate() {
+  if (!canManageTemplates.value) return
+  try {
+    sourceTemplate.value = sourceTemplateForPage(await pageTemplatesApi.listAll(), props.pageId)
+  } catch {
+    // Menu tetap menawarkan "Simpan sebagai template".
+  }
+}
+
+function openSaveTemplate() {
+  moreMenuOpen.value = false
+  saveTemplateOpen.value = true
+}
+
+async function submitSaveTemplate(values: {
+  name: string
+  slug: string
+  category: PageTemplateAdminSummary['category']
+  description: string
+  sort_order: number
+}) {
+  await flushSave()
+  const {
+    html: _html,
+    css: _css,
+    ...created
+  } = await pageTemplatesApi.create({
+    page_id: props.pageId,
+    ...values,
+  })
+  void _html
+  void _css
+  sourceTemplate.value = {
+    ...created,
+    status: 'draft',
+    source: 'admin',
+    seed_modified: false,
+    source_page_id: props.pageId,
+  }
+  toast.success(
+    `Template "${created.name}" disimpan sebagai draft. Kelola di menu Galeri Template.`,
+  )
+}
+
+async function updateSourceTemplate() {
+  const target = sourceTemplate.value
+  moreMenuOpen.value = false
+  if (!target) return
+  try {
+    await flushSave()
+    await pageTemplatesApi.refreshFromPage(target.id)
+    toast.success(`Template "${target.name}" diperbarui.`)
+  } catch (error) {
+    toast.error(errorMessage(error, 'Gagal memperbarui template.'))
+  }
+}
+
 // ── Galeri template ─────────────────────────────────────────────────────────
 
 // Slot tenant hanya boleh satu per halaman; dipakai saat load dan setelah template diterapkan.
@@ -401,6 +492,7 @@ onMounted(async () => {
   }))
   void chrome.load()
   void pricing.load()
+  void loadSourceTemplate()
 
   // "Pricing Katalog" hanya untuk organisasi platform (spec K2): tipe komponen
   // dan block tidak didaftarkan sama sekali untuk tenant biasa.
@@ -653,6 +745,34 @@ defineExpose({ editor })
         >
           ▶ Putar animasi
         </button>
+        <div v-if="canManageTemplates" class="grapes-more">
+          <button
+            type="button"
+            class="grapes-icon-btn"
+            title="Opsi template"
+            aria-haspopup="menu"
+            :aria-expanded="moreMenuOpen"
+            @click="moreMenuOpen = !moreMenuOpen"
+          >
+            <MoreHorizontal class="size-4" />
+          </button>
+          <template v-if="moreMenuOpen">
+            <div class="grapes-more-backdrop" @click="moreMenuOpen = false"></div>
+            <div class="grapes-more-menu" role="menu">
+              <button
+                v-if="sourceTemplate"
+                type="button"
+                role="menuitem"
+                @click="updateSourceTemplate"
+              >
+                Perbarui template "{{ sourceTemplate.name }}"
+              </button>
+              <button v-else type="button" role="menuitem" @click="openSaveTemplate">
+                Simpan sebagai template
+              </button>
+            </div>
+          </template>
+        </div>
         <button
           type="button"
           class="grapes-template-btn"
@@ -820,6 +940,14 @@ defineExpose({ editor })
       :busy="!editorReady"
       @close="galleryOpen = false"
       @apply="onGalleryApply"
+    />
+    <SaveAsTemplateDialog
+      v-if="canManageTemplates"
+      :open="saveTemplateOpen"
+      mode="create"
+      :initial="{ name: pageName }"
+      :submit="submitSaveTemplate"
+      @close="saveTemplateOpen = false"
     />
     <ConfirmDialog
       :open="!!pendingTemplate"
@@ -1012,6 +1140,42 @@ defineExpose({ editor })
   display: flex;
   min-height: 0;
   position: relative;
+}
+
+.grapes-more {
+  position: relative;
+}
+.grapes-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.grapes-more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 31;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+.grapes-more-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #0f172a;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.grapes-more-menu button:hover {
+  background: #f1f5f9;
 }
 
 /* ── Galeri template: tombol toolbar, banner, notifikasi ─────────────────── */

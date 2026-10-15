@@ -88,12 +88,22 @@ vi.mock('@/features/public/api/public-catalog.api', () => ({
   publicCatalogApi: { listListings: (...a: unknown[]) => listListings(...a) },
 }))
 
+const listAll = vi.fn()
+const refreshFromPage = vi.fn()
+const createTemplate = vi.fn()
 vi.mock('@/features/landing/shared/api/page-templates.api', () => ({
-  pageTemplatesApi: { list: vi.fn(() => Promise.resolve([])), get: vi.fn() },
+  pageTemplatesApi: {
+    list: vi.fn(() => Promise.resolve([])),
+    get: vi.fn(),
+    listAll: (...a: unknown[]) => listAll(...a),
+    refreshFromPage: (...a: unknown[]) => refreshFromPage(...a),
+    create: (...a: unknown[]) => createTemplate(...a),
+  },
 }))
 
 import { useTenantStore } from '@/stores/tenant.store'
 import { useLandingDocumentStore } from '@/stores/landingDocument'
+import { useAuthStore } from '@/stores/auth.store'
 import GrapesEditor from './GrapesEditor.vue'
 
 const GalleryStub = {
@@ -108,7 +118,17 @@ const ConfirmStub = {
   emits: ['confirm', 'cancel'],
   template: '<div class="confirm-stub" :data-open="open" />',
 }
-const stubs = { TemplateGalleryDialog: GalleryStub, ConfirmDialog: ConfirmStub }
+const SaveDialogStub = {
+  name: 'SaveAsTemplateDialog',
+  props: ['open', 'mode', 'initial', 'submit'],
+  emits: ['close'],
+  template: '<div class="save-stub" :data-open="open" />',
+}
+const stubs = {
+  TemplateGalleryDialog: GalleryStub,
+  ConfirmDialog: ConfirmStub,
+  SaveAsTemplateDialog: SaveDialogStub,
+}
 const mountEditor = (props: Record<string, unknown> = {}) =>
   mount(GrapesEditor, { props: { pageId: 'p1', ...props }, global: { stubs } })
 
@@ -137,6 +157,7 @@ describe('GrapesEditor', () => {
     getMenuItems.mockResolvedValue({ data: [] })
     listListings.mockResolvedValue([])
     getForms.mockResolvedValue({ data: [] })
+    listAll.mockResolvedValue([])
   })
 
   function useOrg(organizationType: string) {
@@ -406,6 +427,98 @@ describe('GrapesEditor', () => {
       mountEditor()
       await flush()
       expect(editorStub.setComponents).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('menu template platform', () => {
+    function setPermissions(permissions: string[]) {
+      useAuthStore().user = {
+        id: 'u1',
+        name: 'U',
+        email: 'u@x.co',
+        permissions,
+      } as never
+    }
+    const moreButton = (w: ReturnType<typeof mountEditor>) =>
+      w.find('button[title="Opsi template"]')
+    const menuItems = (w: ReturnType<typeof mountEditor>) =>
+      w.findAll('.grapes-more-menu [role="menuitem"]').map((b) => b.text())
+
+    it('org customer dengan permission manage tidak melihat menu "⋯"', async () => {
+      useOrg('customer')
+      setPermissions(['landing.page_template.manage'])
+      const w = mountEditor()
+      await flush()
+      expect(moreButton(w).exists()).toBe(false)
+      expect(listAll).not.toHaveBeenCalled()
+    })
+
+    it('org platform tanpa permission tidak melihat menu "⋯"', async () => {
+      useOrg('platform')
+      setPermissions([])
+      const w = mountEditor()
+      await flush()
+      expect(moreButton(w).exists()).toBe(false)
+    })
+
+    it('platform + permission tanpa template sumber → "Simpan sebagai template"', async () => {
+      useOrg('platform')
+      setPermissions(['landing.page_template.manage'])
+      const w = mountEditor()
+      await flush()
+      await moreButton(w).trigger('click')
+      expect(menuItems(w)).toEqual(['Simpan sebagai template'])
+      await w.get('.grapes-more-menu [role="menuitem"]').trigger('click')
+      expect(w.findComponent(SaveDialogStub).props('open')).toBe(true)
+    })
+
+    it('template dengan source_page_id = pageId → menu Perbarui template', async () => {
+      useOrg('platform')
+      setPermissions(['landing.page_template.manage'])
+      listAll.mockResolvedValue([{ id: 't1', name: 'Klinik', source_page_id: 'p1' }])
+      const w = mountEditor()
+      await flush()
+      await moreButton(w).trigger('click')
+      expect(menuItems(w)).toEqual(['Perbarui template "Klinik"'])
+    })
+
+    it('Perbarui menyimpan halaman dulu, baru memanggil refreshFromPage', async () => {
+      useOrg('platform')
+      setPermissions(['landing.page_template.manage'])
+      listAll.mockResolvedValue([{ id: 't1', name: 'Klinik', source_page_id: 'p1' }])
+      const order: string[] = []
+      saveDocument.mockImplementation(async () => {
+        order.push('save')
+        return { data: { updated_at: '2026-09-10T00:00:00Z' } }
+      })
+      refreshFromPage.mockImplementation(async () => {
+        order.push('refresh')
+        return {}
+      })
+      const w = mountEditor()
+      await flush()
+      useLandingDocumentStore().dirty = true // editan belum ter-autosave
+
+      await moreButton(w).trigger('click')
+      await w.get('.grapes-more-menu [role="menuitem"]').trigger('click')
+      await flush()
+
+      expect(refreshFromPage).toHaveBeenCalledWith('t1')
+      expect(order).toEqual(['save', 'refresh'])
+    })
+
+    it('penyimpanan halaman gagal → template tidak diperbarui', async () => {
+      useOrg('platform')
+      setPermissions(['landing.page_template.manage'])
+      listAll.mockResolvedValue([{ id: 't1', name: 'Klinik', source_page_id: 'p1' }])
+      saveDocument.mockRejectedValue(new Error('gagal'))
+      const w = mountEditor()
+      await flush()
+      useLandingDocumentStore().dirty = true
+      await moreButton(w).trigger('click')
+      await w.get('.grapes-more-menu [role="menuitem"]').trigger('click')
+      await flush()
+      expect(refreshFromPage).not.toHaveBeenCalled()
     })
   })
 
