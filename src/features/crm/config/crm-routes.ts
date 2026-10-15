@@ -1,7 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 // Fase 1-2: Companies, Contacts, Leads, Pipelines, Deals. Activity/Quotation/
-// Invoice/Integration land in later fases — see backend/docs/reference-crm.md
+// Invoice tenant-ke-customer pindah ke fitur receivable (features/receivable) — see backend/docs/reference-receivable.md
 // "Fase Implementasi".
 //
 // namePrefix defaults to pathPrefix but can be set separately so the same
@@ -26,10 +26,22 @@ export function buildCrmRoutes(
       meta: { title: 'Contacts', permissions: ['contact.read'] },
     },
     {
+      path: `${pathPrefix}/contacts/:id`,
+      name: `${namePrefix}-contact-detail`,
+      component: () => import('@/features/crm/contacts/pages/ContactDetailPage.vue'),
+      meta: { title: 'Detail Contact', permissions: ['contact.read'] },
+    },
+    {
       path: `${pathPrefix}/leads`,
       name: `${namePrefix}-leads`,
       component: () => import('@/features/crm/leads/pages/LeadsPage.vue'),
       meta: { title: 'Leads', permissions: ['lead.read'] },
+    },
+    {
+      path: `${pathPrefix}/leads/:id`,
+      name: `${namePrefix}-lead-detail`,
+      component: () => import('@/features/crm/leads/pages/LeadDetailPage.vue'),
+      meta: { title: 'Detail Lead', permissions: ['lead.read'] },
     },
     {
       path: `${pathPrefix}/pipelines`,
@@ -44,6 +56,12 @@ export function buildCrmRoutes(
       meta: { title: 'Deals', permissions: ['deal.read'] },
     },
     {
+      path: `${pathPrefix}/deals/:id`,
+      name: `${namePrefix}-deal-detail`,
+      component: () => import('@/features/crm/deals/pages/DealDetailPage.vue'),
+      meta: { title: 'Detail Deal', permissions: ['deal.read'] },
+    },
+    {
       path: `${pathPrefix}/activities`,
       name: `${namePrefix}-activities`,
       component: () => import('@/features/crm/activities/pages/ActivitiesPage.vue'),
@@ -56,10 +74,17 @@ export function buildCrmRoutes(
       meta: { title: 'Quotations', permissions: ['quotation.read'] },
     },
     {
-      path: `${pathPrefix}/invoices`,
-      name: `${namePrefix}-invoices`,
-      component: () => import('@/features/crm/invoices/pages/InvoicesPage.vue'),
-      meta: { title: 'Invoices', permissions: ['invoice.read'] },
+      path: `${pathPrefix}/quotations/:id`,
+      name: `${namePrefix}-quotation-editor`,
+      component: () => import('@/features/crm/quotations/pages/QuotationEditorPage.vue'),
+      meta: { title: 'Quotation', permissions: ['quotation.read'] },
+    },
+    {
+      path: `${pathPrefix}/products`,
+      name: `${namePrefix}-products`,
+      component: () => import('@/features/catalog/pages/ProductsPage.vue'),
+      props: { mode: namePrefix.startsWith('platform') ? 'platform' : 'workspace' },
+      meta: { title: 'Produk', permissions: ['catalog_product.read'] },
     },
     {
       path: `${pathPrefix}/integrations`,

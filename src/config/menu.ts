@@ -1,21 +1,30 @@
 import type { Component } from 'vue'
 import {
   Bell,
-  Brush,
   Building2,
   Calculator,
-  CreditCard,
+  ClipboardList,
   FileClock,
+  FileMinus,
+  FileSignature,
   FileText,
   Globe,
   HardDrive,
   LayoutDashboard,
-  LifeBuoy,
   Magnet,
   Package,
+  Plug,
+  Receipt,
+  RefreshCw,
+  RotateCcw,
+  Settings,
   ShieldCheck,
   Users,
+  Wallet,
   Waypoints,
+  Mail,
+  MessageCircle,
+  Settings2,
 } from 'lucide-vue-next'
 
 import { buildFinanceMenuItems } from '@/features/finance/config/finance-menu'
@@ -58,25 +67,12 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: Globe,
         children: buildLandingManagementMenuItems('platform-landing-pages'),
       },
-      { label: 'Branding', route: 'platform-branding', icon: Brush },
-      { label: 'Admins & Roles', route: 'platform-users', icon: ShieldCheck },
+      { label: 'Members', route: 'platform-users', icon: ShieldCheck },
       {
-        label: 'Product Catalog',
-        route: 'platform-billing-plans',
+        label: 'Fitur Platform',
+        route: 'platform-features',
         icon: Package,
-        description: 'Katalog plan, harga, dan feature platform untuk berlangganan.',
-      },
-      {
-        label: 'Notifications',
-        route: 'platform-notifications',
-        icon: Bell,
-        permission: 'notification_template.read',
-      },
-      {
-        label: 'Audit Logs',
-        route: 'platform-audit-logs',
-        icon: FileClock,
-        permission: 'audit.read',
+        description: 'Daftar fitur & kuota yang bisa diberikan produk.',
       },
       {
         label: 'Storage Quota',
@@ -85,11 +81,27 @@ export const platformMenuGroups: MenuGroup[] = [
         description: 'Atur batas kapasitas storage per tenant.',
         permission: 'platform.organization.manage',
       },
+      {
+        label: 'Settings',
+        icon: Settings,
+        children: [
+          {
+            label: 'Notification Templates',
+            route: 'platform-notifications',
+            icon: Bell,
+            description: 'Template & aturan pengiriman notifikasi sistem ke tenant.',
+            permission: 'notification_template.read',
+          },
+          {
+            label: 'Audit Logs',
+            route: 'platform-audit-logs',
+            icon: FileClock,
+            description: 'Riwayat aktivitas admin & perubahan data di seluruh platform.',
+            permission: 'audit.read',
+          },
+        ],
+      },
     ],
-  },
-  {
-    label: 'Business Management',
-    items: [{ label: 'Customers', route: 'platform-customers', icon: Users }],
   },
   {
     label: 'CRM',
@@ -120,6 +132,17 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: FileClock,
         permission: 'activity.read',
       },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      {
+        label: 'Produk',
+        route: 'platform-crm-products',
+        icon: Package,
+        permission: 'catalog_product.read',
+      },
       {
         label: 'Quotations',
         route: 'platform-crm-quotations',
@@ -127,16 +150,57 @@ export const platformMenuGroups: MenuGroup[] = [
         permission: 'quotation.read',
       },
       {
+        label: 'Sales Orders',
+        route: 'platform-sales-orders',
+        icon: ClipboardList,
+        permission: 'sales_order.read',
+      },
+      {
+        label: 'Contracts',
+        route: 'platform-contracts',
+        icon: FileSignature,
+        permission: 'contract.read',
+      },
+    ],
+  },
+  {
+    label: 'Billing',
+    items: [
+      {
         label: 'Invoices',
-        route: 'platform-crm-invoices',
-        icon: CreditCard,
+        route: 'platform-billing-invoices',
+        icon: Receipt,
         permission: 'invoice.read',
       },
       {
-        label: 'Integrations',
-        route: 'platform-crm-integrations',
-        icon: Package,
-        permission: 'integration.read',
+        label: 'Payments',
+        route: 'platform-billing-payments',
+        icon: Wallet,
+        permission: 'invoice.read',
+      },
+      {
+        label: 'Pengaturan Penagihan',
+        route: 'platform-billing-receivable-settings',
+        icon: Settings2,
+        permission: 'invoice.read',
+      },
+      {
+        label: 'Recurring Billing',
+        route: 'platform-billing-recurring',
+        icon: RefreshCw,
+        permission: 'contract.read',
+      },
+      {
+        label: 'Credit Notes',
+        route: 'platform-billing-credit-notes',
+        icon: FileMinus,
+        description: 'Belum tersedia — placeholder sampai modul backend Credit Notes dibangun.',
+      },
+      {
+        label: 'Refunds',
+        route: 'platform-billing-refunds',
+        icon: RotateCcw,
+        description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
       },
     ],
   },
@@ -152,9 +216,61 @@ export const platformMenuGroups: MenuGroup[] = [
       },
     ],
   },
+  {
+    label: 'Integrations',
+    items: [
+      {
+        label: 'Integrations',
+        route: 'platform-crm-integrations',
+        icon: Plug,
+        permission: 'integration.read',
+      },
+      {
+        label: 'WhatsApp',
+        route: 'platform-whatsapp',
+        icon: MessageCircle,
+        permission: 'whatsapp.session.read',
+      },
+      {
+        label: 'Pengaturan CRM',
+        route: 'platform-crm-settings',
+        icon: Settings2,
+        permission: 'crm_settings.update',
+      },
+      {
+        label: 'Akun Email',
+        route: 'platform-email-accounts',
+        icon: Mail,
+        permission: 'email.read',
+      },
+    ],
+  },
 ]
 
 export const customerMenuGroups: MenuGroup[] = [
+  {
+    label: 'Workspace',
+    items: [
+      {
+        label: 'Landing Page',
+        route: 'landing-pages',
+        icon: Globe,
+        children: buildLandingManagementMenuItems('landing-pages'),
+      },
+      { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: 'Storage',
+    items: [
+      {
+        label: 'Files',
+        route: 'storage',
+        icon: HardDrive,
+        permission: 'storage.object.read',
+      },
+    ],
+  },
   {
     label: 'CRM',
     items: [
@@ -169,48 +285,94 @@ export const customerMenuGroups: MenuGroup[] = [
         icon: FileClock,
         permission: 'activity.read',
       },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      {
+        label: 'Produk',
+        route: 'crm-products',
+        icon: Package,
+        permission: 'catalog_product.read',
+      },
       {
         label: 'Quotations',
         route: 'crm-quotations',
         icon: FileText,
         permission: 'quotation.read',
       },
-      { label: 'Invoices', route: 'crm-invoices', icon: CreditCard, permission: 'invoice.read' },
+      {
+        label: 'Sales Orders',
+        route: 'sales-orders',
+        icon: ClipboardList,
+        permission: 'sales_order.read',
+      },
+      {
+        label: 'Contracts',
+        route: 'contracts',
+        icon: FileSignature,
+        permission: 'contract.read',
+      },
+    ],
+  },
+  {
+    label: 'Billing',
+    items: [
+      { label: 'Invoices', route: 'billing-invoices', icon: Receipt, permission: 'invoice.read' },
+      { label: 'Payments', route: 'billing-payments', icon: Wallet, permission: 'invoice.read' },
+      {
+        label: 'Pengaturan Penagihan',
+        route: 'billing-receivable-settings',
+        icon: Settings2,
+        permission: 'invoice.read',
+      },
+      {
+        label: 'Recurring Billing',
+        route: 'billing-recurring',
+        icon: RefreshCw,
+        permission: 'contract.read',
+      },
+      {
+        label: 'Credit Notes',
+        route: 'billing-credit-notes',
+        icon: FileMinus,
+        description: 'Belum tersedia — placeholder sampai modul backend Credit Notes dibangun.',
+      },
+      {
+        label: 'Refunds',
+        route: 'billing-refunds',
+        icon: RotateCcw,
+        description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
+      },
+    ],
+  },
+  {
+    label: 'Integrations',
+    items: [
       {
         label: 'Integrations',
         route: 'crm-integrations',
-        icon: Package,
+        icon: Plug,
         permission: 'integration.read',
       },
-    ],
-  },
-  {
-    label: 'Workspace',
-    items: [
       {
-        label: 'Landing Page',
-        route: 'landing-pages',
-        icon: Globe,
-        children: buildLandingManagementMenuItems('landing-pages'),
+        label: 'WhatsApp',
+        route: 'whatsapp',
+        icon: MessageCircle,
+        permission: 'whatsapp.session.read',
       },
-      { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
-    ],
-  },
-  {
-    label: 'Account Services',
-    items: [
-      { label: 'Plan & Billing', route: 'billing', icon: CreditCard },
-      { label: 'Support Tickets', route: 'ticketing', icon: LifeBuoy },
-    ],
-  },
-  {
-    label: 'Storage',
-    items: [
       {
-        label: 'Files',
-        route: 'storage',
-        icon: HardDrive,
-        permission: 'storage.object.read',
+        label: 'Pengaturan CRM',
+        route: 'crm-settings',
+        icon: Settings2,
+        permission: 'crm_settings.update',
+      },
+      {
+        label: 'Akun Email',
+        route: 'email-accounts',
+        icon: Mail,
+        permission: 'email.read',
       },
     ],
   },

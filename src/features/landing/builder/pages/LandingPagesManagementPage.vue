@@ -95,6 +95,8 @@ const selectedSeoPage = ref<LandingPage | null>(null)
 const managedPageId = ref<string | null>(null)
 const manageTab = ref<ManageTab>('details')
 const slugTouched = ref(false)
+// Nilai is_homepage halaman saat form dibuka; dipakai agar edit hanya mengirim perubahan eksplisit.
+const initialIsHomepage = ref(false)
 
 const { selectedPageId: contentSelectedPageId } = usePageSelection()
 
@@ -353,6 +355,7 @@ function resetPageForm() {
   pageForm.locale = 'id-ID'
   pageForm.timezone = 'Asia/Jakarta'
   pageForm.is_homepage = false
+  initialIsHomepage.value = false
   clearPageErrors()
 }
 
@@ -367,6 +370,7 @@ function fillPageForm(page: LandingPage) {
   pageForm.locale = page.locale || 'id-ID'
   pageForm.timezone = page.timezone || 'Asia/Jakarta'
   pageForm.is_homepage = page.is_homepage
+  initialIsHomepage.value = page.is_homepage
   clearPageErrors()
 }
 
@@ -483,6 +487,12 @@ function previewDraft(page: LandingPage) {
   window.open(resolved.href, '_blank', 'noopener,noreferrer')
 }
 
+function confirmReplaceHomepage(currentId: string | null) {
+  const hasOtherHomepage = pages.value.some((p) => p.is_homepage && p.id !== currentId)
+  if (!hasOtherHomepage) return true
+  return window.confirm('Halaman ini akan menjadi beranda dan menggantikan beranda saat ini.')
+}
+
 async function savePage() {
   if (!validatePageForm()) return
 
@@ -497,11 +507,16 @@ async function savePage() {
       visibility: pageForm.visibility,
       locale: pageForm.locale.trim() || 'id-ID',
       timezone: pageForm.timezone.trim() || 'Asia/Jakarta',
-      is_homepage: pageForm.page_type === 'homepage' || pageForm.is_homepage,
       is_template: false,
     }
 
     if (editingPageId.value) {
+      // Backend memindahkan beranda bila is_homepage=true, jadi saat edit kirim
+      // hanya jika checkbox sengaja diubah (page_type 'homepage' saja tidak cukup).
+      if (pageForm.is_homepage !== initialIsHomepage.value) {
+        if (pageForm.is_homepage && !confirmReplaceHomepage(editingPageId.value)) return
+        Object.assign(payload, { is_homepage: pageForm.is_homepage })
+      }
       await landingApi.updatePage(editingPageId.value, payload)
       showNotice('Landing page berhasil diperbarui.')
       pagePanelOpen.value = false
@@ -511,7 +526,14 @@ async function savePage() {
       // starter picker (Kosong/SaaS/Company/Pricing/Portfolio/Event) opens
       // automatically for an empty document, so pick a starting point there
       // instead of browsing a separate template catalog here.
-      const created = await landingApi.createPage({ ...payload, builder: 'grapesjs' })
+      // Create: halaman bertipe 'homepage' memang dimaksudkan sebagai beranda.
+      const isHomepage = pageForm.page_type === 'homepage' || pageForm.is_homepage
+      if (isHomepage && !confirmReplaceHomepage(null)) return
+      const created = await landingApi.createPage({
+        ...payload,
+        is_homepage: isHomepage,
+        builder: 'grapesjs',
+      })
       showNotice('Landing page berhasil dibuat.')
       pagePanelOpen.value = false
       await loadPages()

@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronDown, ChevronRight, UserCircle2, X } from 'lucide-vue-next'
+import { ChevronDown, FileText, Landmark, ShieldQuestion, UserCircle2, X } from 'lucide-vue-next'
 
-import BrandLogo from '@/features/branding/components/BrandLogo.vue'
 import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
-import {
-  getLandingMenuToneClasses,
-  type LandingMenuTone,
-} from '@/features/landing/builder/config/landing-menu'
+import type { LandingMenuTone } from '@/features/landing/builder/config/landing-menu'
 import { hasPermission } from '@/lib/permission'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -61,9 +57,19 @@ function itemKey(item: MenuItem | MenuChildItem, parentKey = '') {
   return parentKey ? `${parentKey}/${item.label}` : item.label
 }
 
+const toneTextClasses: Record<LandingMenuTone, string> = {
+  sky: 'text-sky-500 dark:text-sky-400',
+  violet: 'text-violet-500 dark:text-violet-400',
+  emerald: 'text-emerald-500 dark:text-emerald-400',
+  amber: 'text-amber-500 dark:text-amber-400',
+  rose: 'text-rose-500 dark:text-rose-400',
+  cyan: 'text-cyan-500 dark:text-cyan-400',
+  slate: 'text-slate-500 dark:text-slate-400',
+}
+
 function iconToneClass(tone?: string) {
-  if (!tone) return 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-300'
-  return getLandingMenuToneClasses(tone as LandingMenuTone)
+  if (!tone) return 'text-gray-400 dark:text-gray-500'
+  return toneTextClasses[tone as LandingMenuTone]
 }
 
 function isOpen(key: string) {
@@ -105,7 +111,49 @@ function closeMobileSidebar() {
         :to="{ name: isPlatformMode ? 'platform-dashboard' : 'profile' }"
         class="flex items-center gap-3"
       >
-        <BrandLogo v-if="isPlatformMode" class="h-10 shrink-0" />
+        <span
+          v-if="isPlatformMode"
+          class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#00003c]"
+        >
+          <svg
+            viewBox="0 0 540 270"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-auto"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id="sidebarBrandMarkLeft" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#7DD3FC" />
+                <stop offset="100%" stop-color="#2563EB" />
+              </linearGradient>
+              <linearGradient id="sidebarBrandMarkCenter" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5EEAD4" />
+                <stop offset="100%" stop-color="#22D3EE" />
+              </linearGradient>
+              <linearGradient id="sidebarBrandMarkRight" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#BAE6FD" />
+                <stop offset="100%" stop-color="#2DD4BF" />
+              </linearGradient>
+              <linearGradient id="sidebarBrandMarkDot" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#67E8F9" />
+                <stop offset="100%" stop-color="#5EEAD4" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 50 240 L 210 240 A 20 20 0 0 0 230 220 L 230 215 A 100 100 0 0 0 30 215 L 30 220 A 20 20 0 0 0 50 240 Z"
+              fill="url(#sidebarBrandMarkLeft)"
+            />
+            <path
+              d="M 170 240 L 390 240 A 20 20 0 0 0 410 220 L 410 170 A 130 130 0 0 0 150 170 L 150 220 A 20 20 0 0 0 170 240 Z"
+              fill="url(#sidebarBrandMarkCenter)"
+            />
+            <path
+              d="M 351 240 L 489 240 A 16 16 0 0 0 505 224 L 505 215 A 85 85 0 0 0 335 215 L 335 224 A 16 16 0 0 0 351 240 Z"
+              fill="url(#sidebarBrandMarkRight)"
+            />
+            <circle cx="445" cy="85" r="26" fill="url(#sidebarBrandMarkDot)" />
+          </svg>
+        </span>
         <span
           v-else
           class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white"
@@ -172,28 +220,28 @@ function closeMobileSidebar() {
 
             <div
               v-if="item.children?.length && isOpen(itemKey(item))"
-              class="mt-2 space-y-2 border-l border-gray-100 pl-4 dark:border-gray-800"
+              class="mt-1 space-y-0.5 border-l border-gray-100 pl-4 dark:border-gray-800"
             >
-              <div v-for="child in item.children" :key="itemKey(child, itemKey(item))">
+              <template v-for="child in item.children" :key="itemKey(child, itemKey(item))">
                 <RouterLink
                   v-if="child.route"
                   :to="{ name: child.route }"
-                  class="group flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3 py-3 text-sm font-medium text-gray-600 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900/80"
-                  active-class="!border-brand-200 !bg-brand-50 !text-brand-700 dark:!border-brand-900 dark:!bg-brand-950 dark:!text-brand-200"
+                  class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+                  :active-class="
+                    isPlatformMode
+                      ? '!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50'
+                      : '!bg-brand-50 !text-brand-600 dark:!bg-brand-950'
+                  "
                   @click="closeMobileSidebar"
                 >
-                  <span
-                    class="grid size-9 shrink-0 place-items-center rounded-xl text-white shadow-sm"
+                  <component
+                    :is="child.icon || item.icon"
+                    class="size-4 shrink-0"
                     :class="iconToneClass(child.tone)"
-                  >
-                    <component :is="child.icon || item.icon" class="size-4" />
-                  </span>
-                  <span class="min-w-0 flex-1 truncate">{{ child.label }}</span>
-                  <ChevronRight
-                    class="size-4 shrink-0 text-gray-300 transition group-hover:text-gray-500"
                   />
+                  <span class="min-w-0 flex-1 truncate">{{ child.label }}</span>
                 </RouterLink>
-              </div>
+              </template>
             </div>
           </div>
         </div>
@@ -201,15 +249,90 @@ function closeMobileSidebar() {
     </nav>
 
     <div class="border-t p-4 pt-5">
-      <RouterLink
-        :to="{ name: 'profile' }"
-        class="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
-        active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
-        @click="closeMobileSidebar"
-      >
-        <UserCircle2 class="size-5" />
-        Profile
-      </RouterLink>
+      <template v-if="isPlatformMode">
+        <div v-if="isOpen('account')" class="mb-2 space-y-1">
+          <RouterLink
+            :to="{ name: 'platform-profile' }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50"
+            @click="closeMobileSidebar"
+          >
+            <UserCircle2 class="size-4 shrink-0" />
+            Profile
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'platform-bank' }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-indigo-50 !text-indigo-600 dark:!bg-indigo-950/50"
+            @click="closeMobileSidebar"
+          >
+            <Landmark class="size-4 shrink-0" />
+            Bank
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-privacy' }"
+            target="_blank"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+          >
+            <ShieldQuestion class="size-4 shrink-0" />
+            Privacy Policy
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'legal-terms' }"
+            target="_blank"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+          >
+            <FileText class="size-4 shrink-0" />
+            Terms and Conditions
+          </RouterLink>
+        </div>
+        <button
+          type="button"
+          class="flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+          @click="toggleMenu('account')"
+        >
+          <UserCircle2 class="size-5" />
+          <span class="flex-1 text-left">Platform</span>
+          <ChevronDown
+            class="size-4 shrink-0 text-gray-400 transition-transform"
+            :class="isOpen('account') ? 'rotate-180' : ''"
+          />
+        </button>
+      </template>
+      <template v-else>
+        <div v-if="isOpen('account')" class="mb-2 space-y-1">
+          <RouterLink
+            :to="{ name: 'profile' }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
+            @click="closeMobileSidebar"
+          >
+            <UserCircle2 class="size-4 shrink-0" />
+            Profile
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'account-bank' }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
+            @click="closeMobileSidebar"
+          >
+            <Landmark class="size-4 shrink-0" />
+            Bank
+          </RouterLink>
+        </div>
+        <button
+          type="button"
+          class="flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+          @click="toggleMenu('account')"
+        >
+          <UserCircle2 class="size-5" />
+          <span class="flex-1 text-left">Account</span>
+          <ChevronDown
+            class="size-4 shrink-0 text-gray-400 transition-transform"
+            :class="isOpen('account') ? 'rotate-180' : ''"
+          />
+        </button>
+      </template>
     </div>
   </aside>
 </template>

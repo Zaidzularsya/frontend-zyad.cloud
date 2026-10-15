@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Bell, ShieldCheck, UserCircle2, Users } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -12,6 +12,13 @@ import { useTenantStore } from '@/stores/tenant.store'
 const auth = useAuthStore()
 const tenant = useTenantStore()
 const router = useRouter()
+const route = useRoute()
+
+const isPlatformMode = computed(() => route.path.startsWith('/platform'))
+const notificationsRoute = computed(() =>
+  isPlatformMode.value ? 'platform-notifications' : 'notifications',
+)
+const usersRoute = computed(() => (isPlatformMode.value ? 'platform-users' : 'users'))
 
 const permissionPreview = computed(() => auth.user?.permissions.slice(0, 8) ?? [])
 const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
@@ -23,7 +30,7 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
       title="Profile"
       description="Halaman utama setelah login menampilkan identitas pengguna, workspace aktif, dan akses cepat."
     >
-      <BaseButton variant="secondary" @click="router.push({ name: 'notifications' })">
+      <BaseButton variant="secondary" @click="router.push({ name: notificationsRoute })">
         <Bell class="size-4" /> Notification Settings
       </BaseButton>
     </PageHeader>
@@ -47,9 +54,17 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
 
         <div class="grid gap-3 sm:grid-cols-2">
           <div class="rounded-2xl border bg-gray-50 p-4 dark:bg-gray-900">
-            <p class="text-sm text-gray-500">Workspace aktif</p>
-            <p class="mt-1 font-semibold">{{ tenant.activeTenant?.name || 'Belum dipilih' }}</p>
-            <p class="text-xs text-gray-500">{{ tenant.activeTenant?.slug || '-' }}</p>
+            <p class="text-sm text-gray-500">{{ isPlatformMode ? 'Mode' : 'Workspace aktif' }}</p>
+            <p class="mt-1 font-semibold">
+              {{
+                isPlatformMode
+                  ? 'Super Admin Console'
+                  : tenant.activeTenant?.name || 'Belum dipilih'
+              }}
+            </p>
+            <p class="text-xs text-gray-500">
+              {{ isPlatformMode ? 'Akses platform-wide' : tenant.activeTenant?.slug || '-' }}
+            </p>
           </div>
           <div class="rounded-2xl border bg-gray-50 p-4 dark:bg-gray-900">
             <p class="text-sm text-gray-500">Permission</p>
@@ -87,7 +102,7 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
           <BaseButton
             variant="secondary"
             class="w-full justify-start"
-            @click="router.push({ name: 'notifications' })"
+            @click="router.push({ name: notificationsRoute })"
           >
             <Bell class="size-4" />
             Notification Management
@@ -95,12 +110,13 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
           <BaseButton
             variant="secondary"
             class="w-full justify-start"
-            @click="router.push({ name: 'users' })"
+            @click="router.push({ name: usersRoute })"
           >
             <Users class="size-4" />
-            Users
+            {{ isPlatformMode ? 'Members' : 'Users' }}
           </BaseButton>
           <BaseButton
+            v-if="!isPlatformMode"
             variant="secondary"
             class="w-full justify-start"
             @click="router.push({ name: 'rbac' })"

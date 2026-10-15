@@ -19,6 +19,11 @@ export default defineConfig({
       },
     },
   },
+  // Pre-bundle ApexCharts' core + sub-entries together so the chart types
+  // register on the same instance in dev (see LeadGrowthChart.vue).
+  optimizeDeps: {
+    include: ['apexcharts/core', 'apexcharts/area', 'apexcharts/bar'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

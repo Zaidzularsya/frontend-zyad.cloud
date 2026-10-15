@@ -2,28 +2,71 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import grapesjs, { type Editor } from 'grapesjs'
-import { Loader2, Monitor, Redo2, Rocket, Smartphone, Tablet, Undo2 } from 'lucide-vue-next'
+import {
+  LayoutTemplate,
+  Loader2,
+  MoreHorizontal,
+  Monitor,
+  Redo2,
+  Rocket,
+  Smartphone,
+  Tablet,
+  Undo2,
+  X,
+} from 'lucide-vue-next'
 import 'grapesjs/dist/css/grapes.min.css'
 
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import { useLandingDocumentStore } from '@/stores/landingDocument'
 import { useLandingChromeStore } from '@/stores/landingChrome'
 import { useLandingPricingStore } from '@/stores/landingPricing'
+import { useTenantStore } from '@/stores/tenant.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { useToast } from '@/components/ui/toast'
+import { pageTemplatesApi } from '@/features/landing/shared/api/page-templates.api'
+import type { PageTemplateAdminSummary } from '@/features/landing/shared/types/page-template.types'
+import {
+  publicCatalogApi,
+  type PublicListingCategory,
+} from '@/features/public/api/public-catalog.api'
 import { buildGrapesConfig } from './grapes.config'
 import { GRAPES_DEVICES } from './grapes.devices'
-import { GRAPES_STARTERS, type GrapesStarter } from './starter-templates'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import TemplateGalleryDialog from '../templates/TemplateGalleryDialog.vue'
+import SaveAsTemplateDialog from '../templates/SaveAsTemplateDialog.vue'
+import { sourceTemplateForPage } from '../templates/template-admin-logic'
+import {
+  readBannerDismissed,
+  shouldShowTemplateBanner,
+  writeBannerDismissed,
+} from '../templates/gallery-logic'
+import { isCanvasEmpty } from './canvas-empty'
 import { registerTenantHeader, TENANT_HEADER_TYPE } from './grapes.header-component'
 import { registerTenantFooter, TENANT_FOOTER_TYPE } from './grapes.footer-component'
 import { registerTenantPricing, TENANT_PRICING_TYPE } from './grapes.pricing-component'
 import GrapesHeaderPanel from './GrapesHeaderPanel.vue'
 import GrapesFooterPanel from './GrapesFooterPanel.vue'
+import {
+  CATALOG_PRICING_BLOCK_ID,
+  CATALOG_PRICING_TYPE,
+  registerCatalogPricing,
+} from './grapes.catalog-pricing-component'
+import { LEAD_FORM_BLOCK_ID, LEAD_FORM_TYPE, registerLeadForm } from './grapes.lead-form-component'
+import type { LandingFormWithFields } from '../../shared/types/landing.types'
 import GrapesPricingPanel from './GrapesPricingPanel.vue'
+import GrapesCatalogPricingPanel from './GrapesCatalogPricingPanel.vue'
+import GrapesLeadFormPanel from './GrapesLeadFormPanel.vue'
+import GrapesAnimationPanel from './GrapesAnimationPanel.vue'
+import { attachCanvasMotion, type CanvasMotion } from './grapes.motion'
 
-const props = defineProps<{ pageId: string }>()
+const props = defineProps<{ pageId: string; pageStatus?: string | null; pageName?: string }>()
 
 const store = useLandingDocumentStore()
 const chrome = useLandingChromeStore()
 const pricing = useLandingPricingStore()
+const tenantStore = useTenantStore()
+const authStore = useAuthStore()
+const toast = useToast()
 
 // The selected `zyad-tenant-header` / `zyad-tenant-footer` / `zyad-pricing-plans`
 // component (if any) → swaps the right pane for GrapesHeaderPanel /
@@ -36,6 +79,25 @@ type TenantComponent = {
 const headerComponent = shallowRef<TenantComponent | null>(null)
 const footerComponent = shallowRef<TenantComponent | null>(null)
 const pricingComponent = shallowRef<TenantComponent | null>(null)
+const catalogPricingComponent = shallowRef<TenantComponent | null>(null)
+const leadFormComponent = shallowRef<TenantComponent | null>(null)
+// Komponen terpilih apa pun → tab "Animasi" (atur kelas zy-*).
+type AnimatableComponent = {
+  getClasses: () => string[] | string
+  addClass: (c: string | string[]) => unknown
+  removeClass: (c: string | string[]) => unknown
+}
+const animationComponent = shallowRef<AnimatableComponent | null>(null)
+// Diisi oleh attachCanvasMotion setelah editor init; sebelum itu, refresh/replay adalah no-op.
+const motion = shallowRef<CanvasMotion | null>(null)
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+// Form halaman (dengan field) untuk pratinjau kanvas blok Form Konsultasi.
+const leadForms = shallowRef<LandingFormWithFields[]>([])
+// Listing publik (Sales → Produk) untuk pratinjau kanvas + panel; hanya diambil untuk org platform.
+const catalogCategories = shallowRef<PublicListingCategory[]>([])
 const duplicateNotice = ref('')
 
 const canvasRef = ref<HTMLElement | null>(null)
@@ -46,14 +108,30 @@ const traitsRef = ref<HTMLElement | null>(null)
 
 const editor = shallowRef<Editor | null>(null)
 const leftTab = ref<'blocks' | 'layers'>('blocks')
-const rightTab = ref<'content' | 'styles' | 'traits'>('styles')
+const rightTab = ref<'content' | 'styles' | 'traits' | 'animation'>('styles')
 const activeDevice = ref('Desktop')
 const publishing = ref(false)
 const publishNotice = ref('')
 const assetError = ref('')
-const showStarterPicker = ref(false)
+// Galeri template: terbuka otomatis bila kanvas kosong, atau lewat tombol/banner.
+const galleryOpen = ref(false)
+const canvasEmpty = ref(true)
+const editorReady = ref(false)
+const bannerDismissed = ref(readBannerDismissed(props.pageId))
+const pendingTemplate = ref<TemplatePayload | null>(null)
+const templateNotice = ref('')
+let previousProject: Record<string, unknown> | null = null
+let noticeTimer: ReturnType<typeof setTimeout> | null = null
+let emptyCheckTimer: ReturnType<typeof setTimeout> | null = null
+const TEMPLATE_NOTICE_MS = 30_000
 let ready = false
 let saveDebounce: ReturnType<typeof setTimeout> | null = null
+
+interface TemplatePayload {
+  name: string
+  html: string
+  css: string
+}
 
 const DEVICE_ICONS = { Desktop: Monitor, Tablet, Mobile: Smartphone } as const
 
@@ -71,8 +149,31 @@ const savedLabel = computed(() => {
 })
 
 const tenantPanelActive = computed(
-  () => !!headerComponent.value || !!footerComponent.value || !!pricingComponent.value,
+  () =>
+    !!headerComponent.value ||
+    !!footerComponent.value ||
+    !!pricingComponent.value ||
+    !!catalogPricingComponent.value ||
+    !!leadFormComponent.value,
 )
+
+const showBanner = computed(
+  () =>
+    editorReady.value &&
+    shouldShowTemplateBanner({
+      pageStatus: props.pageStatus ?? null,
+      canvasEmpty: canvasEmpty.value,
+      dismissed: bannerDismissed.value,
+    }),
+)
+
+function onAnimationChanged() {
+  motion.value?.refresh()
+}
+
+function replayAnimations() {
+  motion.value?.replay()
+}
 
 function setDevice(name: string) {
   activeDevice.value = name
@@ -151,23 +252,178 @@ async function wireAssetManager(ed: Editor) {
   }
 }
 
-// ── Starter templates (shown only for a blank document) ─────────────────────
+// ── Template (platform) ─────────────────────────────────────────────────────
 
-function isDocEmpty(): boolean {
-  const project = store.project as { pages?: unknown[] }
-  if (Array.isArray(project?.pages) && project.pages.length > 0) return false
-  const html = (store.html || '').replace(/\s+/g, '')
-  return html === '' || html === '<body></body>'
+// Hanya org platform dengan permission kelola; owner tenant juga punya permission itu
+// (diberikan ke peran organization_owner), jadi org platform wajib dicek.
+const canManageTemplates = computed(
+  () => tenantStore.isPlatformOrganization && authStore.can('landing.page_template.manage'),
+)
+const sourceTemplate = ref<PageTemplateAdminSummary | null>(null)
+const moreMenuOpen = ref(false)
+const saveTemplateOpen = ref(false)
+
+async function flushSave() {
+  await store.save()
+  // save() tidak melempar; jangan membuat template dari isi yang gagal tersimpan.
+  if (store.saveError) throw new Error('Halaman belum tersimpan. Coba lagi.')
 }
 
-function applyStarter(starter: GrapesStarter) {
-  showStarterPicker.value = false
+function errorMessage(error: unknown, fallback: string): string {
+  return (
+    (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (error instanceof Error ? error.message : '') ||
+    fallback
+  )
+}
+
+async function loadSourceTemplate() {
+  if (!canManageTemplates.value) return
+  try {
+    sourceTemplate.value = sourceTemplateForPage(await pageTemplatesApi.listAll(), props.pageId)
+  } catch {
+    // Menu tetap menawarkan "Simpan sebagai template".
+  }
+}
+
+function openSaveTemplate() {
+  moreMenuOpen.value = false
+  saveTemplateOpen.value = true
+}
+
+async function submitSaveTemplate(values: {
+  name: string
+  slug: string
+  category: PageTemplateAdminSummary['category']
+  description: string
+  sort_order: number
+}) {
+  await flushSave()
+  const {
+    html: _html,
+    css: _css,
+    ...created
+  } = await pageTemplatesApi.create({
+    page_id: props.pageId,
+    ...values,
+  })
+  void _html
+  void _css
+  sourceTemplate.value = {
+    ...created,
+    status: 'draft',
+    source: 'admin',
+    seed_modified: false,
+    source_page_id: props.pageId,
+  }
+  toast.success(
+    `Template "${created.name}" disimpan sebagai draft. Kelola di menu Galeri Template.`,
+  )
+}
+
+async function updateSourceTemplate() {
+  const target = sourceTemplate.value
+  moreMenuOpen.value = false
+  if (!target) return
+  try {
+    await flushSave()
+    await pageTemplatesApi.refreshFromPage(target.id)
+    toast.success(`Template "${target.name}" diperbarui.`)
+  } catch (error) {
+    toast.error(errorMessage(error, 'Gagal memperbarui template.'))
+  }
+}
+
+// ── Galeri template ─────────────────────────────────────────────────────────
+
+// Slot tenant hanya boleh satu per halaman; dipakai saat load dan setelah template diterapkan.
+const SINGLETON_SLOTS = [
+  'tenant-nav',
+  'tenant-footer',
+  'pricing-plans',
+  'catalog-pricing',
+  'lead-form',
+] as const
+
+function dedupeTenantSlots(ed: Editor): boolean {
+  let removed = false
+  for (const slotName of SINGLETON_SLOTS) {
+    const matches = ed.getWrapper()?.find(`[data-zyad-slot="${slotName}"]`) ?? []
+    const extras = matches.slice(1)
+    extras.forEach((c) => (c as { remove?: () => void }).remove?.())
+    if (extras.length > 0) removed = true
+  }
+  return removed
+}
+
+function hasMarkup(html: string): boolean {
+  const compact = html.replace(/\s+/g, '')
+  return compact !== '' && compact !== '<body></body>'
+}
+
+function refreshCanvasEmpty() {
+  canvasEmpty.value = isCanvasEmpty(editor.value?.getWrapper())
+}
+
+function scheduleCanvasEmptyCheck() {
+  if (emptyCheckTimer) clearTimeout(emptyCheckTimer)
+  emptyCheckTimer = setTimeout(refreshCanvasEmpty, 300)
+}
+
+function dismissBanner() {
+  bannerDismissed.value = true
+  writeBannerDismissed(props.pageId)
+}
+
+function onGalleryApply(template: TemplatePayload) {
+  const ed = editor.value
+  if (!ed || !editorReady.value) return
+  if (isCanvasEmpty(ed.getWrapper())) applyTemplate(template)
+  else pendingTemplate.value = template
+}
+
+function confirmReplace() {
+  const template = pendingTemplate.value
+  pendingTemplate.value = null
+  if (template) applyTemplate(template)
+}
+
+function applyTemplate(template: TemplatePayload) {
   const ed = editor.value
   if (!ed) return
-  ed.setComponents(starter.html)
-  ed.setStyle(starter.css)
+  // Dijamin bisa dibatalkan lewat ProjectData lama; Undo GrapesJS tidak selalu mencatat setStyle.
+  previousProject = JSON.parse(JSON.stringify(ed.getProjectData())) as Record<string, unknown>
+  ed.setComponents(template.html)
+  ed.setStyle(template.css)
+  dedupeTenantSlots(ed)
   ready = true
   pushSnapshot()
+  motion.value?.refresh()
+  refreshCanvasEmpty()
+  galleryOpen.value = false
+
+  if (noticeTimer) clearTimeout(noticeTimer)
+  templateNotice.value = `Template "${template.name}" dipakai.`
+  noticeTimer = setTimeout(clearTemplateNotice, TEMPLATE_NOTICE_MS)
+}
+
+function clearTemplateNotice() {
+  if (noticeTimer) clearTimeout(noticeTimer)
+  noticeTimer = null
+  templateNotice.value = ''
+  previousProject = null
+}
+
+function revertTemplate() {
+  const ed = editor.value
+  const previous = previousProject
+  if (!ed || !previous) return
+  ed.loadProjectData(previous)
+  ready = true
+  pushSnapshot()
+  motion.value?.refresh()
+  refreshCanvasEmpty()
+  clearTemplateNotice()
 }
 
 async function onPublish() {
@@ -236,15 +492,59 @@ onMounted(async () => {
   }))
   void chrome.load()
   void pricing.load()
+  void loadSourceTemplate()
+
+  // "Pricing Katalog" hanya untuk organisasi platform (spec K2): tipe komponen
+  // dan block tidak didaftarkan sama sekali untuk tenant biasa.
+  if (tenantStore.isPlatformOrganization) {
+    registerCatalogPricing(ed, () => catalogCategories.value)
+    ed.Blocks.add(CATALOG_PRICING_BLOCK_ID, {
+      label: 'Pricing Katalog',
+      category: 'Conversion',
+      content: { type: CATALOG_PRICING_TYPE },
+    })
+    void publicCatalogApi
+      .listListings()
+      .then((categories) => {
+        catalogCategories.value = categories
+        rerenderTenantSlot('catalog-pricing')
+      })
+      .catch((err) => console.error('GrapesEditor: failed to load public catalog listings', err))
+  }
+
+  // "Form Konsultasi" tersedia untuk semua organisasi (platform dan tenant).
+  registerLeadForm(ed, () => leadForms.value)
+  ed.Blocks.add(LEAD_FORM_BLOCK_ID, {
+    label: 'Form Konsultasi',
+    category: 'Conversion',
+    content: { type: LEAD_FORM_TYPE },
+  })
+  landingApi
+    .getForms(props.pageId)
+    .then((response) => {
+      leadForms.value = response.data.map((f) => ({ ...f, fields: f.fields ?? [] }))
+      rerenderTenantSlot('lead-form')
+    })
+    .catch((err) => console.error('GrapesEditor: failed to load page forms', err))
 
   ed.on('component:selected', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown } | undefined
     const type = model?.get?.('type')
     const isTenant =
-      type === TENANT_HEADER_TYPE || type === TENANT_FOOTER_TYPE || type === TENANT_PRICING_TYPE
+      type === TENANT_HEADER_TYPE ||
+      type === TENANT_FOOTER_TYPE ||
+      type === TENANT_PRICING_TYPE ||
+      type === CATALOG_PRICING_TYPE ||
+      type === LEAD_FORM_TYPE
     headerComponent.value = type === TENANT_HEADER_TYPE ? (component as never) : null
     footerComponent.value = type === TENANT_FOOTER_TYPE ? (component as never) : null
     pricingComponent.value = type === TENANT_PRICING_TYPE ? (component as never) : null
+    catalogPricingComponent.value = type === CATALOG_PRICING_TYPE ? (component as never) : null
+    leadFormComponent.value = type === LEAD_FORM_TYPE ? (component as never) : null
+    animationComponent.value =
+      typeof (component as Partial<AnimatableComponent> | undefined)?.getClasses === 'function'
+        ? (component as AnimatableComponent)
+        : null
     // Default to the custom content panel on selection, but leave Style/Setelan
     // reachable via the tab bar — GrapesJS's Style Manager already has the
     // sectors (Dekorasi: background/opacity, Posisi: position/z-index) needed
@@ -257,7 +557,10 @@ onMounted(async () => {
     headerComponent.value = null
     footerComponent.value = null
     pricingComponent.value = null
-    if (rightTab.value === 'content') rightTab.value = 'styles'
+    catalogPricingComponent.value = null
+    leadFormComponent.value = null
+    animationComponent.value = null
+    if (rightTab.value === 'content' || rightTab.value === 'animation') rightTab.value = 'styles'
   })
 
   // "Header tenant" / "Footer tenant" / "Pricing tenant" are meant to appear
@@ -270,11 +573,15 @@ onMounted(async () => {
     [TENANT_HEADER_TYPE]: 'tenant-nav',
     [TENANT_FOOTER_TYPE]: 'tenant-footer',
     [TENANT_PRICING_TYPE]: 'pricing-plans',
+    [CATALOG_PRICING_TYPE]: 'catalog-pricing',
+    [LEAD_FORM_TYPE]: 'lead-form',
   }
   const TENANT_LABEL_BY_TYPE: Record<string, string> = {
     [TENANT_HEADER_TYPE]: 'Header tenant',
     [TENANT_FOOTER_TYPE]: 'Footer tenant',
     [TENANT_PRICING_TYPE]: 'Pricing tenant',
+    [CATALOG_PRICING_TYPE]: 'Pricing Katalog',
+    [LEAD_FORM_TYPE]: 'Form Konsultasi',
   }
   ed.on('component:add', (component: unknown) => {
     const model = component as { get?: (k: string) => unknown; remove?: () => void } | undefined
@@ -289,6 +596,10 @@ onMounted(async () => {
     }
   })
 
+  // Setelah guard duplikat (guard bisa menghapus komponen sebelum refresh animasi), dan
+  // sebelum `await` agar event `canvas:frame:load` tidak terlewat.
+  motion.value = attachCanvasMotion(ed)
+
   await store.load(props.pageId)
   const project = store.project
   if (
@@ -297,24 +608,19 @@ onMounted(async () => {
     Array.isArray((project as { pages?: unknown }).pages)
   ) {
     ed.loadProjectData(project)
+  } else if (hasMarkup(store.html)) {
+    // Halaman tanpa ProjectData tapi berisi HTML (mis. hasil "salin template ke halaman").
+    ed.setComponents(store.html)
+    ed.setStyle(store.css)
   }
 
   // A page saved before the component:add guard above existed (or from a
-  // starter/import) may already carry more than one tenant-nav/tenant-footer
+  // template/import) may already carry more than one tenant-nav/tenant-footer
   // sentinel — self-heal it the moment the page is opened, not just at
   // render time, so the extra copy is actually gone from the document (and
   // autosaved) instead of lurking and re-appearing once the visible one is
   // deleted.
-  function dedupeTenantSlot(slotName: string): boolean {
-    const matches = ed.getWrapper()?.find(`[data-zyad-slot="${slotName}"]`) ?? []
-    const extras = matches.slice(1)
-    extras.forEach((c) => (c as { remove?: () => void }).remove?.())
-    return extras.length > 0
-  }
-  const removedNavDup = dedupeTenantSlot('tenant-nav')
-  const removedFooterDup = dedupeTenantSlot('tenant-footer')
-  const removedPricingDup = dedupeTenantSlot('pricing-plans')
-  if (removedNavDup || removedFooterDup || removedPricingDup) {
+  if (dedupeTenantSlots(ed)) {
     store.applyEditorSnapshot({
       project: ed.getProjectData() as Record<string, unknown>,
       html: ed.getHtml(),
@@ -323,7 +629,9 @@ onMounted(async () => {
   }
 
   void wireAssetManager(ed)
-  showStarterPicker.value = isDocEmpty()
+  refreshCanvasEmpty()
+  galleryOpen.value = canvasEmpty.value
+  editorReady.value = true
 
   // Let the initial load settle before autosave starts tracking edits.
   window.setTimeout(() => {
@@ -334,12 +642,18 @@ onMounted(async () => {
     if (saveDebounce) clearTimeout(saveDebounce)
     saveDebounce = setTimeout(pushSnapshot, 600)
   }
+  ed.on('update', scheduleCanvasEmptyCheck)
   ed.on('update', onChange)
   ed.on('component:update', onChange)
   ed.on('component:add', onChange)
   ed.on('component:remove', onChange)
   ed.on('style:update', onChange)
 })
+
+function onLeadFormsChange(forms: LandingFormWithFields[]) {
+  leadForms.value = forms
+  rerenderTenantSlot('lead-form')
+}
 
 function rerenderTenantSlot(slotName: string) {
   editor.value
@@ -373,6 +687,10 @@ watch(
 
 onBeforeUnmount(() => {
   if (saveDebounce) clearTimeout(saveDebounce)
+  if (emptyCheckTimer) clearTimeout(emptyCheckTimer)
+  if (noticeTimer) clearTimeout(noticeTimer)
+  motion.value?.detach()
+  motion.value = null
   editor.value?.destroy()
   editor.value = null
   ready = false
@@ -414,6 +732,56 @@ defineExpose({ editor })
         <button type="button" class="grapes-icon-btn" title="Ulangi" @click="redo">
           <Redo2 class="size-4" />
         </button>
+        <button
+          type="button"
+          class="grapes-motion-btn"
+          :disabled="prefersReducedMotion"
+          :title="
+            prefersReducedMotion
+              ? 'Animasi dimatikan karena pengaturan sistem Anda (kurangi gerakan)'
+              : 'Putar ulang semua animasi di kanvas'
+          "
+          @click="replayAnimations"
+        >
+          ▶ Putar animasi
+        </button>
+        <div v-if="canManageTemplates" class="grapes-more">
+          <button
+            type="button"
+            class="grapes-icon-btn"
+            title="Opsi template"
+            aria-haspopup="menu"
+            :aria-expanded="moreMenuOpen"
+            @click="moreMenuOpen = !moreMenuOpen"
+          >
+            <MoreHorizontal class="size-4" />
+          </button>
+          <template v-if="moreMenuOpen">
+            <div class="grapes-more-backdrop" @click="moreMenuOpen = false"></div>
+            <div class="grapes-more-menu" role="menu">
+              <button
+                v-if="sourceTemplate"
+                type="button"
+                role="menuitem"
+                @click="updateSourceTemplate"
+              >
+                Perbarui template "{{ sourceTemplate.name }}"
+              </button>
+              <button v-else type="button" role="menuitem" @click="openSaveTemplate">
+                Simpan sebagai template
+              </button>
+            </div>
+          </template>
+        </div>
+        <button
+          type="button"
+          class="grapes-template-btn"
+          title="Buka galeri template"
+          @click="galleryOpen = true"
+        >
+          <LayoutTemplate class="size-4" />
+          Template
+        </button>
         <span
           class="grapes-saved"
           :class="{ 'is-error': !!store.saveError }"
@@ -437,30 +805,27 @@ defineExpose({ editor })
     <p v-if="duplicateNotice" class="grapes-notice is-error">{{ duplicateNotice }}</p>
     <p v-if="store.loadError" class="grapes-notice is-error">{{ store.loadError }}</p>
     <p v-if="assetError" class="grapes-notice is-error">{{ assetError }}</p>
+    <div v-if="templateNotice" class="grapes-notice grapes-template-notice" role="status">
+      <span>{{ templateNotice }}</span>
+      <button type="button" class="grapes-notice-action" @click="revertTemplate">Batalkan</button>
+    </div>
+    <div v-if="showBanner" class="grapes-banner" role="note">
+      <span>Ingin mulai dari template?</span>
+      <button type="button" class="grapes-banner-link" @click="galleryOpen = true">
+        Lihat galeri
+      </button>
+      <button
+        type="button"
+        class="grapes-banner-close"
+        aria-label="Tutup"
+        title="Tutup"
+        @click="dismissBanner"
+      >
+        <X class="size-4" />
+      </button>
+    </div>
 
     <div class="grapes-body">
-      <div v-if="showStarterPicker" class="grapes-starter">
-        <div class="grapes-starter-card">
-          <h2>Mulai dari mana?</h2>
-          <p>Pilih kerangka awal — semua isinya bisa diubah setelah dimuat.</p>
-          <div class="grapes-starter-grid">
-            <button
-              v-for="starter in GRAPES_STARTERS"
-              :key="starter.id"
-              type="button"
-              class="grapes-starter-option"
-              @click="applyStarter(starter)"
-            >
-              <span class="grapes-starter-name">{{ starter.label }}</span>
-              <span class="grapes-starter-desc">{{ starter.description }}</span>
-            </button>
-          </div>
-          <button type="button" class="grapes-starter-skip" @click="showStarterPicker = false">
-            Lewati, mulai dari kanvas kosong
-          </button>
-        </div>
-      </div>
-
       <aside class="grapes-left">
         <div class="grapes-tabs">
           <button
@@ -513,6 +878,14 @@ defineExpose({ editor })
           >
             Setelan
           </button>
+          <button
+            v-if="animationComponent"
+            type="button"
+            :class="{ 'is-active': rightTab === 'animation' }"
+            @click="rightTab = 'animation'"
+          >
+            Animasi
+          </button>
         </div>
 
         <GrapesHeaderPanel
@@ -532,10 +905,59 @@ defineExpose({ editor })
           class="grapes-pane"
         />
 
+        <GrapesCatalogPricingPanel
+          v-if="catalogPricingComponent"
+          v-show="rightTab === 'content'"
+          :component="catalogPricingComponent"
+          :categories="catalogCategories"
+          class="grapes-pane"
+        />
+
+        <GrapesLeadFormPanel
+          v-if="leadFormComponent"
+          v-show="rightTab === 'content'"
+          :component="leadFormComponent"
+          :page-id="pageId"
+          class="grapes-pane"
+          @forms-change="onLeadFormsChange"
+        />
+
+        <GrapesAnimationPanel
+          v-if="animationComponent"
+          v-show="rightTab === 'animation'"
+          :component="animationComponent"
+          class="grapes-pane"
+          @changed="onAnimationChanged"
+        />
+
         <div v-show="rightTab === 'styles'" ref="stylesRef" class="grapes-pane"></div>
         <div v-show="rightTab === 'traits'" ref="traitsRef" class="grapes-pane"></div>
       </aside>
     </div>
+
+    <TemplateGalleryDialog
+      :open="galleryOpen"
+      :busy="!editorReady"
+      @close="galleryOpen = false"
+      @apply="onGalleryApply"
+    />
+    <SaveAsTemplateDialog
+      v-if="canManageTemplates"
+      :open="saveTemplateOpen"
+      mode="create"
+      :initial="{ name: pageName }"
+      :submit="submitSaveTemplate"
+      @close="saveTemplateOpen = false"
+    />
+    <ConfirmDialog
+      :open="!!pendingTemplate"
+      title="Ganti isi halaman?"
+      :message="`Seluruh isi halaman ini akan diganti dengan template &quot;${pendingTemplate?.name ?? ''}&quot;. Anda bisa membatalkannya setelah ini. Halaman live tidak berubah sampai Anda menekan Publish.`"
+      confirm-label="Ganti isi"
+      cancel-label="Batal"
+      @confirm="confirmReplace"
+      @cancel="pendingTemplate = null"
+    />
   </div>
 </template>
 
@@ -601,6 +1023,31 @@ defineExpose({ editor })
   gap: 4px;
 }
 .grapes-dev-btn,
+.grapes-motion-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.grapes-motion-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.grapes-motion-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .grapes-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -695,83 +1142,101 @@ defineExpose({ editor })
   position: relative;
 }
 
-/* ── Starter picker (blank document) ─────────────────────────────────────── */
-.grapes-starter {
-  position: absolute;
+.grapes-more {
+  position: relative;
+}
+.grapes-more-backdrop {
+  position: fixed;
   inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(248, 250, 252, 0.92);
-  backdrop-filter: blur(2px);
+  z-index: 30;
 }
-.grapes-starter-card {
+.grapes-more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 31;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+.grapes-more-menu button {
+  display: block;
   width: 100%;
-  max-width: 520px;
-  padding: 28px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
-  text-align: center;
-}
-.grapes-starter-card h2 {
-  margin: 0 0 6px;
-  font-size: 18px;
-  font-weight: 700;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: #0f172a;
-}
-.grapes-starter-card > p {
-  margin: 0 0 18px;
-  font-size: 13px;
-  color: #64748b;
-}
-.grapes-starter-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.grapes-starter-option {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
-  transition:
-    border-color 0.12s ease,
-    background 0.12s ease,
-    box-shadow 0.12s ease;
 }
-.grapes-starter-option:hover {
-  border-color: #0369a1;
-  background: #f5f7ff;
-  box-shadow: 0 2px 10px rgba(3, 105, 161, 0.12);
+.grapes-more-menu button:hover {
+  background: #f1f5f9;
 }
-.grapes-starter-name {
-  font-size: 13px;
+
+/* ── Galeri template: tombol toolbar, banner, notifikasi ─────────────────── */
+.grapes-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid #0369a1;
+  border-radius: 7px;
+  background: #f0f9ff;
+  color: #075985;
+  font-size: 12px;
   font-weight: 600;
-  color: #1e293b;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
-.grapes-starter-desc {
-  font-size: 11px;
-  color: #64748b;
+.grapes-template-btn:hover {
+  background: #e0f2fe;
+  color: #0c4a6e;
 }
-.grapes-starter-skip {
-  margin-top: 16px;
+.grapes-banner,
+.grapes-template-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.grapes-banner {
+  padding: 8px 14px;
+  background: #f0f9ff;
+  color: #075985;
+  font-size: 12px;
+  border-bottom: 1px solid #bae6fd;
+}
+.grapes-banner-link,
+.grapes-notice-action {
   border: 0;
   background: transparent;
+  padding: 0;
   font-size: 12px;
-  font-weight: 500;
-  color: #64748b;
+  font-weight: 600;
+  color: #0369a1;
+  text-decoration: underline;
   cursor: pointer;
 }
-.grapes-starter-skip:hover {
+.grapes-banner-close {
+  margin-left: auto;
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.grapes-banner-close:hover {
+  background: #e0f2fe;
   color: #0f172a;
 }
 .grapes-left,

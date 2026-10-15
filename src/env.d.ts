@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_AUTH_MODE?: 'cookie' | 'bearer'
   readonly VITE_TENANT_HEADER?: string
   readonly VITE_GOOGLE_CLIENT_ID?: string
+  readonly VITE_SUPPORT_EMAIL?: string
 }
 
 interface ImportMeta {

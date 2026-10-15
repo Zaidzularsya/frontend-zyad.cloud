@@ -13,6 +13,7 @@ export type GrapesBlockCategory =
   | 'Information & Content'
   | 'Ecosystem'
   | 'Footer'
+  | 'Animasi'
   | 'Layout'
   | 'Dasar'
   | 'Media'

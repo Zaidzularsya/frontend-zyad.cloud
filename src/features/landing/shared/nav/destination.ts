@@ -71,3 +71,18 @@ export function formFromItem(
   else form.slug = item.destination.replace(/^\//, '')
   return form
 }
+
+/**
+ * Returns a user-facing error when the form's destination can't match its
+ * link type (e.g. `#faq` typed into the slug field of an internal page),
+ * or '' when fine. Catches it before the API rejects it.
+ */
+export function validateDestinationForm(form: NavDestinationForm): string {
+  if (
+    (form.link_type === 'internal_page' || form.link_type === 'button') &&
+    /^\/?#/.test(form.slug.trim())
+  ) {
+    return 'Slug halaman tidak boleh diawali "#". Untuk anchor, pilih jenis tautan "Anchor (#bagian)".'
+  }
+  return ''
+}

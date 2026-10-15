@@ -8,8 +8,8 @@ vi.mock('vue-router', () => ({ useRoute: () => ({ params: {} }) }))
 import DynamicLandingPage from './DynamicLandingPage.vue'
 
 const stubs = {
-  GrapesPageFrame: {
-    name: 'GrapesPageFrame',
+  GrapesPageRenderer: {
+    name: 'GrapesPageRenderer',
     props: ['html', 'css', 'title'],
     template: '<div class="stub-frame" :data-html="html" :data-css="css" />',
   },
@@ -23,7 +23,7 @@ function resolveWith(data: Record<string, unknown>) {
 describe('DynamicLandingPage — GrapesJS branch', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders GrapesPageFrame with html/css for a grapesjs page', async () => {
+  it('renders GrapesPageRenderer with html/css for a grapesjs page', async () => {
     resolveWith({
       Builder: 'grapesjs',
       HTML: '<h1>Halo</h1>',
@@ -71,5 +71,58 @@ describe('DynamicLandingPage — GrapesJS branch', () => {
 
     expect(wrapper.find('.stub-renderer').exists()).toBe(true)
     expect(wrapper.find('.stub-frame').exists()).toBe(false)
+  })
+})
+
+describe('DynamicLandingPage — home mode', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls resolve?home=1 when home is set', async () => {
+    resolveWith({
+      Builder: 'sections',
+      Page: { id: 'p1', title: 'H', slug: 'beranda' },
+      Sections: [],
+    })
+    mount(DynamicLandingPage, { props: { home: true }, global: { stubs } })
+    await flushPromises()
+
+    expect(httpGet).toHaveBeenCalledTimes(1)
+    expect(httpGet).toHaveBeenCalledWith('/public/landing/resolve?home=1')
+  })
+
+  it('home wins over slug', async () => {
+    resolveWith({
+      Builder: 'sections',
+      Page: { id: 'p1', title: 'H', slug: 'beranda' },
+      Sections: [],
+    })
+    mount(DynamicLandingPage, {
+      props: { home: true, slug: 'public-marketing' },
+      global: { stubs },
+    })
+    await flushPromises()
+
+    expect(httpGet).toHaveBeenCalledWith('/public/landing/resolve?home=1')
+  })
+
+  it('keeps slug and host-based resolve unchanged when home is not set', async () => {
+    resolveWith({ Builder: 'sections', Page: { id: 'p1', title: 'S', slug: 's' }, Sections: [] })
+    mount(DynamicLandingPage, { props: { slug: 's' }, global: { stubs } })
+    await flushPromises()
+    expect(httpGet).toHaveBeenLastCalledWith('/public/landing/resolve?slug=s')
+
+    mount(DynamicLandingPage, { props: { home: false }, global: { stubs } })
+    await flushPromises()
+    expect(httpGet).toHaveBeenLastCalledWith('/public/landing/resolve')
+  })
+
+  it('shows the error state when home resolve fails', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    httpGet.mockRejectedValue(new Error('404'))
+    const wrapper = mount(DynamicLandingPage, { props: { home: true }, global: { stubs } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Halaman tidak tersedia')
+    spy.mockRestore()
   })
 })

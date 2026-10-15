@@ -7,6 +7,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import TextField from '@/components/form/TextField.vue'
+import CompanyWorkspaceLink from '@/features/crm/companies/components/CompanyWorkspaceLink.vue'
 
 import type { Company, CompanyPayload } from '@/features/crm/companies/api/companies.api'
 import {
@@ -236,6 +237,12 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
           <TextField v-model="form.email" name="email" label="Email" type="email" />
         </div>
         <TextField v-model="form.website" name="website" label="Website" placeholder="https://" />
+
+        <CompanyWorkspaceLink
+          v-if="editingCompany"
+          :company="editingCompany"
+          @changed="closeModal"
+        />
 
         <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
 

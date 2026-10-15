@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, RotateCcw, Search, Trash2, Users } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -17,6 +18,9 @@ import {
   useUpdateContactMutation,
 } from '@/features/crm/contacts/api/contacts.queries'
 import { useCompaniesQuery } from '@/features/crm/companies/api/companies.queries'
+
+// Dipakai untuk link detail supaya berlaku di prefix tenant maupun platform.
+const route = useRoute()
 
 const search = ref('')
 const page = ref(1)
@@ -216,7 +220,12 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
           <tbody>
             <tr v-for="contact in contacts" :key="contact.id" class="border-b last:border-0">
               <td class="px-5 py-3 font-medium">
-                {{ contact.first_name }} {{ contact.last_name }}
+                <RouterLink
+                  :to="`${route.path}/${contact.id}`"
+                  class="hover:text-brand-600 hover:underline"
+                >
+                  {{ contact.first_name }} {{ contact.last_name }}
+                </RouterLink>
               </td>
               <td class="px-5 py-3 text-gray-500">{{ contact.email || contact.phone || '-' }}</td>
               <td class="px-5 py-3 text-gray-500">

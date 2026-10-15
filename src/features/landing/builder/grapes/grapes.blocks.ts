@@ -16,6 +16,7 @@
  * `grapesjs-blocks-basic` still contributes the flex column primitives
  * (`column1/2/3`) into the "Layout" category via grapes.config.ts.
  */
+import { ANIMATED_BLOCKS } from './blocks/animated'
 import { CONVERSION_BLOCKS } from './blocks/conversion'
 import { ECOSYSTEM_BLOCKS } from './blocks/ecosystem'
 import { FOOTER_BLOCKS } from './blocks/footer'
@@ -50,6 +51,7 @@ const MARKETING_SECTION_BLOCKS: GrapesBlockDef[] = [
   ...INFORMATION_CONTENT_BLOCKS,
   ...ECOSYSTEM_BLOCKS,
   ...FOOTER_BLOCKS,
+  ...ANIMATED_BLOCKS,
 ]
 
 // ── Layout ───────────────────────────────────────────────────────────────

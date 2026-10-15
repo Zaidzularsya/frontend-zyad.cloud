@@ -133,8 +133,46 @@ export interface LandingForm {
   redirect_url?: string | null
   is_active: boolean
   consent?: Record<string, unknown>
+  /** Kiriman form ini boleh dijadikan lead CRM. */
+  create_crm_lead: boolean
+  /** PIC lead; null -> pembuat halaman. */
+  lead_owner_user_id: string | null
+  fields?: LandingFormField[]
   created_at: string
   updated_at: string
+}
+
+/** Item field untuk PUT /forms/:id/fields (dan hasil normalisasi). */
+export type FormFieldItem = LandingFormField
+
+/** Form dengan field-nya sudah dimuat (GET /forms mengembalikan fields). */
+export type LandingFormWithFields = LandingForm & { fields: LandingFormField[] }
+
+/** Body POST /admin/landing-pages/:id/forms (CreateFormRequest). */
+export interface CreateFormPayload {
+  name: string
+  key: string
+  is_active: boolean
+  submit_label: string
+  success_message: string
+  redirect_url?: string | null
+  create_crm_lead?: boolean
+  lead_owner_user_id?: string
+}
+
+export type CrmSyncStatus = 'skipped' | 'created' | 'merged' | 'failed'
+
+export interface LandingSubmission {
+  id: string
+  landing_page_id: string
+  form_id: string
+  reference: string
+  status: string
+  submitted_data: Record<string, unknown>
+  submitted_at: string
+  crm_lead_id: string | null
+  crm_sync_status: CrmSyncStatus
+  crm_sync_error: string | null
 }
 
 export interface LandingFormField {

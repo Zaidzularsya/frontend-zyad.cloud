@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Search, Users as UsersIcon, UserCheck, UserMinus, UserX } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -9,6 +9,8 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import { useUsersQuery } from '@/features/users/api/users.queries'
 import UsersTable from '@/features/users/components/UsersTable.vue'
 const router = useRouter()
+const route = useRoute()
+const isPlatformMode = computed(() => route.path.startsWith('/platform'))
 
 const search = ref('')
 const page = ref(1)
@@ -51,7 +53,10 @@ watch([search, selectedStatusTab], () => {
 })
 
 function openDetail(id: string) {
-  void router.push({ name: 'user-detail', params: { id } })
+  void router.push({
+    name: isPlatformMode.value ? 'platform-user-detail' : 'user-detail',
+    params: { id },
+  })
 }
 
 function changePage(nextPage: number) {

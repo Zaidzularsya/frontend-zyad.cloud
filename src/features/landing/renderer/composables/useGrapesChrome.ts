@@ -1,9 +1,11 @@
 import { useFooterContent } from './useFooterContent'
+import { redirectTarget } from '../lead-form/redirect-target'
 import type {
   GrapesChrome,
+  GrapesChromeForm,
   GrapesChromeLink,
   GrapesChromePricingPlan,
-} from '../components/GrapesPageFrame.vue'
+} from '../grapes/chrome'
 
 /**
  * Builds the live tenant chrome (header nav + footer) for GrapesJS pages from a
@@ -17,6 +19,7 @@ type RawRecord = Record<string, unknown>
 export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): GrapesChrome {
   const footer = useFooterContent(result, fallbackTitle)
   return {
+    orgType: pickString(result, 'OrganizationType', 'organization_type'),
     nav: headerLinks(result),
     brand: { name: footer.brandName, logoUrl: footer.logoUrl },
     footer: {
@@ -26,7 +29,33 @@ export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): Gra
       columns: footer.columns,
     },
     pricingPlans: pricingPlans(result),
+    forms: forms(result),
   }
+}
+
+function forms(result: RawRecord): GrapesChromeForm[] {
+  return pickArray(result, 'Forms', 'forms').map((form) => {
+    const redirect = pickString(form, 'RedirectURL', 'redirect_url')
+    return {
+      id: pickString(form, 'ID', 'id'),
+      submitLabel: pickString(form, 'SubmitLabel', 'submit_label'),
+      successMessage: pickString(form, 'SuccessMessage', 'success_message'),
+      redirectUrl: redirectTarget(redirect)?.url ?? '',
+      fields: pickArray(form, 'Fields', 'fields')
+        .sort(
+          (a, b) =>
+            pickNumber(a, 'SortOrder', 'sort_order') - pickNumber(b, 'SortOrder', 'sort_order'),
+        )
+        .map((f) => ({
+          key: pickString(f, 'Key', 'key'),
+          type: pickString(f, 'Type', 'type') || 'text',
+          label: pickString(f, 'Label', 'label'),
+          placeholder: pickString(f, 'Placeholder', 'placeholder'),
+          options: pickStringArray(f, 'Options', 'options'),
+          required: pickBoolean(f, ['IsRequired', 'is_required', 'required'], false),
+        })),
+    }
+  })
 }
 
 function pricingPlans(result: RawRecord): GrapesChromePricingPlan[] {

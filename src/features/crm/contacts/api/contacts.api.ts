@@ -42,6 +42,18 @@ export interface ContactPayload {
   owner_user_id?: string
   lifecycle_stage?: ContactLifecycleStage
   is_customer?: boolean
+  address?: Record<string, string>
+}
+
+export interface ContactAttachment {
+  id: string
+  contact_id: string
+  asset_object_id: string
+  filename: string
+  mime_type: string
+  size_bytes: number
+  created_by?: string
+  created_at: string
 }
 
 export const contactsApi = {
@@ -76,5 +88,36 @@ export const contactsApi = {
   restore: (id: string) =>
     http
       .post<{ success: boolean; data: Contact }>(`/app/crm/contacts/${id}/restore`)
+      .then((response) => response.data.data),
+
+  attachments: (id: string) =>
+    http
+      .get<{ success: boolean; data: ContactAttachment[] }>(`/app/crm/contacts/${id}/attachments`)
+      .then((response) => response.data.data),
+
+  uploadAttachment: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return http
+      .post<{
+        success: boolean
+        data: ContactAttachment
+      }>(`/app/crm/contacts/${id}/attachments`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((response) => response.data.data)
+  },
+
+  attachmentDownloadUrl: (id: string, attachmentId: string) =>
+    http
+      .get<{
+        success: boolean
+        data: { download_url: string }
+      }>(`/app/crm/contacts/${id}/attachments/${attachmentId}/download`)
+      .then((response) => response.data.data.download_url),
+
+  deleteAttachment: (id: string, attachmentId: string) =>
+    http
+      .delete(`/app/crm/contacts/${id}/attachments/${attachmentId}`)
       .then((response) => response.data.data),
 }

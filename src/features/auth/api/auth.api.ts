@@ -65,6 +65,7 @@ function mapOrganizationToTenant(org: UserOrganizationRaw): Tenant {
     logoUrl: org.organization.metadata?.logo_url,
     plan: org.organization.type === 'platform' ? 'enterprise' : 'growth',
     status: org.organization.status === 'active' ? 'active' : 'suspended',
+    organizationType: org.organization.type,
   }
 }
 

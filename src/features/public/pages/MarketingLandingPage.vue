@@ -6,12 +6,11 @@ import type { LandingBranding } from '@/features/landing/shared/types/landing.ty
 
 // Root path ini dipakai baik oleh domain platform sendiri (marketing site)
 // maupun domain tenant (subdomain/custom domain yang di-bind ke landing
-// page). Slug "public-marketing" hanya dipaksa di host platform sendiri;
-// di host lain, biarkan DynamicLandingPage resolve berdasarkan Host header
-// supaya landing page tenant yang dibind ke domain itu yang tampil.
-const marketingSlug = computed(() =>
-  window.location.hostname === platformHost ? 'public-marketing' : undefined,
-)
+// page). Host platform memakai mode beranda (`home`: halaman is_homepage,
+// fallback slug public-marketing di backend); di host lain, biarkan
+// DynamicLandingPage resolve berdasarkan Host header supaya landing page
+// tenant yang dibind ke domain itu yang tampil.
+const isPlatformHost = computed(() => window.location.hostname === platformHost)
 
 type MarketingNavItem = {
   id?: string
@@ -42,7 +41,7 @@ function forwardHeaderMode(mode: 'section' | 'layout') {
 
 <template>
   <DynamicLandingPage
-    :slug="marketingSlug"
+    :home="isPlatformHost"
     @landing-navigation="forwardNavigation"
     @landing-branding="forwardBranding"
     @landing-header-mode="forwardHeaderMode"

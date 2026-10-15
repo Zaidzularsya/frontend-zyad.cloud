@@ -2,6 +2,11 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import { env } from '@/config/env'
 import { buildCrmRoutes } from '@/features/crm/config/crm-routes'
+import { buildSalesOrderRoutes } from '@/features/crm/sales-orders/config/sales-order-routes'
+import {
+  buildContractRoutes,
+  buildReceivableRoutes,
+} from '@/features/receivable/config/receivable-routes'
 import { buildLandingManagementRoutes } from '@/features/landing/builder/config/landing-menu'
 import { authGuard } from '@/middleware/auth.guard'
 import { guestGuard } from '@/middleware/guest.guard'
@@ -46,6 +51,35 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Pilih Workspace', requiresAuth: true },
       },
     ],
+  },
+  {
+    // Workspace ditangguhkan: di luar /app supaya tidak kena guard tenant aktif.
+    path: '/app/suspended',
+    component: () => import('@/layouts/PublicLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'workspace-suspended',
+        component: () => import('@/features/customer/pages/WorkspaceSuspendedPage.vue'),
+        meta: { title: 'Workspace Ditangguhkan' },
+      },
+    ],
+  },
+  {
+    // Link penawaran untuk customer: tanpa login/tenant. Dua segmen path, jadi tidak
+    // bertabrakan dengan `/:slug` landing page di bawah MarketingLayout.
+    path: '/q/:token',
+    name: 'public-quotation',
+    component: () => import('@/features/public-documents/pages/PublicQuotationPage.vue'),
+    meta: { title: 'Penawaran', public: true },
+  },
+  {
+    // Link invoice untuk pelanggan tenant: tanpa login/tenant, sama seperti /q/:token.
+    path: '/i/:token',
+    name: 'public-invoice',
+    component: () => import('@/features/public-documents/pages/PublicInvoicePage.vue'),
+    meta: { title: 'Invoice', public: true },
   },
   {
     path: '/',
@@ -102,6 +136,16 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Profile' },
       },
       {
+        path: 'account/bank',
+        name: 'account-bank',
+        component: placeholder,
+        props: {
+          title: 'Bank',
+          description: 'Kelola rekening bank tenant untuk pencairan dan detail pembayaran invoice.',
+        },
+        meta: { title: 'Bank' },
+      },
+      {
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/features/dashboard/pages/DashboardPage.vue'),
@@ -114,6 +158,47 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'CRM' },
       },
       ...buildCrmRoutes('crm'),
+      {
+        path: 'whatsapp',
+        name: 'whatsapp',
+        component: () => import('@/features/whatsapp/pages/WhatsAppConnectionsPage.vue'),
+        meta: { title: 'WhatsApp', permissions: ['whatsapp.session.read'] },
+      },
+      {
+        path: 'crm/settings',
+        name: 'crm-settings',
+        component: () => import('@/features/crm/settings/pages/CrmSettingsPage.vue'),
+        meta: { title: 'Pengaturan CRM', permissions: ['crm_settings.update'] },
+      },
+      {
+        path: 'email-accounts',
+        name: 'email-accounts',
+        component: () => import('@/features/email/pages/EmailAccountsPage.vue'),
+        meta: { title: 'Akun Email', permissions: ['email.read'] },
+      },
+      ...buildSalesOrderRoutes('sales', 'sales'),
+      ...buildContractRoutes('sales', 'contracts', 'contract-detail'),
+      ...buildReceivableRoutes('billing'),
+      {
+        path: 'billing/credit-notes',
+        name: 'billing-credit-notes',
+        component: placeholder,
+        props: {
+          title: 'Credit Notes',
+          description: 'Nota kredit atas koreksi atau kelebihan tagihan invoice.',
+        },
+        meta: { title: 'Credit Notes' },
+      },
+      {
+        path: 'billing/refunds',
+        name: 'billing-refunds',
+        component: placeholder,
+        props: {
+          title: 'Refunds',
+          description: 'Pengajuan dan riwayat refund pembayaran.',
+        },
+        meta: { title: 'Refunds' },
+      },
       {
         path: 'landing-pages',
         name: 'landing-pages',
@@ -170,26 +255,14 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'billing',
         name: 'billing',
-        component: () => import('@/features/customer/pages/PlanUpgradePage.vue'),
-        meta: { title: 'Billing' },
+        component: () => import('@/features/customer/pages/SubscriptionPage.vue'),
+        meta: { title: 'Langganan' },
       },
       {
         path: 'checkout',
         name: 'checkout',
         component: () => import('@/features/customer/pages/CheckoutPage.vue'),
         meta: { title: 'Checkout' },
-      },
-      {
-        path: 'checkout/success',
-        name: 'checkout-success',
-        component: () => import('@/features/customer/pages/CheckoutSuccessPage.vue'),
-        meta: { title: 'Status Pembayaran' },
-      },
-      {
-        path: 'checkout/failed',
-        name: 'checkout-failed',
-        component: () => import('@/features/customer/pages/CheckoutFailedPage.vue'),
-        meta: { title: 'Pembayaran Gagal' },
       },
       {
         path: 'audit-logs',
@@ -245,6 +318,23 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Platform Overview' },
       },
       {
+        path: 'profile',
+        name: 'platform-profile',
+        component: () => import('@/features/profile/pages/ProfilePage.vue'),
+        meta: { title: 'Profile' },
+      },
+      {
+        path: 'bank',
+        name: 'platform-bank',
+        component: placeholder,
+        props: {
+          title: 'Bank',
+          description:
+            'Kelola rekening bank platform untuk pencairan dan detail pembayaran invoice.',
+        },
+        meta: { title: 'Bank' },
+      },
+      {
         path: 'landing-pages',
         name: 'platform-landing-pages',
         redirect: { name: 'platform-landing-pages-pages' },
@@ -264,33 +354,68 @@ const routes: RouteRecordRaw[] = [
       },
       ...buildLandingManagementRoutes('platform-landing-pages'),
       {
-        path: 'branding',
-        name: 'platform-branding',
-        component: () => import('@/features/platform/pages/BrandingManagementPage.vue'),
-        meta: { title: 'Branding Management' },
-      },
-      {
         path: 'users',
         name: 'platform-users',
         component: () => import('@/features/users/pages/UsersPage.vue'),
-        meta: { title: 'Admins & Roles' },
+        meta: { title: 'Members' },
       },
       {
-        path: 'customers',
-        name: 'platform-customers',
-        component: () => import('@/features/platform/pages/CustomerManagementPage.vue'),
-        meta: { title: 'Customer Management' },
+        path: 'users/:id',
+        name: 'platform-user-detail',
+        component: () => import('@/features/users/pages/UserDetailPage.vue'),
+        meta: { title: 'Member Detail' },
       },
       {
-        path: 'billing/plans',
-        name: 'platform-billing-plans',
-        component: () => import('@/features/billing/pages/PlatformBillingPlansPage.vue'),
+        path: 'features',
+        name: 'platform-features',
+        component: () => import('@/features/platform-features/pages/PlatformFeaturesPage.vue'),
         meta: {
-          title: 'Product Catalog Management',
-          permissions: ['platform.product.plan.read'],
+          title: 'Fitur Platform',
+          permissions: ['platform.product.feature.read'],
         },
       },
       ...buildCrmRoutes('crm', 'platform-crm'),
+      {
+        path: 'whatsapp',
+        name: 'platform-whatsapp',
+        component: () => import('@/features/whatsapp/pages/WhatsAppConnectionsPage.vue'),
+        meta: { title: 'WhatsApp', permissions: ['whatsapp.session.read'] },
+      },
+      {
+        path: 'crm/settings',
+        name: 'platform-crm-settings',
+        component: () => import('@/features/crm/settings/pages/CrmSettingsPage.vue'),
+        meta: { title: 'Pengaturan CRM', permissions: ['crm_settings.update'] },
+      },
+      {
+        path: 'email-accounts',
+        name: 'platform-email-accounts',
+        component: () => import('@/features/email/pages/EmailAccountsPage.vue'),
+        meta: { title: 'Akun Email', permissions: ['email.read'] },
+      },
+      ...buildSalesOrderRoutes('sales', 'platform-sales'),
+      ...buildContractRoutes('sales', 'platform-contracts', 'platform-contract-detail'),
+      ...buildReceivableRoutes('billing', 'platform-billing'),
+      {
+        path: 'billing/credit-notes',
+        name: 'platform-billing-credit-notes',
+        component: placeholder,
+        props: {
+          title: 'Credit Notes',
+          description: 'Nota kredit atas koreksi atau kelebihan tagihan invoice.',
+        },
+        meta: { title: 'Credit Notes' },
+      },
+      {
+        path: 'billing/refunds',
+        name: 'platform-billing-refunds',
+        component: placeholder,
+        props: {
+          title: 'Refunds',
+          description: 'Pengajuan dan riwayat refund pembayaran tenant.',
+        },
+        meta: { title: 'Refunds' },
+      },
       {
         path: 'notifications',
         name: 'platform-notifications',
@@ -421,6 +546,13 @@ const routes: RouteRecordRaw[] = [
     name: 'landing-preview',
     component: () => import('@/features/landing/renderer/pages/LandingPreviewPage.vue'),
     meta: { title: 'Landing Preview', requiresAuth: true },
+  },
+  {
+    // Isi iframe preview galeri template (lebar iframe = lebar perangkat).
+    path: '/landing-template-preview/:id',
+    name: 'landing-template-preview',
+    component: () => import('@/features/landing/renderer/pages/LandingTemplatePreviewPage.vue'),
+    meta: { title: 'Preview Template', requiresAuth: true },
   },
   {
     // WYSIWYG canvas iframe host for the FROZEN legacy section builder. Rendered

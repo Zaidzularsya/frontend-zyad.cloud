@@ -11,6 +11,14 @@ export const dealKeys = {
   detail: (id: string) => [...dealKeys.details(), id] as const,
 }
 
+export function useDealQuery(id: Ref<string | undefined>) {
+  return useQuery({
+    queryKey: computed(() => dealKeys.detail(id.value ?? '')),
+    queryFn: () => dealsApi.detail(id.value as string),
+    enabled: computed(() => Boolean(id.value)),
+  })
+}
+
 export function useDealsQuery(params: Ref<DealListParams>) {
   return useQuery({
     queryKey: computed(() => dealKeys.list(params.value)),
