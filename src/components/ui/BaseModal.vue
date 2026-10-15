@@ -2,10 +2,15 @@
 import { onBeforeUnmount, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 
-const props = defineProps<{
-  open: boolean
-  title: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    title: string
+    /** Kelas lebar maksimum dialog (default `max-w-lg`). */
+    widthClass?: string
+  }>(),
+  { widthClass: 'max-w-lg' },
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -37,7 +42,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
       ></div>
 
       <div
-        class="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-white shadow-xl dark:bg-gray-900"
+        class="relative max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-xl bg-white shadow-xl dark:bg-gray-900"
+        :class="widthClass"
         role="dialog"
         aria-modal="true"
         :aria-label="title"
