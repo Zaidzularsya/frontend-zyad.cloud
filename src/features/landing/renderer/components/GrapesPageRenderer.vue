@@ -13,6 +13,7 @@ defineProps<{
   css: string
   chrome?: GrapesChrome
   title?: string
+  static?: boolean
 }>()
 </script>
 
@@ -24,5 +25,12 @@ defineProps<{
     :chrome="chrome"
     :title="title"
   />
-  <ShadowPageRenderer v-else :html="html" :css="css" :chrome="chrome" :title="title" />
+  <ShadowPageRenderer
+    v-else
+    :html="html"
+    :css="css"
+    :chrome="chrome"
+    :title="title"
+    :static="static"
+  />
 </template>

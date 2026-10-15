@@ -47,6 +47,8 @@ export interface GrapesChrome {
   pricingPlans?: GrapesChromePricingPlan[]
   /** Form aktif halaman (untuk blok lead form). */
   forms?: GrapesChromeForm[]
+  /** Hanya preview/thumbnail template: form contoh bila blok lead form belum terhubung. */
+  previewForm?: GrapesChromeForm
 }
 
 export interface HeaderPresentation {

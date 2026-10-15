@@ -124,6 +124,37 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/')
 })
 
+describe('LeadFormSlot — previewForm', () => {
+  function mountPreview(withPreview: boolean) {
+    const ctx = { orgType: computed(() => 'platform'), interest: ref(''), scrollToId: vi.fn() }
+    const chrome: GrapesChrome = {
+      forms: [],
+      previewForm: withPreview ? makeForm({ id: 'preview', submitLabel: 'Kirim' }) : undefined,
+    }
+    return mount(LeadFormSlot, {
+      attachTo: document.body,
+      props: { host: document.createElement('div'), chrome, dataset: { zyadConfig: '{}' } },
+      global: { provide: { [LANDING_PAGE_CONTEXT as symbol]: ctx } },
+    })
+  }
+
+  it('merender form contoh dengan input dan tombol kirim nonaktif', async () => {
+    const w = mountPreview(true)
+    expect(w.find('form').exists()).toBe(true)
+    expect(w.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    expect(w.findAll('input[name="name"]')[0]!.attributes('disabled')).toBeDefined()
+    expect(w.text()).toContain(
+      'Contoh form — hubungkan form di panel Konten setelah template dipakai.',
+    )
+    await w.get('form').trigger('submit')
+    expect(submitPublicForm).not.toHaveBeenCalled()
+  })
+
+  it('tanpa previewForm dan tanpa form → tidak merender apa pun', () => {
+    expect(mountPreview(false).find('form').exists()).toBe(false)
+  })
+})
+
 describe('LeadFormSlot', () => {
   it('is registered under the lead-form key', () => {
     expect(SLOT_REGISTRY['lead-form']).toBeTruthy()

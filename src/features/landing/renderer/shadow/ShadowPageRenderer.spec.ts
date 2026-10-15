@@ -355,6 +355,17 @@ describe('ShadowPageRenderer', () => {
       expect(rts()[0]!.refresh).toHaveBeenCalled()
     })
 
+    it('static: runtime tidak dibuat dan konten tetap di state akhir', async () => {
+      const w = mountRenderer({
+        html: '<p class="zy-anim-fade-up">a</p>',
+        css: '',
+        static: true,
+      })
+      await flushPromises()
+      expect(createPageRuntime).not.toHaveBeenCalled()
+      expect(host(w).shadowRoot!.querySelector('.zy-page')!.classList.contains('zy-js')).toBe(false)
+    })
+
     it('installs nothing under prefers-reduced-motion', async () => {
       vi.stubGlobal(
         'matchMedia',

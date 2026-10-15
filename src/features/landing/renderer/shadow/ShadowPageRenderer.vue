@@ -48,6 +48,8 @@ const props = defineProps<{
   css: string
   chrome?: GrapesChrome
   title?: string
+  /** true → tanpa runtime motion; elemen langsung di state akhir (thumbnail galeri). */
+  static?: boolean
 }>()
 
 const router = useRouter()
@@ -201,7 +203,7 @@ async function render() {
   //    (token berubah / unmount) tidak boleh menyalakan runtime.
   await nextTick()
   if (token !== generation || unmounted) return
-  startRuntime(page)
+  if (!props.static) startRuntime(page)
 }
 
 function onClick(event: Event) {

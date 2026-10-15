@@ -31,7 +31,10 @@ const formId = computed(() => {
     return ''
   }
 })
-const form = computed(() => props.chrome.forms?.find((f) => f.id === formId.value))
+const connectedForm = computed(() => props.chrome.forms?.find((f) => f.id === formId.value))
+// Preview/thumbnail template: tanpa form terhubung, tampilkan form contoh yang tidak bisa dikirim.
+const isPreview = computed(() => !connectedForm.value && !!props.chrome.previewForm)
+const form = computed(() => connectedForm.value ?? props.chrome.previewForm)
 const fields = computed(() => (form.value?.fields ?? []).filter((f) => f.type !== 'hidden'))
 const hasConsentField = computed(() =>
   fields.value.some((f) => f.key === 'consent' && f.type === 'checkbox'),
@@ -144,7 +147,7 @@ async function focusFirstError() {
 }
 
 async function onSubmit() {
-  if (submitting.value || !form.value) return
+  if (submitting.value || !form.value || isPreview.value) return
   submitError.value = ''
   errors.value = validate()
   if (Object.keys(errors.value).length > 0) {
@@ -201,6 +204,7 @@ async function onSubmit() {
                 v-model="values[field.key]"
                 type="checkbox"
                 :name="field.key"
+                :disabled="isPreview"
                 :aria-invalid="errors[field.key] ? 'true' : undefined"
                 :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
               />
@@ -238,6 +242,7 @@ async function onSubmit() {
               class="zy-slot-lead-form__input"
               :name="field.key"
               rows="4"
+              :disabled="isPreview"
               :placeholder="field.placeholder || undefined"
               :aria-invalid="errors[field.key] ? 'true' : undefined"
               :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
@@ -249,6 +254,7 @@ async function onSubmit() {
               v-model="values[field.key]"
               class="zy-slot-lead-form__input"
               :name="field.key"
+              :disabled="isPreview"
               :aria-invalid="errors[field.key] ? 'true' : undefined"
               :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
             >
@@ -266,6 +272,7 @@ async function onSubmit() {
               :inputmode="inputMode(field.type)"
               :autocomplete="autocompleteFor(field)"
               :name="field.key"
+              :disabled="isPreview"
               :placeholder="field.placeholder || undefined"
               :aria-invalid="errors[field.key] ? 'true' : undefined"
               :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
@@ -291,6 +298,7 @@ async function onSubmit() {
               v-model="values.consent"
               type="checkbox"
               name="consent"
+              :disabled="isPreview"
               :aria-invalid="errors.consent ? 'true' : undefined"
               :aria-describedby="errors.consent ? errorId('consent') : undefined"
             />
@@ -327,9 +335,16 @@ async function onSubmit() {
           <p v-if="submitError" class="zy-slot-lead-form__alert" role="alert">
             {{ submitError }}
           </p>
-          <button type="submit" class="zy-slot-lead-form__submit" :disabled="submitting">
+          <button
+            type="submit"
+            class="zy-slot-lead-form__submit"
+            :disabled="submitting || isPreview"
+          >
             {{ submitting ? 'Mengirim…' : form.submitLabel || 'Kirim' }}
           </button>
+          <p v-if="isPreview" class="zy-slot-lead-form__hint">
+            Contoh form — hubungkan form di panel Konten setelah template dipakai.
+          </p>
         </div>
       </div>
     </form>
