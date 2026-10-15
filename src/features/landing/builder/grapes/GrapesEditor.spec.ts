@@ -9,8 +9,18 @@ const assetManagerStub = {
   add: vi.fn(),
   getConfig: vi.fn(() => ({}) as Record<string, unknown>),
 }
+// Wrapper GrapesJS palsu: find() untuk slot singleton, components() untuk deteksi kanvas kosong.
+type FakeChild = { getAttributes: () => Record<string, string>; get: (k: string) => unknown }
+const sectionChild: FakeChild = { getAttributes: () => ({}), get: () => 'default' }
+function wrapperStub(find: (selector: string) => unknown[] = () => [], children: FakeChild[] = []) {
+  return {
+    find,
+    components: () => ({ forEach: (fn: (c: FakeChild) => void) => children.forEach(fn) }),
+  }
+}
+
 const editorStub = {
-  getProjectData: vi.fn(() => ({ pages: [] })),
+  getProjectData: vi.fn((): Record<string, unknown> => ({ pages: [] })),
   getHtml: vi.fn(() => '<body></body>'),
   getCss: vi.fn(() => ''),
   loadProjectData: vi.fn(),
@@ -24,7 +34,7 @@ const editorStub = {
   AssetManager: assetManagerStub,
   Components: { addType: vi.fn() },
   Blocks: { add: vi.fn() },
-  getWrapper: vi.fn(() => ({ find: vi.fn(() => []) })),
+  getWrapper: vi.fn(() => wrapperStub()),
 }
 
 vi.mock('grapesjs', () => ({
@@ -78,8 +88,29 @@ vi.mock('@/features/public/api/public-catalog.api', () => ({
   publicCatalogApi: { listListings: (...a: unknown[]) => listListings(...a) },
 }))
 
+vi.mock('@/features/landing/shared/api/page-templates.api', () => ({
+  pageTemplatesApi: { list: vi.fn(() => Promise.resolve([])), get: vi.fn() },
+}))
+
 import { useTenantStore } from '@/stores/tenant.store'
+import { useLandingDocumentStore } from '@/stores/landingDocument'
 import GrapesEditor from './GrapesEditor.vue'
+
+const GalleryStub = {
+  name: 'TemplateGalleryDialog',
+  props: ['open', 'busy'],
+  emits: ['close', 'apply'],
+  template: '<div class="gallery-stub" :data-open="open" />',
+}
+const ConfirmStub = {
+  name: 'ConfirmDialog',
+  props: ['open', 'title', 'message', 'confirmLabel', 'cancelLabel'],
+  emits: ['confirm', 'cancel'],
+  template: '<div class="confirm-stub" :data-open="open" />',
+}
+const stubs = { TemplateGalleryDialog: GalleryStub, ConfirmDialog: ConfirmStub }
+const mountEditor = (props: Record<string, unknown> = {}) =>
+  mount(GrapesEditor, { props: { pageId: 'p1', ...props }, global: { stubs } })
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -90,7 +121,7 @@ describe('GrapesEditor', () => {
     // an earlier test — reset the wrapper query to its harmless default so
     // tests that don't care about it (e.g. the singleton-dedup ones) can't
     // leak a stubbed find() into an unrelated test.
-    editorStub.getWrapper.mockReturnValue({ find: () => [] } as never)
+    editorStub.getWrapper.mockReturnValue(wrapperStub() as never)
     setActivePinia(createPinia())
     getDocument.mockResolvedValue({
       data: { landing_page_id: 'p1', project: {}, html: '', css: '', updated_at: '' },
@@ -147,12 +178,13 @@ describe('GrapesEditor', () => {
   it('cleans up a tenant-nav duplicate already saved in the document on load, and autosaves the fix', async () => {
     const remove1 = vi.fn()
     const remove2 = vi.fn()
-    editorStub.getWrapper.mockReturnValue({
-      find: (selector: string) =>
+    editorStub.getWrapper.mockReturnValue(
+      wrapperStub((selector: string) =>
         selector === '[data-zyad-slot="tenant-nav"]'
           ? [{ remove: remove1 }, { remove: remove2 }]
           : [],
-    } as never)
+      ) as never,
+    )
 
     mount(GrapesEditor, { props: { pageId: 'p1' } })
     await flush()
@@ -227,54 +259,154 @@ describe('GrapesEditor', () => {
     ])
   })
 
-  it('offers starter templates for a blank document and applies one', async () => {
-    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
-    await flush()
+  describe('galeri template', () => {
+    const TEMPLATE = { name: 'Klinik', html: '<section>K</section>', css: '.k{}' }
+    const withContent = () =>
+      editorStub.getWrapper.mockReturnValue(wrapperStub(() => [], [sectionChild]) as never)
+    const gallery = (w: ReturnType<typeof mountEditor>) => w.findComponent(GalleryStub)
+    const confirm = (w: ReturnType<typeof mountEditor>) => w.findComponent(ConfirmStub)
 
-    const options = wrapper.findAll('.grapes-starter-option')
-    expect(options.length).toBeGreaterThan(0)
-
-    await options[1]!.trigger('click')
-    expect(editorStub.setComponents).toHaveBeenCalled()
-    expect(editorStub.setStyle).toHaveBeenCalled()
-    expect(wrapper.find('.grapes-starter').exists()).toBe(false)
-  })
-
-  it('does not offer the platform-only Zyad Marketing starter to a tenant org', async () => {
-    useOrg('customer')
-    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
-    await flush()
-    const names = wrapper.findAll('.grapes-starter-name').map((n) => n.text())
-    expect(names.length).toBeGreaterThan(0)
-    expect(names).not.toContain('Zyad Marketing')
-  })
-
-  it('offers the Zyad Marketing starter on the platform org and applies it', async () => {
-    useOrg('platform')
-    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
-    await flush()
-    const options = wrapper.findAll('.grapes-starter-option')
-    const idx = options.findIndex((o) => o.text().includes('Zyad Marketing'))
-    expect(idx).toBeGreaterThanOrEqual(0)
-    await options[idx]!.trigger('click')
-    expect(editorStub.setComponents).toHaveBeenCalledWith(
-      expect.stringContaining('data-zyad-slot="catalog-pricing"'),
-    )
-  })
-
-  it('hides the starter picker when the document already has content', async () => {
-    getDocument.mockResolvedValue({
-      data: {
-        landing_page_id: 'p1',
-        project: {},
-        html: '<body><h1>Hi</h1></body>',
-        css: '',
-        updated_at: '',
-      },
+    beforeEach(() => {
+      localStorage.clear()
+      editorStub.getProjectData.mockReturnValue({ pages: [] })
     })
-    const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
-    await flush()
-    expect(wrapper.find('.grapes-starter').exists()).toBe(false)
+
+    it('membuka galeri otomatis saat kanvas kosong', async () => {
+      const w = mountEditor()
+      await flush()
+      expect(gallery(w).props('open')).toBe(true)
+    })
+
+    it('galeri tertutup bila kanvas berisi, dan tombol Template tersedia', async () => {
+      withContent()
+      const w = mountEditor()
+      await flush()
+      expect(gallery(w).props('open')).toBe(false)
+      expect(w.get('.grapes-template-btn').text()).toContain('Template')
+    })
+
+    it('tombol Template di toolbar membuka galeri', async () => {
+      withContent()
+      const w = mountEditor()
+      await flush()
+      await w.get('.grapes-template-btn').trigger('click')
+      expect(gallery(w).props('open')).toBe(true)
+    })
+
+    it('banner tampil untuk halaman draft berisi, hilang setelah ditutup', async () => {
+      withContent()
+      const w = mountEditor({ pageStatus: 'draft' })
+      await flush()
+      expect(w.get('.grapes-banner').text()).toContain('Ingin mulai dari template?')
+      await w.get('.grapes-banner-close').trigger('click')
+      expect(w.find('.grapes-banner').exists()).toBe(false)
+      expect(localStorage.getItem('zy:tpl-banner-dismissed:p1')).toBe('1')
+    })
+
+    it('banner tidak tampil untuk halaman published', async () => {
+      withContent()
+      const w = mountEditor({ pageStatus: 'published' })
+      await flush()
+      expect(w.find('.grapes-banner').exists()).toBe(false)
+    })
+
+    it('banner "Lihat galeri" membuka galeri', async () => {
+      withContent()
+      const w = mountEditor({ pageStatus: 'draft' })
+      await flush()
+      await w.get('.grapes-banner-link').trigger('click')
+      expect(gallery(w).props('open')).toBe(true)
+    })
+
+    it('menerapkan template langsung pada kanvas kosong, tanpa konfirmasi', async () => {
+      const w = mountEditor()
+      await flush()
+      gallery(w).vm.$emit('apply', TEMPLATE)
+      await flush()
+      expect(confirm(w).props('open')).toBe(false)
+      expect(editorStub.setComponents).toHaveBeenCalledWith('<section>K</section>')
+      expect(editorStub.setStyle).toHaveBeenCalledWith('.k{}')
+      expect(w.get('.grapes-template-notice').text()).toContain('Template "Klinik" dipakai.')
+    })
+
+    it('meminta konfirmasi sebelum mengganti kanvas berisi', async () => {
+      withContent()
+      const w = mountEditor()
+      await flush()
+      gallery(w).vm.$emit('apply', TEMPLATE)
+      await flush()
+      expect(confirm(w).props('open')).toBe(true)
+      expect(confirm(w).props('message')).toContain('template "Klinik"')
+      expect(editorStub.setComponents).not.toHaveBeenCalled()
+
+      confirm(w).vm.$emit('cancel')
+      await flush()
+      expect(editorStub.setComponents).not.toHaveBeenCalled()
+
+      gallery(w).vm.$emit('apply', TEMPLATE)
+      await flush()
+      confirm(w).vm.$emit('confirm')
+      await flush()
+      expect(editorStub.setComponents).toHaveBeenCalledWith('<section>K</section>')
+    })
+
+    it('tombol Batalkan memulihkan isi sebelum template dipakai dan menyimpannya', async () => {
+      withContent()
+      editorStub.getProjectData.mockReturnValue({ pages: [{ name: 'lama' }] })
+      const w = mountEditor()
+      await flush()
+      gallery(w).vm.$emit('apply', TEMPLATE)
+      await flush()
+      confirm(w).vm.$emit('confirm')
+      await flush()
+      editorStub.getProjectData.mockReturnValue({ pages: [{ name: 'baru' }] })
+      const store = useLandingDocumentStore()
+      store.dirty = false
+
+      await w.get('.grapes-notice-action').trigger('click')
+
+      expect(editorStub.loadProjectData).toHaveBeenLastCalledWith({ pages: [{ name: 'lama' }] })
+      expect(store.dirty).toBe(true)
+      expect(w.find('.grapes-template-notice').exists()).toBe(false)
+    })
+
+    it('tombol Gunakan nonaktif (busy) sampai editor selesai memuat', async () => {
+      const w = mountEditor()
+      expect(gallery(w).props('busy')).toBe(true)
+      await flush()
+      expect(gallery(w).props('busy')).toBe(false)
+    })
+
+    it('memuat html/css bila project tersimpan tanpa pages', async () => {
+      getDocument.mockResolvedValue({
+        data: {
+          landing_page_id: 'p1',
+          project: {},
+          html: '<section>A</section>',
+          css: '.a{}',
+          updated_at: '',
+        },
+      })
+      mountEditor()
+      await flush()
+      expect(editorStub.setComponents).toHaveBeenCalledWith('<section>A</section>')
+      expect(editorStub.setStyle).toHaveBeenCalledWith('.a{}')
+    })
+
+    it('tidak memuat html bila dokumen hanya <body></body>', async () => {
+      getDocument.mockResolvedValue({
+        data: {
+          landing_page_id: 'p1',
+          project: {},
+          html: '<body></body>',
+          css: '',
+          updated_at: '',
+        },
+      })
+      mountEditor()
+      await flush()
+      expect(editorStub.setComponents).not.toHaveBeenCalled()
+    })
   })
 
   function onHandler(event: string) {
@@ -287,7 +419,7 @@ describe('GrapesEditor', () => {
     await flush()
 
     // Simulate the wrapper already containing one instance of the sentinel.
-    editorStub.getWrapper.mockReturnValue({ find: () => [{}, {}] } as never)
+    editorStub.getWrapper.mockReturnValue(wrapperStub(() => [{}, {}], [sectionChild]) as never)
     const onAdd = onHandler('component:add')!
     const remove = vi.fn()
     onAdd({ get: (k: string) => (k === 'type' ? 'zyad-tenant-header' : undefined), remove })
@@ -301,7 +433,7 @@ describe('GrapesEditor', () => {
     mount(GrapesEditor, { props: { pageId: 'p1' } })
     await flush()
 
-    editorStub.getWrapper.mockReturnValue({ find: () => [{}] } as never)
+    editorStub.getWrapper.mockReturnValue(wrapperStub(() => [{}], [sectionChild]) as never)
     const onAdd = onHandler('component:add')!
     const remove = vi.fn()
     onAdd({ get: (k: string) => (k === 'type' ? 'zyad-tenant-footer' : undefined), remove })
@@ -449,7 +581,7 @@ describe('GrapesEditor', () => {
       useOrg('platform')
       const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
       await flush()
-      editorStub.getWrapper.mockReturnValue({ find: () => [{}, {}] } as never)
+      editorStub.getWrapper.mockReturnValue(wrapperStub(() => [{}, {}], [sectionChild]) as never)
       const onAdd = onHandler('component:add')!
       const remove = vi.fn()
       onAdd({ get: (k: string) => (k === 'type' ? 'zyad-catalog-pricing' : undefined), remove })
@@ -495,7 +627,7 @@ describe('GrapesEditor', () => {
       useOrg('customer')
       const wrapper = mount(GrapesEditor, { props: { pageId: 'p1' } })
       await flush()
-      editorStub.getWrapper.mockReturnValue({ find: () => [{}, {}] } as never)
+      editorStub.getWrapper.mockReturnValue(wrapperStub(() => [{}, {}], [sectionChild]) as never)
       const remove = vi.fn()
       onHandler('component:add')!({
         get: (k: string) => (k === 'type' ? 'zyad-lead-form' : undefined),

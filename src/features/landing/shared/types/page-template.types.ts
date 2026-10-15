@@ -37,3 +37,19 @@ export interface PageTemplateAdminSummary extends PageTemplateSummary {
   seed_modified: boolean
   source_page_id: string | null
 }
+
+export interface CreatePageTemplatePayload {
+  page_id: string
+  name: string
+  slug: string
+  category: PageTemplateCategory
+  description: string
+  sort_order: number
+}
+
+export type UpdatePageTemplatePayload = Partial<
+  Pick<
+    PageTemplateAdminSummary,
+    'name' | 'description' | 'category' | 'sort_order' | 'status' | 'platform_only'
+  >
+>

@@ -50,7 +50,11 @@ const builder = computed(() => currentPage.value?.builder ?? null)
       class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800"
       style="height: calc(100vh - 240px); min-height: 520px"
     >
-      <GrapesEditor :key="selectedPageId" :page-id="selectedPageId">
+      <GrapesEditor
+        :key="selectedPageId"
+        :page-id="selectedPageId"
+        :page-status="currentPage?.status ?? null"
+      >
         <template #topbar-left>
           <LandingPagePicker v-model="selectedPageId" :pages="pages" compact />
         </template>
