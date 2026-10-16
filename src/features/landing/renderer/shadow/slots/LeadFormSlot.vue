@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { landingApi, SubmitFormError } from '../../../shared/api/landing.api'
-import type { GrapesChrome, GrapesChromeFormField } from '../../grapes/chrome'
+import type { GrapesChrome } from '../../grapes/chrome'
 import { redirectTarget } from '../../lead-form/redirect-target'
 import { buildWhatsAppUrl } from '../../lead-form/whatsapp-link'
 import { CONSENT_ERROR, validateLeadForm } from '../../lead-form/lead-form-validation'
+import LeadFormView from '../../lead-form/LeadFormView.vue'
+import { readLeadFormPresentation } from '../../lead-form/lead-form-presentation'
 import { useLandingPageContext } from '../page-context'
 
 const props = defineProps<{
@@ -19,21 +21,14 @@ const GENERIC_ERROR = 'Pesan belum terkirim. Coba lagi sebentar lagi.'
 const STALE_PAGE_ERROR = 'Form diperbarui. Muat ulang halaman untuk melanjutkan.'
 const REQUIRED_ERROR = 'Wajib diisi.'
 const RATE_LIMITED_ERROR = 'Terlalu banyak percobaan, coba lagi sebentar lagi.'
-const HALF_WIDTH_KEYS = new Set(['name', 'email', 'phone', 'company', 'company_size'])
+const PREVIEW_HINT = 'Contoh form — hubungkan form di panel Konten setelah template dipakai.'
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const
 
 const ctx = useLandingPageContext()
 const router = useRouter()
-const uid = useId()
 
-const formId = computed(() => {
-  try {
-    const parsed = JSON.parse(props.dataset.zyadConfig || '{}') as { form_id?: unknown }
-    return typeof parsed.form_id === 'string' ? parsed.form_id : ''
-  } catch {
-    return ''
-  }
-})
+const presentation = computed(() => readLeadFormPresentation(props.dataset.zyadConfig))
+const formId = computed(() => presentation.value.formId)
 const connectedForm = computed(() => props.chrome.forms?.find((f) => f.id === formId.value))
 // Preview/thumbnail template: tanpa form terhubung, tampilkan form contoh yang tidak bisa dikirim.
 const isPreview = computed(() => !connectedForm.value && !!props.chrome.previewForm)
@@ -52,12 +47,14 @@ const hasInterestField = computed(() =>
 )
 
 const values = reactive<Record<string, unknown>>({})
-const website = ref('')
 const errors = ref<Record<string, string>>({})
 const submitting = ref(false)
 const submitted = ref(false)
+const state = computed(() =>
+  submitted.value ? 'success' : submitting.value ? 'submitting' : 'idle',
+)
 const submitError = ref('')
-const root = ref<HTMLElement | null>(null)
+const view = ref<InstanceType<typeof LeadFormView> | null>(null)
 
 // One key per attempt: reused when the same payload is retried (the server then returns the
 // stored submission instead of creating a second one), reset once the input changes or on success.
@@ -74,35 +71,8 @@ watch(
   { immediate: true },
 )
 
-function inputId(key: string): string {
-  return `${uid}-${key}`
-}
-function errorId(key: string): string {
-  return `${uid}-${key}-error`
-}
-function inputType(type: string): string {
-  switch (type) {
-    case 'phone':
-      return 'tel'
-    case 'email':
-    case 'number':
-    case 'date':
-      return type
-    default:
-      return 'text'
-  }
-}
-function inputMode(type: string): 'tel' | undefined {
-  return type === 'phone' ? 'tel' : undefined
-}
-function autocompleteFor(field: GrapesChromeFormField): string | undefined {
-  const map: Record<string, string> = {
-    name: 'name',
-    email: 'email',
-    phone: 'tel',
-    company: 'organization',
-  }
-  return map[field.key]
+function onUpdate(key: string, value: unknown) {
+  values[key] = value
 }
 
 function validate(): Record<string, string> {
@@ -177,7 +147,7 @@ async function focusFirstError() {
   const order = [...fields.value.map((f) => f.key), 'consent']
   const first = order.find((key) => errors.value[key])
   if (!first) return
-  root.value?.querySelector<HTMLElement>(`[name="${first}"]`)?.focus()
+  view.value?.focusField(first)
 }
 
 async function onSubmit() {
@@ -197,7 +167,7 @@ async function onSubmit() {
       {
         fields: buildFields(),
         consent: values.consent === true,
-        website: website.value,
+        website: String(values.website ?? ''),
         context: buildContext(),
       },
       attemptKey,
@@ -225,180 +195,19 @@ async function onSubmit() {
 </script>
 
 <template>
-  <section v-if="form" ref="root" class="zy-slot-lead-form">
-    <div
-      v-if="submitted"
-      class="zy-slot-lead-form__success zy-anim-fade-up is-in"
-      role="status"
-      aria-live="polite"
-    >
-      <p>{{ form.successMessage || 'Terima kasih! Pesan Anda sudah kami terima.' }}</p>
-      <a
-        v-if="whatsappUrl"
-        class="zy-slot-lead-form__wa"
-        :href="whatsappUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        >Lanjut chat di WhatsApp</a
-      >
-    </div>
-
-    <form v-else novalidate :aria-busy="submitting" @submit.prevent="onSubmit">
-      <div class="zy-slot-lead-form__grid">
-        <template v-for="field in fields" :key="field.key">
-          <div
-            v-if="field.type === 'checkbox'"
-            class="zy-slot-lead-form__field zy-slot-lead-form__field--full"
-          >
-            <label class="zy-slot-lead-form__consent" :for="inputId(field.key)">
-              <input
-                :id="inputId(field.key)"
-                v-model="values[field.key]"
-                type="checkbox"
-                :name="field.key"
-                :disabled="isPreview"
-                :aria-invalid="errors[field.key] ? 'true' : undefined"
-                :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
-              />
-              <span>
-                {{ field.label }}
-                <template v-if="field.key === 'consent'">
-                  (<a href="/legal/privacy" target="_blank" rel="noopener noreferrer"
-                    >Kebijakan Privasi</a
-                  >)
-                </template>
-              </span>
-            </label>
-            <p
-              v-if="errors[field.key]"
-              :id="errorId(field.key)"
-              class="zy-slot-lead-form__error"
-              role="alert"
-            >
-              {{ errors[field.key] }}
-            </p>
-          </div>
-
-          <div
-            v-else
-            class="zy-slot-lead-form__field"
-            :class="{ 'zy-slot-lead-form__field--full': !HALF_WIDTH_KEYS.has(field.key) }"
-          >
-            <label class="zy-slot-lead-form__label" :for="inputId(field.key)">
-              {{ field.label }}<span v-if="field.required" class="zy-slot-lead-form__req">*</span>
-            </label>
-            <textarea
-              v-if="field.type === 'textarea'"
-              :id="inputId(field.key)"
-              :value="String(values[field.key] ?? '')"
-              class="zy-slot-lead-form__input"
-              :name="field.key"
-              rows="4"
-              :disabled="isPreview"
-              :placeholder="field.placeholder || undefined"
-              :aria-invalid="errors[field.key] ? 'true' : undefined"
-              :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
-              @input="values[field.key] = ($event.target as HTMLTextAreaElement).value"
-            ></textarea>
-            <select
-              v-else-if="field.type === 'select'"
-              :id="inputId(field.key)"
-              v-model="values[field.key]"
-              class="zy-slot-lead-form__input"
-              :name="field.key"
-              :disabled="isPreview"
-              :aria-invalid="errors[field.key] ? 'true' : undefined"
-              :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
-            >
-              <option value="">{{ field.placeholder || 'Pilih salah satu' }}</option>
-              <option v-for="option in field.options" :key="option" :value="option">
-                {{ option }}
-              </option>
-            </select>
-            <input
-              v-else
-              :id="inputId(field.key)"
-              v-model="values[field.key]"
-              class="zy-slot-lead-form__input"
-              :type="inputType(field.type)"
-              :inputmode="inputMode(field.type)"
-              :autocomplete="autocompleteFor(field)"
-              :name="field.key"
-              :disabled="isPreview"
-              :placeholder="field.placeholder || undefined"
-              :aria-invalid="errors[field.key] ? 'true' : undefined"
-              :aria-describedby="errors[field.key] ? errorId(field.key) : undefined"
-            />
-            <p
-              v-if="errors[field.key]"
-              :id="errorId(field.key)"
-              class="zy-slot-lead-form__error"
-              role="alert"
-            >
-              {{ errors[field.key] }}
-            </p>
-          </div>
-        </template>
-
-        <div
-          v-if="needsBuiltinConsent"
-          class="zy-slot-lead-form__field zy-slot-lead-form__field--full"
-        >
-          <label class="zy-slot-lead-form__consent" :for="inputId('consent')">
-            <input
-              :id="inputId('consent')"
-              v-model="values.consent"
-              type="checkbox"
-              name="consent"
-              :disabled="isPreview"
-              :aria-invalid="errors.consent ? 'true' : undefined"
-              :aria-describedby="errors.consent ? errorId('consent') : undefined"
-            />
-            <span>
-              Saya setuju data saya diproses untuk keperluan konsultasi sesuai
-              <a href="/legal/privacy" target="_blank" rel="noopener noreferrer"
-                >Kebijakan Privasi</a
-              >
-            </span>
-          </label>
-          <p
-            v-if="errors.consent"
-            :id="errorId('consent')"
-            class="zy-slot-lead-form__error"
-            role="alert"
-          >
-            {{ errors.consent }}
-          </p>
-        </div>
-
-        <div class="zy-slot-lead-form__hp" aria-hidden="true">
-          <label :for="inputId('website')">Website</label>
-          <input
-            :id="inputId('website')"
-            v-model="website"
-            type="text"
-            name="website"
-            tabindex="-1"
-            autocomplete="off"
-          />
-        </div>
-
-        <div class="zy-slot-lead-form__field zy-slot-lead-form__field--full">
-          <p v-if="submitError" class="zy-slot-lead-form__alert" role="alert">
-            {{ submitError }}
-          </p>
-          <button
-            type="submit"
-            class="zy-slot-lead-form__submit"
-            :disabled="submitting || isPreview"
-          >
-            {{ submitting ? 'Mengirim…' : form.submitLabel || 'Kirim' }}
-          </button>
-          <p v-if="isPreview" class="zy-slot-lead-form__hint">
-            Contoh form — hubungkan form di panel Konten setelah template dipakai.
-          </p>
-        </div>
-      </div>
-    </form>
-  </section>
+  <LeadFormView
+    v-if="form"
+    ref="view"
+    :form="form"
+    :presentation="presentation"
+    :values="values"
+    :errors="errors"
+    :state="state"
+    :submit-error="submitError"
+    :success-href="whatsappUrl"
+    :disabled="isPreview"
+    :hint="isPreview ? PREVIEW_HINT : ''"
+    @update="onUpdate"
+    @submit="onSubmit"
+  />
 </template>

@@ -1,19 +1,47 @@
+/*
+ * Form Konsultasi. Satu file untuk 5 gaya (varian kelas zy-slot-lead-form--{style}).
+ * Tema: variabel --zy-lf-* jatuh ke token template (--tp-*) bila ada, lalu ke default gaya.
+ * Halaman lama tanpa token --tp-* tampil sama seperti sebelumnya (Kartu navy/putih).
+ * Nilai custom penulis di-set inline oleh slot sebagai --zy-lf-*-custom.
+ */
 .zy-slot-lead-form {
+  --zy-lf-accent: var(
+    --zy-lf-accent-custom,
+    var(--tp-btn-bg, var(--tp-primary, var(--zy-lf-accent-default)))
+  );
+  --zy-lf-on-accent: var(--zy-lf-on-accent-custom, var(--tp-btn-fg, var(--tp-on-primary, #fff)));
+  --zy-lf-bg: var(--zy-lf-bg-custom, var(--zy-lf-bg-default));
+  --zy-lf-fg: var(--zy-lf-fg-custom, var(--tp-ink, var(--zy-lf-fg-default)));
+  --zy-lf-muted: var(--tp-muted, color-mix(in srgb, var(--zy-lf-fg) 70%, transparent));
+  --zy-lf-line: var(--tp-line, color-mix(in srgb, var(--zy-lf-fg) 25%, transparent));
+  --zy-lf-input-line: color-mix(in srgb, var(--zy-lf-fg) 50%, transparent);
+  --zy-lf-radius: var(--zy-lf-radius-custom, var(--tp-radius, 12px));
+  --zy-lf-error: #ba1a1a;
+  --zy-lf-accent-default: #0b1f3a;
+  --zy-lf-bg-default: #ffffff;
+  --zy-lf-fg-default: #191c1e;
+
   max-width: 640px;
   margin: 0 auto;
-  padding: 32px 24px;
-  border: 1px solid #c3c6d7;
-  border-radius: 16px;
-  background: #fff;
   box-sizing: border-box;
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  color: #191c1e;
+  font-family: inherit;
+  color: var(--zy-lf-fg);
 }
 .zy-slot-lead-form *,
 .zy-slot-lead-form *::before,
 .zy-slot-lead-form *::after {
   box-sizing: border-box;
 }
+
+/* ── Kartu (default) ─────────────────────────────────────────────── */
+.zy-slot-lead-form__panel {
+  padding: 32px 24px;
+  border: 1px solid var(--zy-lf-line);
+  border-radius: calc(var(--zy-lf-radius) + 4px);
+  background: var(--zy-lf-bg);
+}
+
+/* ── Layout field ────────────────────────────────────────────────── */
 .zy-slot-lead-form__grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -28,20 +56,20 @@
 .zy-slot-lead-form__label {
   font-size: 14px;
   font-weight: 600;
-  color: #0b1f3a;
+  color: var(--zy-lf-fg);
 }
 .zy-slot-lead-form__req {
   margin-left: 2px;
-  color: #ba1a1a;
+  color: var(--zy-lf-error);
 }
 .zy-slot-lead-form__input {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid #737686;
-  border-radius: 8px;
-  background: #fff;
-  color: #191c1e;
+  border: 1px solid var(--zy-lf-input-line);
+  border-radius: var(--zy-lf-radius);
+  background: var(--zy-lf-bg);
+  color: var(--zy-lf-fg);
   font: inherit;
   font-size: 16px;
 }
@@ -52,17 +80,17 @@ textarea.zy-slot-lead-form__input {
 .zy-slot-lead-form__input:focus-visible,
 .zy-slot-lead-form__consent input:focus-visible,
 .zy-slot-lead-form__submit:focus-visible {
-  outline: 2px solid #0058be;
+  outline: 2px solid var(--zy-lf-accent);
   outline-offset: 2px;
 }
 .zy-slot-lead-form__input[aria-invalid='true'] {
-  border-color: #ba1a1a;
+  border-color: var(--zy-lf-error);
 }
 .zy-slot-lead-form__error {
   margin: 0;
   font-size: 13px;
   line-height: 1.4;
-  color: #ba1a1a;
+  color: var(--zy-lf-error);
 }
 .zy-slot-lead-form__consent {
   display: flex;
@@ -70,17 +98,17 @@ textarea.zy-slot-lead-form__input {
   gap: 10px;
   font-size: 14px;
   line-height: 1.5;
-  color: #434655;
+  color: var(--zy-lf-muted);
 }
 .zy-slot-lead-form__consent input {
   flex: none;
   width: 20px;
   height: 20px;
   margin: 2px 0 0;
-  accent-color: #0b1f3a;
+  accent-color: var(--zy-lf-accent);
 }
 .zy-slot-lead-form__consent a {
-  color: #0058be;
+  color: inherit;
   text-decoration: underline;
 }
 .zy-slot-lead-form__submit {
@@ -88,9 +116,9 @@ textarea.zy-slot-lead-form__input {
   min-height: 48px;
   padding: 12px 24px;
   border: 0;
-  border-radius: 8px;
-  background: #0b1f3a;
-  color: #fff;
+  border-radius: var(--zy-lf-radius);
+  background: var(--zy-lf-accent);
+  color: var(--zy-lf-on-accent);
   font: inherit;
   font-size: 16px;
   font-weight: 700;
@@ -124,13 +152,13 @@ textarea.zy-slot-lead-form__input {
   font-size: 18px;
   line-height: 1.5;
   font-weight: 600;
-  color: #0b1f3a;
+  color: var(--zy-lf-fg);
 }
 .zy-slot-lead-form__wa {
   display: inline-block;
   margin-top: 16px;
   padding: 12px 20px;
-  border-radius: 8px;
+  border-radius: var(--zy-lf-radius);
   background: #128c4a;
   color: #ffffff;
   font-size: 15px;
@@ -141,7 +169,7 @@ textarea.zy-slot-lead-form__input {
   background: #0e7a40;
 }
 .zy-slot-lead-form__wa:focus-visible {
-  outline: 2px solid #0b1f3a;
+  outline: 2px solid var(--zy-lf-fg);
   outline-offset: 2px;
 }
 /* Off-screen rather than display:none so naive bots still fill it in. */
@@ -153,14 +181,193 @@ textarea.zy-slot-lead-form__input {
   height: 1px;
   overflow: hidden;
 }
+.zy-slot-lead-form__aside {
+  display: none;
+}
+
+/* ── Minimal: tanpa kartu, input garis bawah, tombol outline pil ──── */
+.zy-slot-lead-form--minimal {
+  --zy-lf-accent-default: #191c1e;
+  --zy-lf-bg-default: transparent;
+  --zy-lf-fg-default: #191c1e;
+}
+.zy-slot-lead-form--minimal .zy-slot-lead-form__panel {
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.zy-slot-lead-form--minimal .zy-slot-lead-form__input {
+  padding-inline: 2px;
+  border: 0;
+  border-bottom: 1.5px solid var(--zy-lf-input-line);
+  border-radius: 0;
+  background: transparent;
+}
+.zy-slot-lead-form--minimal .zy-slot-lead-form__input:focus-visible {
+  outline: 0;
+  border-bottom-color: var(--zy-lf-accent);
+  box-shadow: 0 1.5px 0 0 var(--zy-lf-accent);
+}
+.zy-slot-lead-form--minimal .zy-slot-lead-form__submit {
+  border: 2px solid var(--zy-lf-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--zy-lf-accent);
+}
+.zy-slot-lead-form--minimal .zy-slot-lead-form__submit:hover:not(:disabled) {
+  background: var(--zy-lf-accent);
+  color: var(--zy-lf-on-accent);
+}
+
+/* ── Glass: untuk latar foto/gelap. Teks terang, abaikan token teks halaman ── */
+.zy-slot-lead-form--glass {
+  --zy-lf-accent: var(--zy-lf-accent-custom, #ffffff);
+  --zy-lf-on-accent: var(--zy-lf-on-accent-custom, #111111);
+  --zy-lf-fg: var(--zy-lf-fg-custom, #ffffff);
+  --zy-lf-muted: color-mix(in srgb, var(--zy-lf-fg) 78%, transparent);
+  --zy-lf-line: rgba(255, 255, 255, 0.22);
+  --zy-lf-input-line: rgba(255, 255, 255, 0.4);
+  --zy-lf-bg-default: rgba(255, 255, 255, 0.08);
+}
+.zy-slot-lead-form--glass .zy-slot-lead-form__panel {
+  border-color: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.zy-slot-lead-form--glass .zy-slot-lead-form__input {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--zy-lf-fg);
+}
+.zy-slot-lead-form--glass .zy-slot-lead-form__input::placeholder {
+  color: var(--zy-lf-muted);
+}
+/* Label tetap ada untuk pembaca layar; secara visual placeholder yang jadi label. */
+.zy-slot-lead-form--glass .zy-slot-lead-form__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Split: judul + poin di kiri, kartu form di kanan ─────────────── */
+.zy-slot-lead-form--split {
+  max-width: 960px;
+}
+.zy-slot-lead-form--split .zy-slot-lead-form__aside {
+  display: block;
+  align-self: center;
+}
+.zy-slot-lead-form__aside-title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--zy-lf-fg);
+}
+.zy-slot-lead-form__points {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.zy-slot-lead-form__points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--zy-lf-muted);
+}
+.zy-slot-lead-form__points svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: var(--zy-lf-accent);
+}
+.zy-slot-lead-form--split .zy-slot-lead-form__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+}
+
+/* ── Ringkas satu baris: field + tombol sebaris, membungkus di layar sempit ── */
+.zy-slot-lead-form--inline {
+  max-width: 960px;
+}
+.zy-slot-lead-form--inline .zy-slot-lead-form__panel {
+  padding: 16px;
+  border: 0;
+  background: transparent;
+}
+.zy-slot-lead-form--inline .zy-slot-lead-form__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.zy-slot-lead-form--inline .zy-slot-lead-form__field {
+  flex: 1 1 180px;
+}
+.zy-slot-lead-form--inline .zy-slot-lead-form__field--full {
+  flex-basis: 100%;
+}
+.zy-slot-lead-form--inline .zy-slot-lead-form__actions {
+  flex: 0 1 auto;
+  min-width: 160px;
+}
+.zy-slot-lead-form--inline .zy-slot-lead-form__submit {
+  width: auto;
+  min-width: 160px;
+}
+
+.zy-slot-lead-form__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 @media (min-width: 768px) {
-  .zy-slot-lead-form {
+  .zy-slot-lead-form__panel {
     padding: 40px;
   }
-  .zy-slot-lead-form__grid {
+  .zy-slot-lead-form--minimal .zy-slot-lead-form__panel {
+    padding: 8px 0;
+  }
+  .zy-slot-lead-form--inline .zy-slot-lead-form__panel {
+    padding: 16px;
+  }
+  .zy-slot-lead-form:not(.zy-slot-lead-form--cols-1):not(.zy-slot-lead-form--split):not(
+      .zy-slot-lead-form--inline
+    )
+    .zy-slot-lead-form__grid {
     grid-template-columns: 1fr 1fr;
   }
-  .zy-slot-lead-form__field--full {
+  .zy-slot-lead-form--split .zy-slot-lead-form__grid {
+    grid-template-columns: 1fr;
+  }
+  .zy-slot-lead-form:not(.zy-slot-lead-form--inline) .zy-slot-lead-form__field--full,
+  .zy-slot-lead-form__grid > .zy-slot-lead-form__actions {
     grid-column: 1 / -1;
+  }
+  .zy-slot-lead-form--split .zy-slot-lead-form__split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 48px;
+  }
+}
+@media (max-width: 639px) {
+  .zy-slot-lead-form--inline .zy-slot-lead-form__submit {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zy-slot-lead-form * {
+    transition: none;
+    animation: none;
   }
 }
