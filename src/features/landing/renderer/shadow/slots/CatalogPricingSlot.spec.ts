@@ -70,6 +70,9 @@ function ctxFor(orgType = 'platform', orgTypeRef?: Ref<string>) {
     orgType: orgTypeRef ?? computed(() => orgType),
     interest: ref(''),
     scrollToId: vi.fn(),
+    registerLeadPopup: vi.fn(() => () => {}),
+    openLeadPopup: vi.fn(() => false),
+    overlayTarget: ref<HTMLElement | null>(null),
   }
 }
 
@@ -189,6 +192,33 @@ describe('CatalogPricingSlot', () => {
       .trigger('click')
     expect(ctx.interest.value).toBe('Small Business · Tahunan')
     expect(ctx.scrollToId).toHaveBeenCalledWith('konsultasi')
+  })
+
+  it('Hubungi sales sets interest and opens the popup when present', async () => {
+    listListings.mockResolvedValue([category('c1')])
+    const ctx = ctxFor()
+    ctx.openLeadPopup.mockReturnValue(true)
+    const { w } = mountSlot({}, ctx)
+    await flushPromises()
+    await w
+      .find('.zy-slot-catalog-pricing__card--enterprise .zy-slot-catalog-pricing__cta')
+      .trigger('click')
+    expect(ctx.interest.value).toBe('Enterprise / Business')
+    expect(ctx.openLeadPopup).toHaveBeenCalledTimes(1)
+    expect(ctx.scrollToId).not.toHaveBeenCalled()
+  })
+
+  it('only #konsultasi may open the popup; other anchors scroll', async () => {
+    listListings.mockResolvedValue([category('c1')])
+    const ctx = ctxFor()
+    ctx.openLeadPopup.mockReturnValue(true)
+    const { w } = mountSlot({ contactHref: '#harga' }, ctx)
+    await flushPromises()
+    await w
+      .find('.zy-slot-catalog-pricing__card--enterprise .zy-slot-catalog-pricing__cta')
+      .trigger('click')
+    expect(ctx.openLeadPopup).not.toHaveBeenCalled()
+    expect(ctx.scrollToId).toHaveBeenCalledWith('harga')
   })
 
   it('enterprise card uses its title as interest', async () => {

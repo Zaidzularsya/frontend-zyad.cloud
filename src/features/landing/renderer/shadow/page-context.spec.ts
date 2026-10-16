@@ -9,4 +9,11 @@ describe('useLandingPageContext', () => {
     expect(ctx.interest.value).toBe('')
     expect(() => ctx.scrollToId('x')).not.toThrow()
   })
+
+  it('openLeadPopup returns false when nothing is registered', () => {
+    const ctx = useLandingPageContext()
+    expect(ctx.openLeadPopup()).toBe(false)
+    expect(ctx.overlayTarget.value).toBeNull()
+    expect(() => ctx.registerLeadPopup(() => {})()).not.toThrow()
+  })
 })

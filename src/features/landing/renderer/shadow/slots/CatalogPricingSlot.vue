@@ -23,7 +23,7 @@ import {
   yearlySavings,
   type PricingCard,
 } from '../../sections/pricing/pricing-view'
-import { useLandingPageContext } from '../page-context'
+import { LEAD_FORM_ANCHOR, useLandingPageContext } from '../page-context'
 import type { GrapesChrome } from '../../grapes/chrome'
 
 const props = defineProps<{
@@ -126,7 +126,10 @@ function goContact(interest: string) {
   ctx.interest.value = interest
   const href = safeHref(config.value.contactHref)
   if (href.startsWith('#')) {
-    ctx.scrollToId(href.slice(1))
+    const id = href.slice(1)
+    // Halaman dengan form popup: CTA ke #konsultasi membuka dialog (interest sudah terisi di atas).
+    if (id === LEAD_FORM_ANCHOR && ctx.openLeadPopup()) return
+    ctx.scrollToId(id)
     return
   }
   if (href.startsWith('/')) {

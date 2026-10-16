@@ -22,7 +22,7 @@ import { useRouter } from 'vue-router'
 
 import type { GrapesChrome } from '../grapes/chrome'
 import { rewritePageCss } from '../grapes/page-css'
-import { LANDING_PAGE_CONTEXT } from './page-context'
+import { LANDING_PAGE_CONTEXT, LEAD_FORM_ANCHOR } from './page-context'
 import { classifyLinkClick, hasAppRoute } from './link-handling'
 import { SLOT_REGISTRY, slotStyles } from './slot-registry'
 import baseCss from './base.css?inline'
@@ -128,8 +128,28 @@ function scrollToHash(smooth: boolean) {
     ?.scrollIntoView(smooth ? { behavior: 'smooth', block: 'start' } : undefined)
 }
 
+// Popup Form Konsultasi (maks. satu per halaman: blok lead-form singleton).
+const leadPopupOpeners = new Set<() => void>()
+const overlayTarget = ref<HTMLElement | null>(null)
+
+function registerLeadPopup(open: () => void): () => void {
+  leadPopupOpeners.add(open)
+  return () => {
+    leadPopupOpeners.delete(open)
+  }
+}
+
+function openLeadPopup(): boolean {
+  const open = leadPopupOpeners.values().next().value
+  if (!open) return false
+  open()
+  return true
+}
+
 // Scroll anchor bersama untuk klik hash dan konteks halaman (slot).
 function scrollToId(id: string) {
+  // Halaman dengan popup: #konsultasi membuka dialog, bukan scroll (hash URL tidak diubah).
+  if (id === LEAD_FORM_ANCHOR && openLeadPopup()) return
   const el = root?.getElementById(id)
   if (!el) return
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -141,6 +161,9 @@ provide(LANDING_PAGE_CONTEXT, {
   orgType: computed(() => props.chrome?.orgType ?? ''),
   interest: ref(''),
   scrollToId,
+  registerLeadPopup,
+  openLeadPopup,
+  overlayTarget,
 })
 
 function collectSlotTargets(page: Element): SlotTarget[] {
@@ -167,6 +190,7 @@ async function render() {
   stopRuntime()
   // 1. Lepas teleport lama, tunggu ter-unmount, baru bersihkan font.
   slotTargets.value = []
+  overlayTarget.value = null
   removeFonts()
   if (!first) {
     await nextTick()
@@ -183,7 +207,17 @@ async function render() {
   const page = document.createElement('div')
   page.className = 'zy-page'
   page.innerHTML = sanitize(props.html)
-  root.replaceChildren(makeStyle(`${baseCss}\n${motionCss}\n${slotStyles()}`), makeStyle(css), page)
+  // Overlay di tingkat shadow root: launcher/dialog popup memakai position:fixed dan tidak boleh
+  // berada di dalam section beranimasi (transform membuat containing block baru).
+  const overlay = document.createElement('div')
+  overlay.className = 'zy-overlay-root'
+  root.replaceChildren(
+    makeStyle(`${baseCss}\n${motionCss}\n${slotStyles()}`),
+    makeStyle(css),
+    page,
+    overlay,
+  )
+  overlayTarget.value = overlay
   rendered = true
 
   // 3. Font tidak jalan di dalam shadow root: hoist ke head.
@@ -248,6 +282,8 @@ onBeforeUnmount(() => {
   root?.removeEventListener('click', onClick)
   removeFonts()
   slotTargets.value = []
+  overlayTarget.value = null
+  leadPopupOpeners.clear()
 })
 
 defineExpose({ shadowRoot: (): ShadowRoot | null => root })

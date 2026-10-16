@@ -422,3 +422,83 @@ describe('ShadowPageRenderer', () => {
     })
   })
 })
+
+describe('ShadowPageRenderer — popup form context', () => {
+  let ctx: LandingPageContext | undefined
+  const Probe = defineComponent({
+    setup() {
+      ctx = useLandingPageContext()
+      return () => h('span', 'probe')
+    },
+  })
+  beforeEach(() => {
+    ctx = undefined
+    SLOT_REGISTRY['ctx-probe'] = { component: Probe, css: '' }
+  })
+  afterEach(() => {
+    delete SLOT_REGISTRY['ctx-probe']
+  })
+
+  const HTML =
+    '<div data-zyad-slot="ctx-probe"></div><section id="konsultasi">inline</section><a id="go" href="#konsultasi">k</a>'
+
+  it('registered opener is called and unregister removes it', async () => {
+    mountRenderer({ html: HTML, css: '' })
+    await flushPromises()
+    const open = vi.fn()
+    const unregister = ctx!.registerLeadPopup(open)
+    expect(ctx!.openLeadPopup()).toBe(true)
+    expect(open).toHaveBeenCalledTimes(1)
+    unregister()
+    expect(ctx!.openLeadPopup()).toBe(false)
+    expect(open).toHaveBeenCalledTimes(1)
+  })
+
+  it('#konsultasi click opens the popup instead of scrolling when registered', async () => {
+    const w = mountRenderer({ html: HTML, css: '' })
+    await flushPromises()
+    const open = vi.fn()
+    ctx!.registerLeadPopup(open)
+    const root = host(w).shadowRoot!
+    const { prevented } = click(root.getElementById('go')!)
+    expect(prevented).toBe(true)
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(root.getElementById('konsultasi')!.scrollIntoView).not.toHaveBeenCalled()
+    expect(location.hash).toBe('')
+  })
+
+  it('#konsultasi still scrolls when no popup is registered', async () => {
+    const w = mountRenderer({ html: HTML, css: '' })
+    await flushPromises()
+    const root = host(w).shadowRoot!
+    click(root.getElementById('go')!)
+    expect(root.getElementById('konsultasi')!.scrollIntoView).toHaveBeenCalled()
+    expect(location.hash).toBe('#konsultasi')
+  })
+
+  it('other anchors never open the popup', async () => {
+    const w = mountRenderer({ html: HTML + '<section id="harga"></section>', css: '' })
+    await flushPromises()
+    const open = vi.fn()
+    ctx!.registerLeadPopup(open)
+    ctx!.scrollToId('harga')
+    expect(open).not.toHaveBeenCalled()
+    expect(host(w).shadowRoot!.getElementById('harga')!.scrollIntoView).toHaveBeenCalled()
+  })
+
+  it('renderer creates exactly one overlay root inside the shadow root', async () => {
+    const w = mountRenderer({ html: HTML, css: '' })
+    await flushPromises()
+    const root = host(w).shadowRoot!
+    expect(
+      Array.from(root.children).filter((c) => c.classList.contains('zy-overlay-root')),
+    ).toHaveLength(1)
+    expect(ctx!.overlayTarget.value).toBe(root.querySelector('.zy-overlay-root'))
+    await w.setProps({ html: HTML + '<p>baru</p>' })
+    await flushPromises()
+    expect(
+      Array.from(root.children).filter((c) => c.classList.contains('zy-overlay-root')),
+    ).toHaveLength(1)
+    expect(ctx!.overlayTarget.value).toBe(root.querySelector('.zy-overlay-root'))
+  })
+})
