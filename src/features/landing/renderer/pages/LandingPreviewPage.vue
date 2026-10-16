@@ -113,6 +113,9 @@ async function loadPreviewForms(id: string): Promise<GrapesChromeForm[]> {
         successMessage: form.success_message,
         redirectUrl:
           form.redirect_url && safeHref(form.redirect_url) !== '#' ? form.redirect_url.trim() : '',
+        afterSubmit: form.after_submit,
+        whatsappNumber: form.whatsapp_number ?? '',
+        whatsappMessage: form.whatsapp_message ?? '',
         fields: [...(form.fields ?? [])]
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((f) => ({

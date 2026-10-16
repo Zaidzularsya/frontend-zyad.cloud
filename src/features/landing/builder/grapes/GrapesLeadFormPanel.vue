@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { leadsApi, type CrmMember } from '@/features/crm/leads/api/leads.api'
 import { useTenantStore } from '@/stores/tenant.store'
 import { landingApi } from '../../shared/api/landing.api'
-import { safeHref } from '../../renderer/grapes/chrome'
-import type { LandingFormWithFields } from '../../shared/types/landing.types'
+import type { FormFieldItem, LandingFormWithFields } from '../../shared/types/landing.types'
 import { parseLeadFormId } from './grapes.lead-form-component'
-import { nextFormKey, STANDARD_LEAD_FORM } from './lead-form-presets'
+import GrapesLeadFormAfterSubmit from './GrapesLeadFormAfterSubmit.vue'
+import GrapesLeadFormFields from './GrapesLeadFormFields.vue'
+import { LEAD_FORM_BASE, nextFormKey, presetFields, type LeadFormPreset } from './lead-form-presets'
 
 /**
- * Panel pengaturan blok "Form Konsultasi": pilih/buat form halaman, lalu atur
- * penerusan ke CRM (toggle + PIC), judul tombol, pesan sukses dan redirect.
- * Pilihan form ditulis ke `data-zyad-config`; pengaturan form lewat updateForm.
+ * Panel pengaturan blok "Form Konsultasi": ① pilih/buat form halaman (preset Ringkas/Standar/Lengkap),
+ * ② field (GrapesLeadFormFields, autosave), ④ setelah kirim (GrapesLeadFormAfterSubmit), dan
+ * ⑤ penerusan ke CRM (toggle + PIC). Pilihan form ditulis ke `data-zyad-config`; pengaturan form
+ * lewat updateForm.
  */
-const SUBMIT_LABEL_MAX = 100
 const NO_FEATURE_TEXT = 'Butuh fitur Lead Form CRM di paket Anda'
 
 const props = defineProps<{
@@ -35,24 +36,11 @@ const membersFailed = ref(false)
 const loading = ref(true)
 const busy = ref(false)
 const message = ref('')
-const errors = reactive<Record<string, string>>({})
+const newFormPreset = ref<LeadFormPreset>('ringkas')
 
 const selected = computed(() => forms.value.find((f) => f.id === selectedId.value) ?? null)
 // Org platform tidak digerbang fitur (spec): toggle tetap aktif walau members() gagal.
 const crmUnavailable = computed(() => membersFailed.value && !tenantStore.isPlatformOrganization)
-
-// Draf input teks: nilai tidak valid tetap terlihat (tidak ter-reset ke nilai
-// tersimpan) sampai penulis memperbaikinya; disinkronkan ulang saat ganti form.
-const draft = reactive({ submitLabel: '', successMessage: '', redirectUrl: '' })
-watch(
-  () => selected.value?.id,
-  () => {
-    draft.submitLabel = selected.value?.submit_label ?? ''
-    draft.successMessage = selected.value?.success_message ?? ''
-    draft.redirectUrl = selected.value?.redirect_url ?? ''
-  },
-  { immediate: true },
-)
 
 function withFields(form: { fields?: LandingFormWithFields['fields'] } & object) {
   return { ...form, fields: form.fields ?? [] } as LandingFormWithFields
@@ -70,7 +58,6 @@ function replaceForm(updated: LandingFormWithFields) {
 function selectForm(id: string) {
   selectedId.value = id
   props.component.addAttributes({ 'data-zyad-config': JSON.stringify({ form_id: id }) })
-  for (const k of Object.keys(errors)) errors[k] = ''
 }
 
 onMounted(async () => {
@@ -93,22 +80,22 @@ function onSelect(e: Event) {
   if (id) selectForm(id)
 }
 
-async function createStandard() {
+async function createWithPreset() {
   busy.value = true
   message.value = ''
   let createdId = ''
   try {
     const key = nextFormKey(forms.value.map((f) => f.key))
-    const created = await landingApi.createForm(props.pageId, { ...STANDARD_LEAD_FORM.form, key })
+    const created = await landingApi.createForm(props.pageId, { ...LEAD_FORM_BASE, key })
     createdId = created.data.id
     const fields = await landingApi.replaceFormFields(props.pageId, createdId, {
-      fields: STANDARD_LEAD_FORM.fields,
+      fields: presetFields(newFormPreset.value),
     })
     setForms([...forms.value, withFields({ ...created.data, fields: fields.data })])
     selectForm(createdId)
   } catch (error) {
-    console.error('GrapesLeadFormPanel: failed to create standard form', error)
-    message.value = 'Gagal membuat form standar. Coba lagi.'
+    console.error('GrapesLeadFormPanel: failed to create form', error)
+    message.value = 'Gagal membuat form. Coba lagi.'
     // Jangan tinggalkan form tanpa field.
     if (createdId) await landingApi.deleteForm(props.pageId, createdId).catch(() => undefined)
   } finally {
@@ -138,36 +125,9 @@ function onOwner(e: Event) {
   void patch({ lead_owner_user_id: (e.target as HTMLSelectElement).value })
 }
 
-function onSubmitLabel(e: Event) {
-  draft.submitLabel = (e.target as HTMLInputElement).value
-  const value = draft.submitLabel.trim()
-  if (!value) {
-    errors.submitLabel = 'Judul tombol wajib diisi.'
-    return
-  }
-  if (value.length > SUBMIT_LABEL_MAX) {
-    errors.submitLabel = `Judul tombol maksimal ${SUBMIT_LABEL_MAX} karakter.`
-    return
-  }
-  errors.submitLabel = ''
-  void patch({ submit_label: value })
-}
-
-function onSuccessMessage(e: Event) {
-  draft.successMessage = (e.target as HTMLTextAreaElement).value
-  void patch({ success_message: draft.successMessage.trim() })
-}
-
-function onRedirect(e: Event) {
-  draft.redirectUrl = (e.target as HTMLInputElement).value
-  const value = draft.redirectUrl.trim()
-  // Kosong = tanpa redirect. Selain itu hanya path internal atau http(s).
-  if (value && (safeHref(value) !== value || !/^(\/(?!\/)|https?:\/\/)/i.test(value))) {
-    errors.redirect = 'URL tidak valid. Gunakan /path atau https://…'
-    return
-  }
-  errors.redirect = ''
-  void patch({ redirect_url: value })
+function onFieldsSaved(fields: FormFieldItem[]) {
+  const form = selected.value
+  if (form) replaceForm({ ...form, fields })
 }
 </script>
 
@@ -185,11 +145,33 @@ function onRedirect(e: Event) {
             <option v-for="f in forms" :key="f.id" :value="f.id">{{ f.name }} ({{ f.key }})</option>
           </select>
         </label>
-        <button type="button" class="hp-btn" :disabled="busy" @click="createStandard">
-          Buat form standar
-        </button>
+        <div class="hp-row">
+          <select v-model="newFormPreset" class="hp-input" aria-label="Preset form baru">
+            <option value="ringkas">Ringkas</option>
+            <option value="standar">Standar</option>
+            <option value="lengkap">Lengkap</option>
+          </select>
+          <button type="button" class="hp-btn" :disabled="busy" @click="createWithPreset">
+            Buat form baru
+          </button>
+        </div>
         <p v-if="message" class="hp-error" role="alert">{{ message }}</p>
       </div>
+
+      <details v-if="selected" class="hp-sec" open>
+        <summary>Field</summary>
+        <GrapesLeadFormFields
+          :key="selected.id"
+          :page-id="pageId"
+          :form="selected"
+          @saved="onFieldsSaved"
+        />
+      </details>
+
+      <details v-if="selected" class="hp-sec" open>
+        <summary>Setelah kirim</summary>
+        <GrapesLeadFormAfterSubmit :key="selected.id" :form="selected" @patch="patch" />
+      </details>
 
       <details v-if="selected" class="hp-sec" open>
         <summary>Penerusan ke CRM</summary>
@@ -220,45 +202,6 @@ function onRedirect(e: Event) {
               </option>
             </select>
           </label>
-        </div>
-      </details>
-
-      <details v-if="selected" class="hp-sec" open>
-        <summary>Tombol &amp; hasil</summary>
-        <div class="hp-body">
-          <label class="hp-label">
-            Judul tombol
-            <input
-              class="hp-input"
-              type="text"
-              aria-label="Judul tombol"
-              :value="draft.submitLabel"
-              @change="onSubmitLabel"
-            />
-          </label>
-          <p v-if="errors.submitLabel" class="hp-error" role="alert">{{ errors.submitLabel }}</p>
-          <label class="hp-label">
-            Pesan sukses
-            <textarea
-              class="hp-input hp-textarea"
-              rows="3"
-              aria-label="Pesan sukses"
-              :value="draft.successMessage"
-              @change="onSuccessMessage"
-            ></textarea>
-          </label>
-          <label class="hp-label">
-            URL redirect
-            <input
-              class="hp-input"
-              type="text"
-              aria-label="URL redirect"
-              placeholder="Kosongkan untuk menampilkan pesan sukses"
-              :value="draft.redirectUrl"
-              @change="onRedirect"
-            />
-          </label>
-          <p v-if="errors.redirect" class="hp-error" role="alert">{{ errors.redirect }}</p>
         </div>
       </details>
     </template>
@@ -328,6 +271,14 @@ function onRedirect(e: Event) {
   outline: none;
   border-color: #0369a1;
   box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12);
+}
+.hp-row {
+  display: flex;
+  gap: 6px;
+}
+.hp-row .hp-input {
+  flex: 1;
+  min-width: 0;
 }
 .hp-btn {
   border: 1px solid #0369a1;

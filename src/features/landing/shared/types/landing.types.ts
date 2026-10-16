@@ -124,6 +124,9 @@ export interface LandingSection {
 
 // ─── Forms ──────────────────────────────────────────────────────────────────
 
+/** Apa yang terjadi di browser setelah form terkirim. */
+export type AfterSubmitAction = 'message' | 'redirect' | 'whatsapp'
+
 export interface LandingForm {
   id: string
   name: string
@@ -137,6 +140,10 @@ export interface LandingForm {
   create_crm_lead: boolean
   /** PIC lead; null -> pembuat halaman. */
   lead_owner_user_id: string | null
+  after_submit: AfterSubmitAction
+  /** Digit internasional tanpa '+', mis. 6281234567890. */
+  whatsapp_number: string | null
+  whatsapp_message: string | null
   fields?: LandingFormField[]
   created_at: string
   updated_at: string
@@ -158,6 +165,9 @@ export interface CreateFormPayload {
   redirect_url?: string | null
   create_crm_lead?: boolean
   lead_owner_user_id?: string
+  after_submit?: AfterSubmitAction
+  whatsapp_number?: string
+  whatsapp_message?: string
 }
 
 export type CrmSyncStatus = 'skipped' | 'created' | 'merged' | 'failed'
@@ -185,6 +195,8 @@ export interface LandingFormField {
   validation?: Record<string, unknown>
   required: boolean
   sort_order: number
+  /** Nilai server-side untuk field hidden; tidak pernah dikirim ke halaman publik. */
+  default_value?: string
 }
 
 // ─── Branding ────────────────────────────────────────────────────────────────

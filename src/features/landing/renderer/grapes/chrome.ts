@@ -28,6 +28,11 @@ export interface GrapesChromeForm {
   successMessage: string
   /** Sudah lolos safeHref; '' bila tidak ada / tidak aman. */
   redirectUrl: string
+  /** 'message' | 'redirect' | 'whatsapp'; backend lama tanpa field ini: redirect bila redirectUrl terisi. */
+  afterSubmit: 'message' | 'redirect' | 'whatsapp'
+  /** Digit internasional tanpa '+'; '' bila tidak ada. */
+  whatsappNumber: string
+  whatsappMessage: string
   /** Urut SortOrder. */
   fields: GrapesChromeFormField[]
 }

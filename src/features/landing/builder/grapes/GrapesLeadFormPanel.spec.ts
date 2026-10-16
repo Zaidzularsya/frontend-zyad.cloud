@@ -22,7 +22,7 @@ vi.mock('@/features/crm/leads/api/leads.api', () => ({
 }))
 
 import { useTenantStore } from '@/stores/tenant.store'
-import { STANDARD_LEAD_FORM } from './lead-form-presets'
+import { LEAD_FORM_BASE, presetFields } from './lead-form-presets'
 import GrapesLeadFormPanel from './GrapesLeadFormPanel.vue'
 
 function form(over: Record<string, unknown> = {}) {
@@ -36,6 +36,9 @@ function form(over: Record<string, unknown> = {}) {
     is_active: true,
     create_crm_lead: true,
     lead_owner_user_id: null,
+    after_submit: 'message',
+    whatsapp_number: null,
+    whatsapp_message: null,
     fields: [],
     ...over,
   }
@@ -67,25 +70,27 @@ describe('GrapesLeadFormPanel', () => {
     )
   })
 
-  it('Buat form standar: createForm -> replaceFormFields(preset) -> addAttributes form_id baru', async () => {
-    getForms.mockResolvedValue({ data: [form({ id: 'old' })] })
-    createForm.mockResolvedValue({ data: form({ id: 'new', key: 'konsultasi-2' }) })
-    replaceFormFields.mockResolvedValue({ data: STANDARD_LEAD_FORM.fields })
-    const { wrapper, addAttributes } = await setup()
-
+  const clickCreate = async (wrapper: Awaited<ReturnType<typeof setup>>['wrapper']) => {
     await wrapper
       .findAll('button')
-      .find((b) => b.text() === 'Buat form standar')!
+      .find((b) => b.text() === 'Buat form baru')!
       .trigger('click')
     await flushPromises()
+  }
 
-    expect(createForm).toHaveBeenCalledWith('p1', {
-      ...STANDARD_LEAD_FORM.form,
-      key: 'konsultasi-2',
-    })
-    expect(replaceFormFields).toHaveBeenCalledWith('p1', 'new', {
-      fields: STANDARD_LEAD_FORM.fields,
-    })
+  it('Buat form baru memakai preset Ringkas secara default: createForm -> replaceFormFields -> form_id baru', async () => {
+    getForms.mockResolvedValue({ data: [form({ id: 'old' })] })
+    createForm.mockResolvedValue({ data: form({ id: 'new', key: 'konsultasi-2' }) })
+    replaceFormFields.mockResolvedValue({ data: presetFields('ringkas') })
+    const { wrapper, addAttributes } = await setup()
+    expect(
+      (wrapper.get('select[aria-label="Preset form baru"]').element as HTMLSelectElement).value,
+    ).toBe('ringkas')
+
+    await clickCreate(wrapper)
+
+    expect(createForm).toHaveBeenCalledWith('p1', { ...LEAD_FORM_BASE, key: 'konsultasi-2' })
+    expect(replaceFormFields).toHaveBeenCalledWith('p1', 'new', { fields: presetFields('ringkas') })
     expect(createForm.mock.invocationCallOrder[0]!).toBeLessThan(
       replaceFormFields.mock.invocationCallOrder[0]!,
     )
@@ -95,19 +100,24 @@ describe('GrapesLeadFormPanel', () => {
     expect(wrapper.emitted('forms-change')!.at(-1)![0]).toHaveLength(2)
   })
 
+  it('Buat form baru memakai preset yang dipilih', async () => {
+    createForm.mockResolvedValue({ data: form({ id: 'new' }) })
+    replaceFormFields.mockResolvedValue({ data: presetFields('lengkap') })
+    const { wrapper } = await setup()
+    await wrapper.get('select[aria-label="Preset form baru"]').setValue('lengkap')
+    await clickCreate(wrapper)
+    expect(replaceFormFields).toHaveBeenCalledWith('p1', 'new', { fields: presetFields('lengkap') })
+  })
+
   it('gagal mengisi field -> form yang baru dibuat dihapus dan pesan error tampil', async () => {
     createForm.mockResolvedValue({ data: form({ id: 'new' }) })
     replaceFormFields.mockRejectedValue(new Error('boom'))
     deleteForm.mockResolvedValue({})
     const { wrapper, addAttributes } = await setup()
-    await wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Buat form standar')!
-      .trigger('click')
-    await flushPromises()
+    await clickCreate(wrapper)
     expect(deleteForm).toHaveBeenCalledWith('p1', 'new')
     expect(addAttributes).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Gagal membuat form standar')
+    expect(wrapper.text()).toContain('Gagal membuat form')
   })
 
   it('memilih form menulis form_id ke atribut', async () => {
@@ -147,32 +157,43 @@ describe('GrapesLeadFormPanel', () => {
     expect(wrapper.text()).not.toContain('Butuh fitur Lead Form CRM')
   })
 
-  it('judul tombol, pesan sukses dan redirect disimpan lewat updateForm', async () => {
+  it('judul tombol, pesan sukses dan aksi setelah kirim disimpan lewat updateForm', async () => {
     const { wrapper } = await setup({ 'data-zyad-config': '{"form_id":"f1"}' })
     await wrapper.get('input[aria-label="Judul tombol"]').setValue('Kirim sekarang')
-    await wrapper.get('input[aria-label="Judul tombol"]').trigger('change')
     expect(updateForm).toHaveBeenLastCalledWith('p1', 'f1', { submit_label: 'Kirim sekarang' })
 
     await wrapper.get('textarea[aria-label="Pesan sukses"]').setValue('Makasih')
-    await wrapper.get('textarea[aria-label="Pesan sukses"]').trigger('change')
     expect(updateForm).toHaveBeenLastCalledWith('p1', 'f1', { success_message: 'Makasih' })
 
+    await wrapper.get('input[type="radio"][value="redirect"]').setValue(true)
     await wrapper.get('input[aria-label="URL redirect"]').setValue('/terima-kasih')
-    await wrapper.get('input[aria-label="URL redirect"]').trigger('change')
-    expect(updateForm).toHaveBeenLastCalledWith('p1', 'f1', { redirect_url: '/terima-kasih' })
+    expect(updateForm).toHaveBeenLastCalledWith('p1', 'f1', {
+      redirect_url: '/terima-kasih',
+      after_submit: 'redirect',
+    })
   })
 
-  it('judul tombol kosong dan URL redirect tidak aman ditolak tanpa updateForm', async () => {
+  it('field yang tersimpan memperbarui daftar form dan memberi tahu kanvas', async () => {
+    replaceFormFields.mockImplementation((_p: string, _f: string, body: { fields: unknown[] }) =>
+      Promise.resolve({ data: body.fields }),
+    )
+    getForms.mockResolvedValue({ data: [form({ fields: presetFields('ringkas') })] })
     const { wrapper } = await setup({ 'data-zyad-config': '{"form_id":"f1"}' })
-    await wrapper.get('input[aria-label="Judul tombol"]').setValue('  ')
-    await wrapper.get('input[aria-label="Judul tombol"]').trigger('change')
-    expect(wrapper.text()).toContain('Judul tombol wajib diisi.')
-
-    for (const bad of ['javascript:alert(1)', '//evil.test', 'mailto:a@b.id']) {
-      await wrapper.get('input[aria-label="URL redirect"]').setValue(bad)
-      await wrapper.get('input[aria-label="URL redirect"]').trigger('change')
+    vi.useFakeTimers()
+    try {
+      await wrapper
+        .get('[data-field="company"] [role="radiogroup"]')
+        .findAll('[role="radio"]')
+        .find((r) => r.text() === 'Tampil')!
+        .trigger('click')
+      vi.advanceTimersByTime(600)
+    } finally {
+      vi.useRealTimers()
     }
-    expect(wrapper.text()).toContain('URL tidak valid')
-    expect(updateForm).not.toHaveBeenCalled()
+    await flushPromises()
+    const lastForms = wrapper.emitted('forms-change')!.at(-1)![0] as Array<{
+      fields: Array<{ key: string; type: string }>
+    }>
+    expect(lastForms[0]!.fields.find((f) => f.key === 'company')!.type).toBe('text')
   })
 })

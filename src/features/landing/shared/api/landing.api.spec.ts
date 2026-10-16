@@ -68,7 +68,12 @@ describe('landingApi — GrapesJS document', () => {
   })
 })
 
-import { normalizeForm, normalizeSubmission } from './landing.api'
+import {
+  normalizeForm,
+  normalizeFormField,
+  normalizeSubmission,
+  SubmitFormError,
+} from './landing.api'
 
 describe('normalizeSubmission', () => {
   it('reads PascalCase domain structs (admin list / retry)', () => {
@@ -207,5 +212,55 @@ describe('landingApi — submissions', () => {
         'k',
       ),
     ).rejects.toMatchObject({ name: 'SubmitFormError', status: 429, code: 'RATE_LIMITED' })
+  })
+})
+
+describe('normalizeForm — aksi setelah kirim & default field', () => {
+  it('reads PascalCase after-submit config', () => {
+    expect(
+      normalizeForm({
+        ID: 'f',
+        AfterSubmit: 'whatsapp',
+        WhatsAppNumber: '6281234567890',
+        WhatsAppMessage: 'Halo',
+      }),
+    ).toMatchObject({
+      after_submit: 'whatsapp',
+      whatsapp_number: '6281234567890',
+      whatsapp_message: 'Halo',
+    })
+  })
+
+  it('defaults to message, or redirect when an old backend only sends redirect_url', () => {
+    expect(normalizeForm({}).after_submit).toBe('message')
+    expect(normalizeForm({ after_submit: 'popup' }).after_submit).toBe('message')
+    expect(normalizeForm({ RedirectURL: '/ok' }).after_submit).toBe('redirect')
+    expect(normalizeForm({}).whatsapp_number).toBeNull()
+  })
+
+  it('maps field default_value from both casings', () => {
+    expect(normalizeFormField({ DefaultValue: 'X' }).default_value).toBe('X')
+    expect(normalizeFormField({ default_value: 'Y' }).default_value).toBe('Y')
+    expect(normalizeFormField({}).default_value).toBe('')
+  })
+})
+
+describe('landingApi.submitPublicForm — missing_fields', () => {
+  it('exposes missing_fields from a 422 response', async () => {
+    httpPost.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: { code: 'VALIDATION_ERROR', message: 'x', data: { missing_fields: ['email'] } },
+      },
+    })
+    const err = await landingApi
+      .submitPublicForm('f', { fields: {}, consent: true, website: '', context: {} }, 'k')
+      .catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(SubmitFormError)
+    expect((err as SubmitFormError).missingFields).toEqual(['email'])
+  })
+
+  it('defaults missingFields to []', () => {
+    expect(new SubmitFormError(500, 'X').missingFields).toEqual([])
   })
 })

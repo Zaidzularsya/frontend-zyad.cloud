@@ -160,4 +160,48 @@ describe('buildGrapesChrome — forms', () => {
       expect(chrome.forms![0]!.redirectUrl).toBe('')
     },
   )
+
+  it('maps after-submit config; redirect_url without AfterSubmit means redirect (old backend)', () => {
+    const wa = buildGrapesChrome(
+      {
+        Page: { title: 'Home', settings: {} },
+        Forms: [
+          {
+            ID: 'f1',
+            AfterSubmit: 'whatsapp',
+            WhatsAppNumber: '6281234567890',
+            WhatsAppMessage: 'Halo {nama}',
+            Fields: [],
+          },
+        ],
+      },
+      'Home',
+    )
+    expect(wa.forms?.[0]).toMatchObject({
+      afterSubmit: 'whatsapp',
+      whatsappNumber: '6281234567890',
+      whatsappMessage: 'Halo {nama}',
+    })
+
+    const old = buildGrapesChrome(
+      {
+        Page: { title: 'Home', settings: {} },
+        Forms: [{ ID: 'f2', RedirectURL: '/ok', Fields: [] }],
+      },
+      'Home',
+    )
+    expect(old.forms?.[0]?.afterSubmit).toBe('redirect')
+    expect(old.forms?.[0]?.whatsappNumber).toBe('')
+  })
+
+  it('keeps hidden fields with their type so the slot can still send their values', () => {
+    const chrome = buildGrapesChrome(
+      {
+        Page: { title: 'Home', settings: {} },
+        Forms: [{ ID: 'f1', Fields: [{ Key: 'interest', Type: 'hidden', SortOrder: 1 }] }],
+      },
+      'Home',
+    )
+    expect(chrome.forms?.[0]?.fields[0]).toMatchObject({ key: 'interest', type: 'hidden' })
+  })
 })

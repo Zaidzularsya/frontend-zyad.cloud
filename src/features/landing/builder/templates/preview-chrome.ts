@@ -5,7 +5,7 @@ import type {
   GrapesChromePricingPlan,
 } from '../../renderer/grapes/chrome'
 import type { LandingPricingPlan } from '../../shared/types/landing.types'
-import { STANDARD_LEAD_FORM } from '../grapes/lead-form-presets'
+import { LEAD_FORM_BASE, presetFields } from '../grapes/lead-form-presets'
 
 const FALLBACK_BRAND = 'Nama Bisnis Anda'
 
@@ -45,10 +45,13 @@ export const PREVIEW_SAMPLE_PLANS: GrapesChromePricingPlan[] = [
 function previewForm(): GrapesChromeForm {
   return {
     id: 'preview',
-    submitLabel: STANDARD_LEAD_FORM.form.submit_label ?? 'Kirim',
+    submitLabel: LEAD_FORM_BASE.submit_label,
     successMessage: '',
     redirectUrl: '',
-    fields: STANDARD_LEAD_FORM.fields.map((f) => ({
+    afterSubmit: 'message',
+    whatsappNumber: '',
+    whatsappMessage: '',
+    fields: presetFields('ringkas').map((f) => ({
       key: f.key,
       type: f.type,
       label: f.label,

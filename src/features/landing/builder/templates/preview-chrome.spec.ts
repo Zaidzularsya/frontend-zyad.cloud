@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STANDARD_LEAD_FORM } from '../grapes/lead-form-presets'
+import { presetFields } from '../grapes/lead-form-presets'
 import { buildTemplatePreviewChrome, PREVIEW_SAMPLE_PLANS, toChromePlans } from './preview-chrome'
 import type { LandingPricingPlan } from '@/features/landing/shared/types/landing.types'
 
@@ -62,12 +62,13 @@ describe('buildTemplatePreviewChrome', () => {
     expect(buildTemplatePreviewChrome({ ...base, isPlatform: true }).orgType).toBe('platform')
   })
 
-  it('previewForm memakai field STANDARD_LEAD_FORM dan forms kosong', () => {
+  it('previewForm memakai preset Ringkas (field disembunyikan tetap bertipe hidden) dan forms kosong', () => {
     const c = buildTemplatePreviewChrome(base)
     expect(c.forms).toEqual([])
     expect(c.previewForm?.id).toBe('preview')
     expect(c.previewForm?.fields.map((f) => f.key)).toEqual(
-      STANDARD_LEAD_FORM.fields.map((f) => f.key),
+      presetFields('ringkas').map((f) => f.key),
     )
+    expect(c.previewForm?.fields.filter((f) => f.type === 'hidden')).toHaveLength(4)
   })
 })

@@ -761,7 +761,7 @@ describe('GrapesEditor', () => {
         addAttributes: vi.fn(),
       })
       await flush()
-      expect(wrapper.text()).toContain('Buat form standar')
+      expect(wrapper.text()).toContain('Buat form baru')
     })
   })
 })

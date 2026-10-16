@@ -1,5 +1,6 @@
 import { http } from '@/lib/http'
 import type {
+  AfterSubmitAction,
   BaseResponse,
   CrmSyncStatus,
   CallToAction,
@@ -133,6 +134,12 @@ export function normalizeForm(raw: RawRecord): LandingForm {
     create_crm_lead: pick(raw, 'create_crm_lead', 'CreateCRMLead', false),
     lead_owner_user_id:
       pick<string | null>(raw, 'lead_owner_user_id', 'LeadOwnerUserID', null) || null,
+    after_submit: normalizeAfterSubmit(
+      pick<string>(raw, 'after_submit', 'AfterSubmit', ''),
+      pick<string | null>(raw, 'redirect_url', 'RedirectURL', null),
+    ),
+    whatsapp_number: pick<string | null>(raw, 'whatsapp_number', 'WhatsAppNumber', null) || null,
+    whatsapp_message: pick<string | null>(raw, 'whatsapp_message', 'WhatsAppMessage', null) || null,
     // Admin list returns Fields (PascalCase) already ordered; sort again to stay safe.
     fields: Array.isArray(rawFields)
       ? (rawFields as RawRecord[])
@@ -142,6 +149,14 @@ export function normalizeForm(raw: RawRecord): LandingForm {
     created_at: pick(raw, 'created_at', 'CreatedAt', ''),
     updated_at: pick(raw, 'updated_at', 'UpdatedAt', ''),
   }
+}
+
+const AFTER_SUBMIT_ACTIONS: AfterSubmitAction[] = ['message', 'redirect', 'whatsapp']
+
+// Backend lama tidak mengirim after_submit: redirect_url terisi berarti redirect (sama dengan backfill migration).
+function normalizeAfterSubmit(raw: string, redirectUrl: string | null): AfterSubmitAction {
+  if (AFTER_SUBMIT_ACTIONS.includes(raw as AfterSubmitAction)) return raw as AfterSubmitAction
+  return redirectUrl ? 'redirect' : 'message'
 }
 
 const CRM_SYNC_STATUSES: CrmSyncStatus[] = ['skipped', 'created', 'merged', 'failed']
@@ -170,11 +185,14 @@ export function normalizeSubmission(raw: RawRecord): LandingSubmission {
 export class SubmitFormError extends Error {
   readonly status: number
   readonly code: string
-  constructor(status: number, code: string, message?: string) {
+  /** Key field wajib yang kosong menurut server (422 data.missing_fields). */
+  readonly missingFields: string[]
+  constructor(status: number, code: string, message?: string, missingFields: string[] = []) {
     super(message || code || `HTTP ${status}`)
     this.name = 'SubmitFormError'
     this.status = status
     this.code = code
+    this.missingFields = missingFields
   }
 }
 
@@ -199,7 +217,7 @@ export type SubmissionListParams = {
   search?: string
 }
 
-function normalizeFormField(raw: RawRecord): LandingFormField {
+export function normalizeFormField(raw: RawRecord): LandingFormField {
   return {
     id: pick(raw, 'id', 'ID', undefined),
     key: pick(raw, 'key', 'Key', ''),
@@ -210,6 +228,7 @@ function normalizeFormField(raw: RawRecord): LandingFormField {
     validation: pick(raw, 'validation', 'Validation', {}),
     required: pick(raw, 'required', 'Required', pick(raw, 'is_required', 'IsRequired', false)),
     sort_order: pick(raw, 'sort_order', 'SortOrder', 0),
+    default_value: pick(raw, 'default_value', 'DefaultValue', ''),
   }
 }
 
@@ -655,9 +674,20 @@ export const landingApi = {
       })
     } catch (err) {
       const res = (
-        err as { response?: { status?: number; data?: { code?: string; message?: string } } }
+        err as {
+          response?: {
+            status?: number
+            data?: { code?: string; message?: string; data?: { missing_fields?: unknown } }
+          }
+        }
       ).response
-      throw new SubmitFormError(res?.status ?? 0, res?.data?.code ?? '', res?.data?.message)
+      const missing = res?.data?.data?.missing_fields
+      throw new SubmitFormError(
+        res?.status ?? 0,
+        res?.data?.code ?? '',
+        res?.data?.message,
+        Array.isArray(missing) ? missing.filter((k): k is string => typeof k === 'string') : [],
+      )
     }
   },
 

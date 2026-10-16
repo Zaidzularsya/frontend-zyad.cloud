@@ -26,6 +26,9 @@ function makeForm(over: Partial<GrapesChromeForm> = {}): GrapesChromeForm {
     submitLabel: 'Kirim',
     successMessage: 'Terima kasih!',
     redirectUrl: '',
+    afterSubmit: 'message',
+    whatsappNumber: '',
+    whatsappMessage: '',
     fields: [
       {
         key: 'name',
