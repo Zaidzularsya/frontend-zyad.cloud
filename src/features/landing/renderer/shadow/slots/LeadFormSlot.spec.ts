@@ -304,7 +304,7 @@ describe('LeadFormSlot', () => {
 
   it('redirects through the router for same-origin paths', async () => {
     submitPublicForm.mockResolvedValue(undefined)
-    const { w } = mountSlot(makeForm({ redirectUrl: '/terima-kasih' }))
+    const { w } = mountSlot(makeForm({ redirectUrl: '/terima-kasih', afterSubmit: 'redirect' }))
     await fillValid(w)
     await w.find('form').trigger('submit')
     await flushPromises()
@@ -316,7 +316,9 @@ describe('LeadFormSlot', () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { ...window.location, assign })
     try {
-      const { w } = mountSlot(makeForm({ redirectUrl: 'https://example.com/x' }))
+      const { w } = mountSlot(
+        makeForm({ redirectUrl: 'https://example.com/x', afterSubmit: 'redirect' }),
+      )
       await fillValid(w)
       await w.find('form').trigger('submit')
       await flushPromises()
@@ -333,7 +335,7 @@ describe('LeadFormSlot', () => {
       const assign = vi.fn()
       vi.stubGlobal('location', { ...window.location, assign })
       try {
-        const { w } = mountSlot(makeForm({ redirectUrl }))
+        const { w } = mountSlot(makeForm({ redirectUrl, afterSubmit: 'redirect' }))
         await fillValid(w)
         await w.find('form').trigger('submit')
         await flushPromises()
@@ -386,5 +388,118 @@ describe('LeadFormSlot', () => {
     expect(body.context.utm_source).toBe('ig')
     expect(body.context.utm_campaign).toBe('okt')
     expect(body.context.utm_medium).toBeUndefined()
+  })
+})
+
+describe('LeadFormSlot — setelah kirim & field wajib dari server', () => {
+  const waForm = (over: Partial<GrapesChromeForm> = {}) =>
+    makeForm({ afterSubmit: 'whatsapp', whatsappNumber: '6281234567890', ...over })
+
+  async function submit(w: ReturnType<typeof mountSlot>['w']) {
+    await w.find('form').trigger('submit')
+    await flushPromises()
+  }
+
+  it('shows the WhatsApp button with a prefilled message after success', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const { w } = mountSlot(waForm({ whatsappMessage: 'Halo, saya {nama}. Soal {minat}.' }))
+    await fillValid(w)
+    await w.find('input[name="interest"]').setValue('Paket 20 Mbps')
+    await submit(w)
+    const link = w.get('a.zy-slot-lead-form__wa')
+    expect(link.text()).toBe('Lanjut chat di WhatsApp')
+    expect(link.attributes('href')).toBe(
+      'https://wa.me/6281234567890?text=' +
+        encodeURIComponent('Halo, saya Budi. Soal Paket 20 Mbps.'),
+    )
+    expect(link.attributes('target')).toBe('_blank')
+    expect(link.attributes('rel')).toBe('noopener noreferrer')
+    expect(w.get('.zy-slot-lead-form__success').text()).toContain('Terima kasih!')
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('uses the default template and "layanan Anda" when interest is empty', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const { w } = mountSlot(waForm())
+    await fillValid(w)
+    await submit(w)
+    expect(w.get('a.zy-slot-lead-form__wa').attributes('href')).toBe(
+      'https://wa.me/6281234567890?text=' +
+        encodeURIComponent('Halo, saya Budi. Saya tertarik dengan layanan Anda.'),
+    )
+  })
+
+  it('falls back to the success message when whatsapp number is empty', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const { w } = mountSlot(waForm({ whatsappNumber: '' }))
+    await fillValid(w)
+    await submit(w)
+    expect(w.find('a.zy-slot-lead-form__wa').exists()).toBe(false)
+    expect(w.get('.zy-slot-lead-form__success').text()).toContain('Terima kasih!')
+  })
+
+  it('redirects only when afterSubmit is redirect', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const { w } = mountSlot(makeForm({ afterSubmit: 'message', redirectUrl: '/terima-kasih' }))
+    await fillValid(w)
+    await submit(w)
+    expect(push).not.toHaveBeenCalled()
+    expect(w.find('a.zy-slot-lead-form__wa').exists()).toBe(false)
+  })
+
+  it('maps missing_fields to per-field errors', async () => {
+    submitPublicForm.mockRejectedValue(
+      new SubmitFormError(422, 'VALIDATION_ERROR', 'x', ['email', 'phone']),
+    )
+    const { w } = mountSlot()
+    await fillValid(w)
+    await submit(w)
+    expect(w.text()).toContain('Wajib diisi.')
+    expect(w.find('#' + w.get('input[name="email"]').attributes('aria-describedby')).text()).toBe(
+      'Wajib diisi.',
+    )
+    expect(w.find('input[name="email"]').attributes('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(w.get('input[name="email"]').element)
+    expect(w.find('.zy-slot-lead-form__alert').exists()).toBe(false)
+    expect((w.get('input[name="name"]').element as HTMLInputElement).value).toBe('Budi')
+  })
+
+  it('stale page message when missing field is not on screen', async () => {
+    submitPublicForm.mockRejectedValue(
+      new SubmitFormError(422, 'VALIDATION_ERROR', 'x', ['company']),
+    )
+    const { w } = mountSlot()
+    await fillValid(w)
+    await submit(w)
+    expect(w.get('.zy-slot-lead-form__alert').text()).toBe(
+      'Form diperbarui. Muat ulang halaman untuk melanjutkan.',
+    )
+    expect((w.get('input[name="name"]').element as HTMLInputElement).value).toBe('Budi')
+  })
+
+  it('sends interest from page context even when the interest field is hidden', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const form = makeForm()
+    form.fields = form.fields.map((f) => (f.key === 'interest' ? { ...f, type: 'hidden' } : f))
+    const { w, interest } = mountSlot(form)
+    interest.value = 'Small Business · Tahunan'
+    await flushPromises()
+    expect(w.find('input[name="interest"]').exists()).toBe(false)
+    await fillValid(w)
+    await submit(w)
+    const body = submitPublicForm.mock.calls[0]![1] as { fields: Record<string, unknown> }
+    expect(body.fields.interest).toBe('Small Business · Tahunan')
+  })
+
+  it('does not send an interest key when the form has no interest field', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const form = makeForm()
+    form.fields = form.fields.filter((f) => f.key !== 'interest')
+    const { w, interest } = mountSlot(form)
+    interest.value = 'X'
+    await fillValid(w)
+    await submit(w)
+    const body = submitPublicForm.mock.calls[0]![1] as { fields: Record<string, unknown> }
+    expect('interest' in body.fields).toBe(false)
   })
 })

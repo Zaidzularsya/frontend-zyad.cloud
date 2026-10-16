@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { landingApi, SubmitFormError } from '../../../shared/api/landing.api'
 import type { GrapesChrome, GrapesChromeFormField } from '../../grapes/chrome'
 import { redirectTarget } from '../../lead-form/redirect-target'
+import { buildWhatsAppUrl } from '../../lead-form/whatsapp-link'
 import { CONSENT_ERROR, validateLeadForm } from '../../lead-form/lead-form-validation'
 import { useLandingPageContext } from '../page-context'
 
@@ -15,6 +16,8 @@ const props = defineProps<{
 }>()
 
 const GENERIC_ERROR = 'Pesan belum terkirim. Coba lagi sebentar lagi.'
+const STALE_PAGE_ERROR = 'Form diperbarui. Muat ulang halaman untuk melanjutkan.'
+const REQUIRED_ERROR = 'Wajib diisi.'
 const RATE_LIMITED_ERROR = 'Terlalu banyak percobaan, coba lagi sebentar lagi.'
 const HALF_WIDTH_KEYS = new Set(['name', 'email', 'phone', 'company', 'company_size'])
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const
@@ -41,6 +44,12 @@ const hasConsentField = computed(() =>
 )
 // The backend always requires consent=true, so forms without a consent field get a built-in one.
 const needsBuiltinConsent = computed(() => !hasConsentField.value)
+
+// Field "interest" ikut terkirim walau disembunyikan: nilainya bisa datang dari konteks halaman
+// (tombol "Hubungi sales"), sedangkan default field hidden diisi server.
+const hasInterestField = computed(() =>
+  (form.value?.fields ?? []).some((f) => f.key === 'interest'),
+)
 
 const values = reactive<Record<string, unknown>>({})
 const website = ref('')
@@ -112,6 +121,9 @@ function buildFields(): Record<string, unknown> {
       out[f.key] = String(value).trim()
     }
   }
+  if (hasInterestField.value && !('interest' in out) && ctx.interest.value.trim() !== '') {
+    out.interest = ctx.interest.value.trim()
+  }
   if (needsBuiltinConsent.value) out.consent = values.consent === true
   out.page_url = window.location.href
   return out
@@ -136,6 +148,28 @@ function redirect(url: string) {
   } else {
     window.location.assign(target.url)
   }
+}
+
+// Tombol WhatsApp hanya tampil bila form memilih aksi whatsapp dan nomornya terisi (data
+// inkonsisten diperlakukan sebagai pesan sukses biasa).
+const whatsappUrl = computed(() => {
+  const f = form.value
+  if (!submitted.value || !f || f.afterSubmit !== 'whatsapp' || !f.whatsappNumber) return ''
+  const interest = String(values.interest ?? '').trim() || ctx.interest.value
+  return buildWhatsAppUrl(f.whatsappNumber, f.whatsappMessage, {
+    name: String(values.name ?? ''),
+    interest,
+  })
+})
+
+// 422 dengan missing_fields: tandai field di layar; bila ada yang tidak tampil, halaman ini basi.
+function applyMissingFields(missing: string[]): boolean {
+  const onScreen = new Set([...fields.value.map((f) => f.key), 'consent'])
+  if (missing.length === 0 || missing.some((key) => !onScreen.has(key))) return false
+  const next: Record<string, string> = {}
+  for (const key of missing) next[key] = key === 'consent' ? CONSENT_ERROR : REQUIRED_ERROR
+  errors.value = next
+  return true
 }
 
 async function focusFirstError() {
@@ -170,10 +204,20 @@ async function onSubmit() {
     )
     attemptKey = null
     submitted.value = true
-    if (form.value.redirectUrl) redirect(form.value.redirectUrl)
+    if (form.value.afterSubmit === 'redirect' && form.value.redirectUrl) {
+      redirect(form.value.redirectUrl)
+    }
   } catch (err) {
-    submitError.value =
-      err instanceof SubmitFormError && err.status === 429 ? RATE_LIMITED_ERROR : GENERIC_ERROR
+    if (err instanceof SubmitFormError && err.status === 422 && err.missingFields.length > 0) {
+      if (applyMissingFields(err.missingFields)) {
+        await focusFirstError()
+      } else {
+        submitError.value = STALE_PAGE_ERROR
+      }
+    } else {
+      submitError.value =
+        err instanceof SubmitFormError && err.status === 429 ? RATE_LIMITED_ERROR : GENERIC_ERROR
+    }
   } finally {
     submitting.value = false
   }
@@ -189,6 +233,14 @@ async function onSubmit() {
       aria-live="polite"
     >
       <p>{{ form.successMessage || 'Terima kasih! Pesan Anda sudah kami terima.' }}</p>
+      <a
+        v-if="whatsappUrl"
+        class="zy-slot-lead-form__wa"
+        :href="whatsappUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Lanjut chat di WhatsApp</a
+      >
     </div>
 
     <form v-else novalidate :aria-busy="submitting" @submit.prevent="onSubmit">

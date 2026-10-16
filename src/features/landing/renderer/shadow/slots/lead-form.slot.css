@@ -126,6 +126,24 @@ textarea.zy-slot-lead-form__input {
   font-weight: 600;
   color: #0b1f3a;
 }
+.zy-slot-lead-form__wa {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: #128c4a;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.zy-slot-lead-form__wa:hover {
+  background: #0e7a40;
+}
+.zy-slot-lead-form__wa:focus-visible {
+  outline: 2px solid #0b1f3a;
+  outline-offset: 2px;
+}
 /* Off-screen rather than display:none so naive bots still fill it in. */
 .zy-slot-lead-form__hp {
   position: absolute;
