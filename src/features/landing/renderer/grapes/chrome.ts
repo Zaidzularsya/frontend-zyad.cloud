@@ -1,3 +1,6 @@
+import type { LandingFormWithFields } from '../../shared/types/landing.types'
+import { redirectTarget } from '../lead-form/redirect-target'
+
 export interface GrapesChromeLink {
   label: string
   href: string
@@ -151,4 +154,27 @@ export function safeHref(raw: string): string {
   if (!href) return '#'
   if (/^(#|\/(?!\/)|https?:\/\/|mailto:|tel:)/i.test(href)) return href
   return '#'
+}
+
+/** Bentuk form admin (GET /forms) -> bentuk chrome publik, untuk pratinjau kanvas dan preview draf. */
+export function chromeFormFromAdmin(form: LandingFormWithFields): GrapesChromeForm {
+  return {
+    id: form.id,
+    submitLabel: form.submit_label,
+    successMessage: form.success_message,
+    redirectUrl: redirectTarget(form.redirect_url ?? '')?.url ?? '',
+    afterSubmit: form.after_submit,
+    whatsappNumber: form.whatsapp_number ?? '',
+    whatsappMessage: form.whatsapp_message ?? '',
+    fields: [...form.fields]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((f) => ({
+        key: f.key,
+        type: f.type,
+        label: f.label,
+        placeholder: f.placeholder ?? '',
+        options: f.options ?? [],
+        required: f.required,
+      })),
+  }
 }

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LandingFormWithFields } from '../../shared/types/landing.types'
 import {
-  buildLeadFormPreview,
+  ensureLeadFormCanvasCss,
   LEAD_FORM_BLOCK_ID,
   LEAD_FORM_TYPE,
   parseLeadFormId,
@@ -19,20 +19,6 @@ const form = {
     { key: 'consent', type: 'checkbox', label: 'Saya setuju', required: true, sort_order: 4 },
   ],
 } as unknown as LandingFormWithFields
-
-describe('buildLeadFormPreview', () => {
-  it('tanpa form menampilkan petunjuk panel', () => {
-    expect(buildLeadFormPreview(undefined)).toContain('Pilih atau buat form di panel kanan')
-  })
-
-  it('merender label berurutan, melewati hidden, dan tombol submit_label (di-escape)', () => {
-    const html = buildLeadFormPreview(form)
-    expect(html.indexOf('Nama lengkap')).toBeLessThan(html.indexOf('Email kerja'))
-    expect(html).toContain('Saya setuju')
-    expect(html).not.toContain('Rahasia')
-    expect(html).toContain('Kirim &lt;sekarang&gt;')
-  })
-})
 
 describe('parseLeadFormId', () => {
   it('membaca form_id dan toleran terhadap JSON rusak', () => {
@@ -64,19 +50,114 @@ describe('registerLeadForm', () => {
     expect(def.isComponent({ tagName: 'DIV', getAttribute: () => 'pricing-plans' })).toBeUndefined()
   })
 
-  it('pratinjau kanvas memakai form sesuai form_id; tanpa form_id menampilkan petunjuk', () => {
+  it('model init: perubahan atribut merender ulang view', () => {
     const addType = vi.fn()
     registerLeadForm({ Components: { addType } } as never, () => [form])
+    const { model } = addType.mock.calls[0]![1]
+    const render = vi.fn()
+    let handler: () => void = () => undefined
+    const ctx = {
+      view: { render },
+      on: (_event: string, fn: () => void) => {
+        handler = fn
+      },
+    }
+    model.init.call(ctx)
+    handler()
+    expect(render).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('canvas view', () => {
+  function setup(forms = [form]) {
+    const addType = vi.fn()
+    registerLeadForm({ Components: { addType } } as never, () => forms)
     const { view } = addType.mock.calls[0]![1]
-    const mk = (cfg: string) => ({
-      el: { innerHTML: '', style: {} as Record<string, string> },
-      model: { getAttributes: () => ({ 'data-zyad-config': cfg }) },
-    })
-    const withForm = mk('{"form_id":"f1"}')
-    view.onRender.call(withForm)
-    expect(withForm.el.innerHTML).toContain('Nama lengkap')
-    const empty = mk('{}')
-    view.onRender.call(empty)
-    expect(empty.el.innerHTML).toContain('Pilih atau buat form di panel kanan')
+    const mk = (cfg: string) => {
+      const el = document.createElement('div')
+      document.body.appendChild(el)
+      return {
+        el,
+        model: { getAttributes: () => ({ 'data-zyad-config': cfg }) },
+        leadFormApp: null as { unmount: () => void } | null,
+      }
+    }
+    return { view, mk }
+  }
+
+  beforeEach(() => {
+    document.head.innerHTML = ''
+    document.body.innerHTML = ''
+  })
+
+  it('mounts LeadFormView into the component element with the configured style class', () => {
+    const { view, mk } = setup()
+    const ctx = mk('{"form_id":"f1","style":"glass"}')
+    view.onRender.call(ctx)
+    const root = ctx.el.querySelector('section.zy-slot-lead-form')!
+    expect(root.classList.contains('zy-slot-lead-form--glass')).toBe(true)
+    expect(ctx.el.textContent).toContain('Nama lengkap')
+    expect(ctx.el.textContent).not.toContain('Rahasia')
+    expect(ctx.el.querySelector('button[type="submit"]')!.hasAttribute('disabled')).toBe(true)
+  })
+
+  it('legacy config {"form_id":...} renders the kartu style', () => {
+    const { view, mk } = setup()
+    const ctx = mk('{"form_id":"f1"}')
+    view.onRender.call(ctx)
+    expect(ctx.el.querySelector('section')!.classList.contains('zy-slot-lead-form--kartu')).toBe(
+      true,
+    )
+  })
+
+  it('shows the popup hint for display=popup', () => {
+    const { view, mk } = setup()
+    const ctx = mk('{"form_id":"f1","display":"popup"}')
+    view.onRender.call(ctx)
+    expect(ctx.el.textContent).toContain('Mode popup')
+  })
+
+  it('without a form shows the panel hint and no app', () => {
+    const { view, mk } = setup()
+    const ctx = mk('{}')
+    view.onRender.call(ctx)
+    expect(ctx.el.innerHTML).toContain('Pilih atau buat form di panel kanan')
+    expect(ctx.leadFormApp).toBeNull()
+  })
+
+  it('re-renders when the config changes and unmounts the previous app', () => {
+    const { view, mk } = setup()
+    const ctx = mk('{"form_id":"f1","style":"kartu"}')
+    view.onRender.call(ctx)
+    const first = ctx.leadFormApp!
+    const unmount = vi.spyOn(first, 'unmount')
+    ctx.model.getAttributes = () => ({ 'data-zyad-config': '{"form_id":"f1","style":"minimal"}' })
+    view.onRender.call(ctx)
+    expect(unmount).toHaveBeenCalledTimes(1)
+    expect(ctx.el.querySelectorAll('section.zy-slot-lead-form')).toHaveLength(1)
+    expect(ctx.el.querySelector('section')!.classList.contains('zy-slot-lead-form--minimal')).toBe(
+      true,
+    )
+  })
+
+  it('unmounts the app on removal', () => {
+    const { view, mk } = setup()
+    const ctx = mk('{"form_id":"f1"}')
+    view.onRender.call(ctx)
+    const unmount = vi.spyOn(ctx.leadFormApp!, 'unmount')
+    view.removed.call(ctx)
+    expect(unmount).toHaveBeenCalledTimes(1)
+    expect(ctx.leadFormApp).toBeNull()
+    expect(ctx.el.querySelector('section')).toBeNull()
+  })
+
+  it('injects the lead form css into the canvas document once', () => {
+    const { view, mk } = setup()
+    view.onRender.call(mk('{"form_id":"f1"}'))
+    view.onRender.call(mk('{"form_id":"f1"}'))
+    expect(document.head.querySelectorAll('#zy-lead-form-css')).toHaveLength(1)
+    ensureLeadFormCanvasCss(document)
+    expect(document.head.querySelectorAll('#zy-lead-form-css')).toHaveLength(1)
+    expect(document.getElementById('zy-lead-form-css')!.textContent).toContain('.zy-slot-lead-form')
   })
 })

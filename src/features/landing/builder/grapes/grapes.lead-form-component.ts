@@ -1,14 +1,18 @@
 import type { Editor } from 'grapesjs'
+import { createApp } from 'vue'
 
+import { chromeFormFromAdmin } from '../../renderer/grapes/chrome'
+import leadFormCss from '../../renderer/shadow/slots/lead-form.slot.css?inline'
+import LeadFormView from '../../renderer/lead-form/LeadFormView.vue'
 import { readLeadFormPresentation } from '../../renderer/lead-form/lead-form-presentation'
 import type { LandingFormWithFields } from '../../shared/types/landing.types'
 
 /**
  * `zyad-lead-form` — blok "Form Konsultasi". Tersedia untuk semua organisasi.
  *
- * Di kanvas: pratinjau inline statis (label + input dari field form, tombol
- * `submit_label`). Saat export hanya sentinel
- * `<div data-zyad-slot="lead-form" data-zyad-config='{"form_id":"…"}'>`;
+ * Di kanvas: `LeadFormView` (komponen yang sama dengan halaman publik, nonaktif) di-mount
+ * dengan createApp ke elemen komponen. Saat export hanya sentinel
+ * `<div data-zyad-slot="lead-form" data-zyad-config='{"form_id":"…","style":"…"}'>`;
  * field diisi ulang oleh LeadFormSlot.vue dari data form di server.
  */
 
@@ -16,50 +20,31 @@ export const LEAD_FORM_TYPE = 'zyad-lead-form'
 export const LEAD_FORM_BLOCK_ID = 'zy-lead-form'
 export const LEAD_FORM_EMPTY_TEXT = 'Pilih atau buat form di panel kanan'
 
-const FONT = "font-family:'Inter','Segoe UI',system-ui,sans-serif"
-const INPUT_STYLE =
-  'display:block;box-sizing:border-box;width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#94a3b8;font-size:14px;min-height:40px'
-
-function esc(value: string): string {
-  return String(value).replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
-  )
-}
+const EMPTY_STYLE =
+  "padding:40px 24px;text-align:center;background:#f8fafc;font-family:'Inter','Segoe UI',system-ui,sans-serif"
+const CSS_ELEMENT_ID = 'zy-lead-form-css'
+const POPUP_HINT = 'Mode popup · tampil sebagai tombol di pojok halaman'
 
 /** Baca form_id dari atribut data-zyad-config; '' bila tidak valid. */
 export function parseLeadFormId(raw: string | undefined): string {
   return readLeadFormPresentation(raw).formId
 }
 
-/** Pratinjau kanvas: label + kontrol statis per field, lalu tombol submit. */
-export function buildLeadFormPreview(form: LandingFormWithFields | undefined): string {
-  if (!form) {
-    return `<div style="padding:40px 24px;text-align:center;background:#f8fafc;${FONT}"><span style="color:#94a3b8;font-size:13px;font-style:italic">${LEAD_FORM_EMPTY_TEXT}</span></div>`
-  }
-  const rows = [...form.fields]
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .filter((f) => f.type !== 'hidden')
-    .map((f) => {
-      const star = f.required ? '<span style="color:#dc2626"> *</span>' : ''
-      if (f.type === 'checkbox') {
-        return `<div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#475569"><span style="flex:none;width:16px;height:16px;margin-top:2px;border:1px solid #94a3b8;border-radius:4px;background:#fff"></span><span>${esc(f.label)}${star}</span></div>`
-      }
-      const label = `<span style="display:block;margin:0 0 6px;font-size:13px;font-weight:600;color:#334155">${esc(f.label)}${star}</span>`
-      const control =
-        f.type === 'textarea'
-          ? `<span style="${INPUT_STYLE};min-height:84px">${esc(f.placeholder ?? '')}</span>`
-          : f.type === 'select'
-            ? `<span style="${INPUT_STYLE}">${esc(f.options?.[0] ?? f.placeholder ?? '')}</span>`
-            : `<span style="${INPUT_STYLE}">${esc(f.placeholder ?? '')}</span>`
-      return `<div>${label}${control}</div>`
-    })
-    .join('')
-  const label = esc(form.submit_label || 'Kirim')
-  return `<div style="padding:40px 24px;${FONT}"><div style="display:flex;flex-direction:column;gap:16px;max-width:560px;margin:0 auto">${rows}<span style="display:block;text-align:center;padding:12px 20px;border-radius:10px;background:#465fff;color:#fff;font-weight:600">${label}</span></div></div>`
+/** Suntik CSS form ke dokumen kanvas (sekali per dokumen); sama dengan CSS slot di halaman publik. */
+export function ensureLeadFormCanvasCss(doc: Document): void {
+  if (doc.getElementById(CSS_ELEMENT_ID)) return
+  const style = doc.createElement('style')
+  style.id = CSS_ELEMENT_ID
+  style.textContent = leadFormCss
+  doc.head.appendChild(style)
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+function unmountApp(view: any): void {
+  view.leadFormApp?.unmount()
+  view.leadFormApp = null
+}
+
 export function registerLeadForm(editor: Editor, getForms: () => LandingFormWithFields[]): void {
   editor.Components.addType(LEAD_FORM_TYPE, {
     isComponent: (el: HTMLElement) =>
@@ -90,10 +75,38 @@ export function registerLeadForm(editor: Editor, getForms: () => LandingFormWith
     },
     view: {
       onRender(this: any) {
-        const formId = parseLeadFormId(this.model.getAttributes()['data-zyad-config'])
-        const form = formId ? getForms().find((f) => f.id === formId) : undefined
-        this.el.innerHTML = buildLeadFormPreview(form)
+        // Render ulang: lepas app Vue sebelumnya supaya tidak bocor.
+        unmountApp(this)
+        const presentation = readLeadFormPresentation(
+          this.model.getAttributes()['data-zyad-config'],
+        )
+        const form = presentation.formId
+          ? getForms().find((f) => f.id === presentation.formId)
+          : undefined
         this.el.style.display = 'block'
+        if (!form) {
+          this.el.innerHTML = `<div style="${EMPTY_STYLE}"><span style="color:#94a3b8;font-size:13px;font-style:italic">${LEAD_FORM_EMPTY_TEXT}</span></div>`
+          return
+        }
+        ensureLeadFormCanvasCss(this.el.ownerDocument)
+        this.el.innerHTML = ''
+        // Komponen yang sama dengan halaman publik, nonaktif: pratinjau identik dengan hasil publish.
+        // Mode popup di kanvas tetap tampil sebagai kartu form agar bisa dipilih dan diedit.
+        this.leadFormApp = createApp(LeadFormView, {
+          form: chromeFormFromAdmin(form),
+          presentation,
+          values: {},
+          errors: {},
+          state: 'idle',
+          submitError: '',
+          successHref: '',
+          disabled: true,
+          hint: presentation.display === 'popup' ? POPUP_HINT : '',
+        })
+        this.leadFormApp.mount(this.el)
+      },
+      removed(this: any) {
+        unmountApp(this)
       },
     },
   })

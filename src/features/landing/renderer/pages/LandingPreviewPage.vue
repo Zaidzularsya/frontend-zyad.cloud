@@ -10,7 +10,7 @@ import { landingApi } from '@/features/landing/shared/api/landing.api'
 import LandingPageRenderer from '../components/LandingPageRenderer.vue'
 import GrapesPageRenderer from '../components/GrapesPageRenderer.vue'
 import type { GrapesChrome, GrapesChromeForm } from '../grapes/chrome'
-import { safeHref } from '../grapes/chrome'
+import { chromeFormFromAdmin } from '../grapes/chrome'
 import { buildGrapesChrome } from '../composables/useGrapesChrome'
 import type { LandingPage, LandingSection } from '../../shared/types/landing.types'
 
@@ -107,26 +107,7 @@ async function loadPreviewForms(id: string): Promise<GrapesChromeForm[]> {
     const response = await landingApi.getForms(id)
     return response.data
       .filter((form) => form.is_active)
-      .map((form) => ({
-        id: form.id,
-        submitLabel: form.submit_label,
-        successMessage: form.success_message,
-        redirectUrl:
-          form.redirect_url && safeHref(form.redirect_url) !== '#' ? form.redirect_url.trim() : '',
-        afterSubmit: form.after_submit,
-        whatsappNumber: form.whatsapp_number ?? '',
-        whatsappMessage: form.whatsapp_message ?? '',
-        fields: [...(form.fields ?? [])]
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .map((f) => ({
-            key: f.key,
-            type: f.type,
-            label: f.label,
-            placeholder: f.placeholder ?? '',
-            options: f.options ?? [],
-            required: f.required,
-          })),
-      }))
+      .map((form) => chromeFormFromAdmin({ ...form, fields: form.fields ?? [] }))
   } catch (error) {
     // Preview must still render when forms cannot be loaded.
     console.error('LandingPreviewPage: failed to load forms', error)
