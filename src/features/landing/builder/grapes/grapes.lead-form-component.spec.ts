@@ -110,11 +110,17 @@ describe('canvas view', () => {
     )
   })
 
-  it('shows the popup hint for display=popup', () => {
+  it('canvas shows the popup mode label above the form', () => {
     const { view, mk } = setup()
     const ctx = mk('{"form_id":"f1","display":"popup"}')
     view.onRender.call(ctx)
-    expect(ctx.el.textContent).toContain('Mode popup')
+    const label = ctx.el.querySelector('[data-zy-popup-label]')!
+    expect(label.textContent).toBe('Mode popup · tampil sebagai tombol di pojok')
+    expect(ctx.el.firstElementChild).toBe(label)
+    expect(ctx.el.querySelector('section.zy-slot-lead-form')).not.toBeNull()
+    const inline = mk('{"form_id":"f1"}')
+    view.onRender.call(inline)
+    expect(inline.el.querySelector('[data-zy-popup-label]')).toBeNull()
   })
 
   it('without a form shows the panel hint and no app', () => {

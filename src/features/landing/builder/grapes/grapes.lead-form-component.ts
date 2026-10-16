@@ -23,7 +23,9 @@ export const LEAD_FORM_EMPTY_TEXT = 'Pilih atau buat form di panel kanan'
 const EMPTY_STYLE =
   "padding:40px 24px;text-align:center;background:#f8fafc;font-family:'Inter','Segoe UI',system-ui,sans-serif"
 const CSS_ELEMENT_ID = 'zy-lead-form-css'
-const POPUP_HINT = 'Mode popup · tampil sebagai tombol di pojok halaman'
+const POPUP_LABEL = 'Mode popup · tampil sebagai tombol di pojok'
+const POPUP_BADGE_STYLE =
+  "display:inline-block;margin:0 0 8px;padding:3px 10px;border-radius:999px;background:#e0f2fe;color:#0369a1;font:600 12px 'Inter','Segoe UI',system-ui,sans-serif"
 
 /** Baca form_id dari atribut data-zyad-config; '' bila tidak valid. */
 export function parseLeadFormId(raw: string | undefined): string {
@@ -90,6 +92,15 @@ export function registerLeadForm(editor: Editor, getForms: () => LandingFormWith
         }
         ensureLeadFormCanvasCss(this.el.ownerDocument)
         this.el.innerHTML = ''
+        if (presentation.display === 'popup') {
+          const badge = this.el.ownerDocument.createElement('div')
+          badge.setAttribute('style', POPUP_BADGE_STYLE)
+          badge.setAttribute('data-zy-popup-label', '')
+          badge.textContent = POPUP_LABEL
+          this.el.appendChild(badge)
+        }
+        const mountPoint = this.el.ownerDocument.createElement('div')
+        this.el.appendChild(mountPoint)
         // Komponen yang sama dengan halaman publik, nonaktif: pratinjau identik dengan hasil publish.
         // Mode popup di kanvas tetap tampil sebagai kartu form agar bisa dipilih dan diedit.
         this.leadFormApp = createApp(LeadFormView, {
@@ -101,9 +112,9 @@ export function registerLeadForm(editor: Editor, getForms: () => LandingFormWith
           submitError: '',
           successHref: '',
           disabled: true,
-          hint: presentation.display === 'popup' ? POPUP_HINT : '',
+          hint: '',
         })
-        this.leadFormApp.mount(this.el)
+        this.leadFormApp.mount(mountPoint)
       },
       removed(this: any) {
         unmountApp(this)

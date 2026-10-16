@@ -108,4 +108,31 @@ describe('GrapesLeadFormAppearance', () => {
   it('always shows the "saved with page" note', () => {
     expect(setup().wrapper.text()).toContain('Tampilan tersimpan bersama halaman.')
   })
+
+  it('shows popup settings only in popup mode', async () => {
+    const { wrapper } = setup()
+    expect(wrapper.find('input[aria-label="Teks launcher"]').exists()).toBe(false)
+    await wrapper.get('[data-display="popup"]').trigger('click')
+    expect(wrapper.find('input[aria-label="Teks launcher"]').exists()).toBe(true)
+    await wrapper.get('[data-display="inline"]').trigger('click')
+    expect(wrapper.find('input[aria-label="Teks launcher"]').exists()).toBe(false)
+  })
+
+  it('writes launcher label, icon, position and title into data-zyad-config', async () => {
+    const { wrapper, current } = setup('{"form_id":"f1","display":"popup"}')
+    expect(
+      (wrapper.get('input[aria-label="Teks launcher"]').element as HTMLInputElement).value,
+    ).toBe('Konsultasi gratis')
+    await wrapper.get('input[aria-label="Teks launcher"]').setValue('Chat kami')
+    await wrapper.get('[data-popup-icon="whatsapp"]').trigger('click')
+    await wrapper.get('[data-popup-position="left"]').trigger('click')
+    await wrapper.get('input[aria-label="Judul popup"]').setValue('Tanya apa saja')
+    expect(current().popup).toEqual({
+      label: 'Chat kami',
+      icon: 'whatsapp',
+      position: 'left',
+      title: 'Tanya apa saja',
+    })
+    expect(current().formId).toBe('f1')
+  })
 })

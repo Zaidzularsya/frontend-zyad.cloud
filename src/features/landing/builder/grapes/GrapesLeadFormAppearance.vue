@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 
 import { contrastRatio } from '../../renderer/lead-form/contrast'
 import {
+  POPUP_LABEL_MAX,
+  POPUP_TITLE_MAX,
   readLeadFormPresentation,
   supportsColumns,
   writeLeadFormPresentation,
@@ -50,6 +52,14 @@ const STYLES: { id: LeadFormStyle; label: string }[] = [
 const DISPLAYS: { id: LeadFormDisplay; label: string }[] = [
   { id: 'inline', label: 'Inline' },
   { id: 'popup', label: 'Popup' },
+]
+const POPUP_ICONS: { id: LeadFormPresentation['popup']['icon']; label: string }[] = [
+  { id: 'chat', label: 'Chat' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+]
+const POPUP_POSITIONS: { id: LeadFormPresentation['popup']['position']; label: string }[] = [
+  { id: 'right', label: 'Kanan bawah' },
+  { id: 'left', label: 'Kiri bawah' },
 ]
 const RADII: { id: LeadFormRadius; label: string }[] = [
   { id: 'page', label: 'Ikut halaman' },
@@ -140,6 +150,65 @@ function setPoint(index: number, e: Event) {
           {{ d.label }}
         </button>
       </div>
+    </div>
+
+    <div v-if="p.display === 'popup'" class="ap-split">
+      <label class="ap-label">
+        Teks launcher
+        <input
+          class="ap-input"
+          type="text"
+          aria-label="Teks launcher"
+          :maxlength="POPUP_LABEL_MAX"
+          :value="p.popup.label"
+          @change="commit({ popup: { ...p.popup, label: inputValue($event) } })"
+        />
+      </label>
+      <div class="ap-row">
+        <span class="ap-label">Ikon</span>
+        <div class="ap-seg" role="radiogroup" aria-label="Ikon launcher">
+          <button
+            v-for="i in POPUP_ICONS"
+            :key="i.id"
+            type="button"
+            role="radio"
+            :aria-checked="p.popup.icon === i.id"
+            :class="{ 'ap-seg--on': p.popup.icon === i.id }"
+            :data-popup-icon="i.id"
+            @click="commit({ popup: { ...p.popup, icon: i.id } })"
+          >
+            {{ i.label }}
+          </button>
+        </div>
+      </div>
+      <div class="ap-row">
+        <span class="ap-label">Posisi</span>
+        <div class="ap-seg" role="radiogroup" aria-label="Posisi launcher">
+          <button
+            v-for="o in POPUP_POSITIONS"
+            :key="o.id"
+            type="button"
+            role="radio"
+            :aria-checked="p.popup.position === o.id"
+            :class="{ 'ap-seg--on': p.popup.position === o.id }"
+            :data-popup-position="o.id"
+            @click="commit({ popup: { ...p.popup, position: o.id } })"
+          >
+            {{ o.label }}
+          </button>
+        </div>
+      </div>
+      <label class="ap-label">
+        Judul popup
+        <input
+          class="ap-input"
+          type="text"
+          aria-label="Judul popup"
+          :maxlength="POPUP_TITLE_MAX"
+          :value="p.popup.title"
+          @change="commit({ popup: { ...p.popup, title: inputValue($event) } })"
+        />
+      </label>
     </div>
 
     <div class="ap-row">

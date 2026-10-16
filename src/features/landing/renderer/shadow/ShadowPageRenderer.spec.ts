@@ -425,12 +425,11 @@ describe('ShadowPageRenderer', () => {
 
 describe('ShadowPageRenderer — popup form context', () => {
   let ctx: LandingPageContext | undefined
-  const Probe = defineComponent({
-    setup() {
-      ctx = useLandingPageContext()
-      return () => h('span', 'probe')
-    },
-  })
+  // Komponen fungsional: cukup untuk menangkap konteks yang di-provide renderer.
+  const Probe = () => {
+    ctx = useLandingPageContext()
+    return h('span', 'probe')
+  }
   beforeEach(() => {
     ctx = undefined
     SLOT_REGISTRY['ctx-probe'] = { component: Probe, css: '' }
