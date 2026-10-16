@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { leadsApi, type CrmMember } from '@/features/crm/leads/api/leads.api'
 import { useTenantStore } from '@/stores/tenant.store'
+import { withFormId } from '../../renderer/lead-form/lead-form-presentation'
 import { landingApi } from '../../shared/api/landing.api'
 import type { FormFieldItem, LandingFormWithFields } from '../../shared/types/landing.types'
 import { parseLeadFormId } from './grapes.lead-form-component'
@@ -57,7 +58,9 @@ function replaceForm(updated: LandingFormWithFields) {
 
 function selectForm(id: string) {
   selectedId.value = id
-  props.component.addAttributes({ 'data-zyad-config': JSON.stringify({ form_id: id }) })
+  props.component.addAttributes({
+    'data-zyad-config': withFormId(props.component.getAttributes()['data-zyad-config'], id),
+  })
 }
 
 onMounted(async () => {

@@ -94,7 +94,7 @@ describe('GrapesLeadFormPanel', () => {
     expect(createForm.mock.invocationCallOrder[0]!).toBeLessThan(
       replaceFormFields.mock.invocationCallOrder[0]!,
     )
-    expect(JSON.parse(addAttributes.mock.calls.at(-1)![0]['data-zyad-config'])).toEqual({
+    expect(JSON.parse(addAttributes.mock.calls.at(-1)![0]['data-zyad-config'])).toMatchObject({
       form_id: 'new',
     })
     expect(wrapper.emitted('forms-change')!.at(-1)![0]).toHaveLength(2)
@@ -120,10 +120,23 @@ describe('GrapesLeadFormPanel', () => {
     expect(wrapper.text()).toContain('Gagal membuat form')
   })
 
+  it('withFormId keeps presentation: mengganti form tidak menghapus gaya', async () => {
+    getForms.mockResolvedValue({ data: [form(), form({ id: 'f2', key: 'k2' })] })
+    const { wrapper, addAttributes } = await setup({
+      'data-zyad-config': '{"form_id":"f1","style":"glass","accent":"#112233"}',
+    })
+    await wrapper.get('select[aria-label="Form"]').setValue('f2')
+    expect(JSON.parse(addAttributes.mock.calls.at(-1)![0]['data-zyad-config'])).toMatchObject({
+      form_id: 'f2',
+      style: 'glass',
+      accent: '#112233',
+    })
+  })
+
   it('memilih form menulis form_id ke atribut', async () => {
     const { wrapper, addAttributes } = await setup()
     await wrapper.get('select[aria-label="Form"]').setValue('f1')
-    expect(JSON.parse(addAttributes.mock.calls.at(-1)![0]['data-zyad-config'])).toEqual({
+    expect(JSON.parse(addAttributes.mock.calls.at(-1)![0]['data-zyad-config'])).toMatchObject({
       form_id: 'f1',
     })
   })

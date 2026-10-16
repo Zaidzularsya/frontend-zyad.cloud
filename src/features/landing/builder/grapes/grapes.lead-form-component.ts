@@ -1,5 +1,6 @@
 import type { Editor } from 'grapesjs'
 
+import { readLeadFormPresentation } from '../../renderer/lead-form/lead-form-presentation'
 import type { LandingFormWithFields } from '../../shared/types/landing.types'
 
 /**
@@ -28,13 +29,7 @@ function esc(value: string): string {
 
 /** Baca form_id dari atribut data-zyad-config; '' bila tidak valid. */
 export function parseLeadFormId(raw: string | undefined): string {
-  if (!raw) return ''
-  try {
-    const parsed = JSON.parse(raw) as { form_id?: unknown }
-    return typeof parsed.form_id === 'string' ? parsed.form_id : ''
-  } catch {
-    return ''
-  }
+  return readLeadFormPresentation(raw).formId
 }
 
 /** Pratinjau kanvas: label + kontrol statis per field, lalu tombol submit. */
