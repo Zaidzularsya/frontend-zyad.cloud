@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { landingApi, SubmitFormError } from '../../../shared/api/landing.api'
@@ -7,6 +7,7 @@ import type { GrapesChrome } from '../../grapes/chrome'
 import { redirectTarget } from '../../lead-form/redirect-target'
 import { buildWhatsAppUrl } from '../../lead-form/whatsapp-link'
 import { CONSENT_ERROR, validateLeadForm } from '../../lead-form/lead-form-validation'
+import LeadFormPopup from '../../lead-form/LeadFormPopup.vue'
 import LeadFormView from '../../lead-form/LeadFormView.vue'
 import { readLeadFormPresentation } from '../../lead-form/lead-form-presentation'
 import { useLandingPageContext } from '../page-context'
@@ -50,11 +51,45 @@ const values = reactive<Record<string, unknown>>({})
 const errors = ref<Record<string, string>>({})
 const submitting = ref(false)
 const submitted = ref(false)
-const state = computed(() =>
+const state = computed<'idle' | 'submitting' | 'success'>(() =>
   submitted.value ? 'success' : submitting.value ? 'submitting' : 'idle',
 )
 const submitError = ref('')
 const view = ref<InstanceType<typeof LeadFormView> | null>(null)
+const popup = ref<InstanceType<typeof LeadFormPopup> | null>(null)
+
+// Mode popup: sentinel tidak memakan ruang; launcher dan dialog hidup di overlay renderer.
+// Form contoh (preview template) tetap inline supaya thumbnail tidak kosong.
+const isPopup = computed(() => presentation.value.display === 'popup' && !isPreview.value)
+
+const viewProps = computed(() => ({
+  form: form.value!,
+  presentation: presentation.value,
+  values,
+  errors: errors.value,
+  state: state.value,
+  submitError: submitError.value,
+  successHref: whatsappUrl.value,
+  disabled: isPreview.value,
+  hint: isPreview.value ? PREVIEW_HINT : '',
+}))
+
+// Class di sentinel + daftar ke konteks (untuk #konsultasi dan "Hubungi sales").
+let unregisterPopup: (() => void) | null = null
+watch(
+  [isPopup, () => props.host],
+  ([popupMode, host]) => {
+    unregisterPopup?.()
+    unregisterPopup = null
+    host.classList.toggle('zy-slot-lead-form-host--popup', popupMode)
+    if (popupMode) unregisterPopup = ctx.registerLeadPopup(() => popup.value?.open())
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  unregisterPopup?.()
+  props.host.classList.remove('zy-slot-lead-form-host--popup')
+})
 
 // One key per attempt: reused when the same payload is retried (the server then returns the
 // stored submission instead of creating a second one), reset once the input changes or on success.
@@ -195,19 +230,16 @@ async function onSubmit() {
 </script>
 
 <template>
-  <LeadFormView
-    v-if="form"
-    ref="view"
-    :form="form"
-    :presentation="presentation"
-    :values="values"
-    :errors="errors"
-    :state="state"
-    :submit-error="submitError"
-    :success-href="whatsappUrl"
-    :disabled="isPreview"
-    :hint="isPreview ? PREVIEW_HINT : ''"
-    @update="onUpdate"
-    @submit="onSubmit"
-  />
+  <template v-if="form">
+    <LeadFormPopup
+      v-if="isPopup"
+      ref="popup"
+      :presentation="presentation"
+      :target="ctx.overlayTarget.value"
+      :theme-source="host"
+    >
+      <LeadFormView ref="view" v-bind="viewProps" @update="onUpdate" @submit="onSubmit" />
+    </LeadFormPopup>
+    <LeadFormView v-else ref="view" v-bind="viewProps" @update="onUpdate" @submit="onSubmit" />
+  </template>
 </template>

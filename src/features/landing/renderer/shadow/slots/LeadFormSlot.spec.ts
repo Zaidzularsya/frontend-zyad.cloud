@@ -503,3 +503,161 @@ describe('LeadFormSlot — setelah kirim & field wajib dari server', () => {
     expect('interest' in body.fields).toBe(false)
   })
 })
+
+describe('LeadFormSlot — mode popup', () => {
+  const POPUP_CONFIG = { form_id: FORM_ID, display: 'popup' }
+  let overlay: HTMLElement
+  let registered: Array<() => void>
+  let unregister: ReturnType<typeof vi.fn>
+
+  function mountPopupSlot(
+    form: GrapesChromeForm | null = makeForm(),
+    config: unknown = POPUP_CONFIG,
+  ) {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const ctx = {
+      orgType: computed(() => 'platform'),
+      interest: ref(''),
+      scrollToId: vi.fn(),
+      registerLeadPopup: vi.fn((open: () => void) => {
+        registered.push(open)
+        return unregister
+      }),
+      openLeadPopup: vi.fn(() => false),
+      overlayTarget: ref<HTMLElement | null>(overlay),
+    }
+    const w = mount(LeadFormSlot, {
+      attachTo: document.body,
+      props: {
+        host,
+        chrome: { forms: form ? [form] : [] } as GrapesChrome,
+        dataset: { zyadConfig: JSON.stringify(config) },
+      },
+      global: { provide: { [LANDING_PAGE_CONTEXT as symbol]: ctx } },
+    })
+    return { w, ctx, host }
+  }
+
+  const launcher = () => overlay.querySelector<HTMLButtonElement>('.zy-lf-popup__launcher')
+  const dialog = () => overlay.querySelector<HTMLElement>('[role="dialog"]')
+  const q = <T extends Element>(sel: string) => overlay.querySelector<T>(sel)!
+  async function fillPopup() {
+    for (const [name, value] of [
+      ['name', 'Budi'],
+      ['email', 'budi@acme.co'],
+      ['phone', '0812 3456 7890'],
+    ] as const) {
+      const input = q<HTMLInputElement>(`input[name="${name}"]`)
+      input.value = value
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    const consent = q<HTMLInputElement>('input[name="consent"]')
+    consent.checked = true
+    consent.dispatchEvent(new Event('change', { bubbles: true }))
+    await flushPromises()
+  }
+
+  beforeEach(() => {
+    overlay = document.createElement('div')
+    document.body.appendChild(overlay)
+    registered = []
+    unregister = vi.fn()
+  })
+
+  it('renders a launcher in the overlay instead of the inline form', () => {
+    const { w, host } = mountPopupSlot()
+    expect(launcher()).not.toBeNull()
+    expect(w.find('form').exists()).toBe(false)
+    expect(w.find('.zy-slot-lead-form').exists()).toBe(false)
+    expect(host.classList.contains('zy-slot-lead-form-host--popup')).toBe(true)
+  })
+
+  it('renders nothing when the form is missing or inactive', () => {
+    mountPopupSlot(null)
+    expect(launcher()).toBeNull()
+  })
+
+  it('keeps the inline form for the template preview form', () => {
+    const ctx = { orgType: computed(() => 'platform'), interest: ref(''), scrollToId: vi.fn() }
+    const w = mount(LeadFormSlot, {
+      attachTo: document.body,
+      props: {
+        host: document.createElement('div'),
+        chrome: { forms: [], previewForm: makeForm({ id: 'preview' }) } as GrapesChrome,
+        dataset: { zyadConfig: JSON.stringify({ display: 'popup' }) },
+      },
+      global: { provide: { [LANDING_PAGE_CONTEXT as symbol]: ctx } },
+    })
+    expect(w.find('form').exists()).toBe(true)
+  })
+
+  it('registers its opener with the page context; the opener opens the dialog; unregisters on unmount', async () => {
+    const { w } = mountPopupSlot()
+    expect(registered).toHaveLength(1)
+    expect(dialog()).toBeNull()
+    registered[0]!()
+    await flushPromises()
+    expect(dialog()).not.toBeNull()
+    w.unmount()
+    expect(unregister).toHaveBeenCalled()
+  })
+
+  it('does not register when the display is inline', () => {
+    const { ctx } = mountPopupSlot(makeForm(), { form_id: FORM_ID })
+    expect(ctx.registerLeadPopup).not.toHaveBeenCalled()
+    expect(launcher()).toBeNull()
+  })
+
+  it('submits from the dialog and keeps the success state when reopened', async () => {
+    submitPublicForm.mockResolvedValue(undefined)
+    const { w } = mountPopupSlot()
+    launcher()!.click()
+    await flushPromises()
+    await fillPopup()
+    q<HTMLFormElement>('form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    )
+    await flushPromises()
+    expect(submitPublicForm).toHaveBeenCalledTimes(1)
+    expect(q('.zy-slot-lead-form__success').textContent).toContain('Terima kasih!')
+    ;(w.findComponent({ name: 'LeadFormPopup' }).vm as unknown as { close: () => void }).close()
+    await flushPromises()
+    expect(dialog()).toBeNull()
+    launcher()!.click()
+    await flushPromises()
+    expect(q('.zy-slot-lead-form__success').textContent).toContain('Terima kasih!')
+    expect(overlay.querySelector('form')).toBeNull()
+    expect(submitPublicForm).toHaveBeenCalledTimes(1)
+  })
+
+  it('finishes an in-flight submit after the dialog is closed', async () => {
+    let resolve!: () => void
+    submitPublicForm.mockReturnValue(new Promise<void>((r) => (resolve = r)))
+    const { w } = mountPopupSlot()
+    launcher()!.click()
+    await flushPromises()
+    await fillPopup()
+    q<HTMLFormElement>('form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    )
+    await flushPromises()
+    ;(w.findComponent({ name: 'LeadFormPopup' }).vm as unknown as { close: () => void }).close()
+    await flushPromises()
+    resolve()
+    await flushPromises()
+    launcher()!.click()
+    await flushPromises()
+    expect(q('.zy-slot-lead-form__success').textContent).toContain('Terima kasih!')
+    expect(submitPublicForm).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies the popup texts from the configuration', () => {
+    mountPopupSlot(makeForm(), {
+      ...POPUP_CONFIG,
+      popup: { label: 'Tanya kami', icon: 'whatsapp', position: 'left', title: 'Ada pertanyaan?' },
+    })
+    expect(launcher()!.getAttribute('aria-label')).toBe('Tanya kami')
+    expect(q('.zy-lf-popup').classList.contains('zy-lf-popup--left')).toBe(true)
+  })
+})
