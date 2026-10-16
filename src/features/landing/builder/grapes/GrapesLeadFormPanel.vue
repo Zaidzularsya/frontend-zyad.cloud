@@ -8,6 +8,7 @@ import { landingApi } from '../../shared/api/landing.api'
 import type { FormFieldItem, LandingFormWithFields } from '../../shared/types/landing.types'
 import { parseLeadFormId } from './grapes.lead-form-component'
 import GrapesLeadFormAfterSubmit from './GrapesLeadFormAfterSubmit.vue'
+import GrapesLeadFormAppearance from './GrapesLeadFormAppearance.vue'
 import GrapesLeadFormFields from './GrapesLeadFormFields.vue'
 import { LEAD_FORM_BASE, nextFormKey, presetFields, type LeadFormPreset } from './lead-form-presets'
 
@@ -169,6 +170,11 @@ function onFieldsSaved(fields: FormFieldItem[]) {
           :form="selected"
           @saved="onFieldsSaved"
         />
+      </details>
+
+      <details v-if="selected" class="hp-sec" open>
+        <summary>Tampilan</summary>
+        <GrapesLeadFormAppearance :component="component" />
       </details>
 
       <details v-if="selected" class="hp-sec" open>
