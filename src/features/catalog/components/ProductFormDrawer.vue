@@ -9,6 +9,7 @@ import {
   useCatalogFeaturesQuery,
   useSaveProductMutation,
 } from '@/features/catalog/api/catalog.queries'
+import ProductEntitlementTable from '@/features/catalog/components/ProductEntitlementTable.vue'
 import ProductPublishingSection from '@/features/catalog/components/ProductPublishingSection.vue'
 import { catalogErrorMessage, errorCode } from '@/features/catalog/utils/errors'
 import {
@@ -199,7 +200,9 @@ const inputClass =
         v-model="form"
         :defs="featureDefs"
         :listing-error="listingError"
+        :show-features="false"
       />
+      <ProductEntitlementTable v-if="isPlatform" v-model="form" :defs="featureDefs" />
 
       <label class="block space-y-1 text-sm">
         <span class="font-medium">Deskripsi</span>

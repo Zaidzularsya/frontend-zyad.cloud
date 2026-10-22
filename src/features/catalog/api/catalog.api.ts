@@ -15,6 +15,8 @@ export interface CatalogFeatureDef {
   module: string
   value_type: 'boolean' | 'integer' | 'decimal' | 'string'
   unit?: string
+  // never|monthly|yearly|custom; read-only registry metadata.
+  reset_strategy?: string
 }
 
 export interface ProductFeature {
