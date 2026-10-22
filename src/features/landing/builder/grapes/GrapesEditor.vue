@@ -189,6 +189,11 @@ function redo() {
 function pushSnapshot() {
   const ed = editor.value
   if (!ready || !ed) return
+  // getProjectData() memaksa RTE yang sedang aktif menyinkronkan isinya ke model
+  // (resetFromString), sehingga teks dirender ulang dan cursor lompat ke awal.
+  // Tunda sampai editing selesai; GrapesJS menyinkronkan sendiri saat blur dan
+  // event-nya memicu snapshot lagi lewat onChange.
+  if (ed.getEditing()) return
   store.applyEditorSnapshot({
     project: ed.getProjectData() as Record<string, unknown>,
     html: ed.getHtml(),

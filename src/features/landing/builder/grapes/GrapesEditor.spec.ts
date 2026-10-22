@@ -21,6 +21,7 @@ function wrapperStub(find: (selector: string) => unknown[] = () => [], children:
 
 const editorStub = {
   getProjectData: vi.fn((): Record<string, unknown> => ({ pages: [] })),
+  getEditing: vi.fn((): unknown => undefined),
   getHtml: vi.fn(() => '<body></body>'),
   getCss: vi.fn(() => ''),
   loadProjectData: vi.fn(),
