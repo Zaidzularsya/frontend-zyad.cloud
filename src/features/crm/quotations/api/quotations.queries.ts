@@ -89,9 +89,13 @@ export function useCreateQuotationMutation() {
 
 export function useDeleteQuotationMutation() {
   const invalidate = useInvalidateQuotations()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => quotationsApi.delete(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
   })
 }
 
@@ -105,9 +109,17 @@ export function useSendQuotationMutation() {
 
 export function useApproveQuotationMutation() {
   const invalidate = useInvalidateQuotations()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => quotationsApi.approve(id),
-    onSuccess: invalidate,
+    // Approve membuat sales order sehingga memakai kuota SO bulanan.
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
+    },
   })
 }
 

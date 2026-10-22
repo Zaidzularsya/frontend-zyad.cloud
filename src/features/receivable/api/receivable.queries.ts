@@ -120,10 +120,14 @@ export function useIssueInvoiceMutation() {
 
 export function useVoidInvoiceMutation() {
   const invalidate = useInvalidateReceivable()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       receivableApi.invoices.void(id, reason),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
   })
 }
 

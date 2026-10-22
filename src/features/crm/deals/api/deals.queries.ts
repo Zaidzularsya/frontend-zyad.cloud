@@ -57,10 +57,12 @@ export function useUpdateDealMutation() {
 
 export function useDeleteDealMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => dealsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
     },
   })
 }
@@ -78,21 +80,25 @@ export function useMoveDealStageMutation() {
 
 export function useCloseDealWonMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => dealsApi.closeWon(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useCloseDealLostMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, lostReason }: { id: string; lostReason?: string }) =>
       dealsApi.closeLost(id, lostReason),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
     },
   })
 }

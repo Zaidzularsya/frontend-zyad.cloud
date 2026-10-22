@@ -70,6 +70,7 @@ export function useCreateLeadMutation() {
 
 export function useUpdateLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({
       id,
@@ -80,26 +81,31 @@ export function useUpdateLeadMutation() {
     }) => leadsApi.update(id, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useDeleteLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => leadsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useRestoreLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => leadsApi.restore(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
     },
   })
 }
@@ -192,12 +198,14 @@ export function useCrmMembersQuery() {
 
 export function useDisqualifyLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, reason, note }: { id: string; reason: DisqualifyReason; note?: string }) =>
       leadsApi.disqualify(id, { reason, note }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
       void queryClient.invalidateQueries({ queryKey: ['crm', 'activities'] })
+      invalidateEntitlements()
     },
   })
 }

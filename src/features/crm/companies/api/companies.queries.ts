@@ -71,20 +71,24 @@ export function useUpdateCompanyMutation() {
 
 export function useDeleteCompanyMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => companiesApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: companyKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useRestoreCompanyMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => companiesApi.restore(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: companyKeys.all })
+      invalidateEntitlements()
     },
   })
 }

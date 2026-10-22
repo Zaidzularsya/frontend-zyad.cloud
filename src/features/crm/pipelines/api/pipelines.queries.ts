@@ -59,30 +59,36 @@ export function useUpdatePipelineMutation() {
 
 export function useDeletePipelineMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => pipelinesApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pipelineKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useRestorePipelineMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => pipelinesApi.restore(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pipelineKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useArchivePipelineMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => pipelinesApi.archive(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pipelineKeys.all })
+      invalidateEntitlements()
     },
   })
 }

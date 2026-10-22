@@ -62,20 +62,24 @@ export function useUpdateContactMutation() {
 
 export function useDeleteContactMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => contactsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useRestoreContactMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => contactsApi.restore(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
+      invalidateEntitlements()
     },
   })
 }

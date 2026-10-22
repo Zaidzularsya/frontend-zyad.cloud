@@ -629,6 +629,14 @@ async function runPageAction(
         slug: `${page.slug}-copy-${Date.now().toString(36)}`,
         include_forms: true,
       })
+    }
+    // Archive/restore/delete/duplicate mengubah jumlah halaman yang dihitung kuota.
+    if (
+      action === 'archive' ||
+      action === 'restore' ||
+      action === 'delete' ||
+      action === 'duplicate'
+    ) {
       invalidateEntitlements()
     }
 

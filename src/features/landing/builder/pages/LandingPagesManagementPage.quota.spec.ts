@@ -8,6 +8,8 @@ const api = vi.hoisted(() => ({
   updatePage: vi.fn(),
   createPage: vi.fn(),
   duplicatePage: vi.fn(),
+  deletePage: vi.fn(),
+  archivePage: vi.fn(),
 }))
 const summary = vi.hoisted(() => vi.fn())
 const push = vi.hoisted(() => vi.fn())
@@ -168,6 +170,22 @@ describe('LandingPagesManagementPage quota', () => {
       await dup(w).trigger('click')
       await flushPromises()
       expect(w.text()).toContain('Kuota landing page paket Anda sudah penuh')
+      expect(entitlementCalls(spy).length).toBeGreaterThan(0)
+    })
+
+    it.each([
+      ['Delete', 'deletePage'],
+      ['Archive', 'archivePage'],
+    ] as const)('%s frees quota, so it refreshes entitlements', async (label, method) => {
+      summary.mockResolvedValue(quota(true))
+      api[method].mockResolvedValue(null)
+      const { w, spy } = await mountPage()
+      await w
+        .findAll('button')
+        .find((b) => b.text().includes(label))!
+        .trigger('click')
+      await flushPromises()
+      expect(api[method]).toHaveBeenCalledTimes(1)
       expect(entitlementCalls(spy).length).toBeGreaterThan(0)
     })
   })
