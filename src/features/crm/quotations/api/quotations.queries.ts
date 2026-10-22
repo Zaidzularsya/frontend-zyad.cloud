@@ -9,6 +9,8 @@ import {
   type SendQuotationPayload,
   type QuotationUpdatePayload,
 } from '@/features/crm/quotations/api/quotations.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const quotationKeys = {
   all: ['crm', 'quotations'] as const,
@@ -72,9 +74,16 @@ export function useQuotationsQuery(params: Ref<QuotationListParams>) {
 
 export function useCreateQuotationMutation() {
   const invalidate = useInvalidateQuotations()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: QuotationPayload) => quotationsApi.create(payload),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
+    },
   })
 }
 
