@@ -6,9 +6,10 @@ export interface EntitlementSummaryItem {
   name: string
   unit?: string
   state: EntitlementState
-  limit?: number
-  used?: number
-  remaining?: number
+  // Backend mengirim null (bukan menghilangkan field) bila tidak ada batas/meter.
+  limit?: number | null
+  used?: number | null
+  remaining?: number | null
   reset_strategy: 'never' | 'monthly'
   at_limit: boolean
 }

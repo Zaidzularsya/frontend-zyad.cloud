@@ -69,22 +69,24 @@ function formatRow(item: EntitlementSummaryItem): string {
   const isBytes = item.feature_key === 'storage.max_bytes'
   const fmt = (n: number) => (isBytes ? formatBytes(n) : String(n))
   const unit = !isBytes && item.unit ? ` ${item.unit}` : ''
-  if (item.used === undefined) {
-    return item.limit === undefined ? '-' : `batas ${fmt(item.limit)}${unit}`
+  if (item.used == null) {
+    return item.limit == null ? '-' : `batas ${fmt(item.limit)}${unit}`
   }
-  return item.limit === undefined
+  return item.limit == null
     ? `${fmt(item.used)}${unit}`
     : `${fmt(item.used)} / ${fmt(item.limit)}${unit}`
 }
 
 function toRow(item: EntitlementSummaryItem): UsageRow {
-  const hasMeter = item.used !== undefined && item.limit !== undefined && item.limit > 0
-  const percent = hasMeter ? Math.min(100, Math.round((item.used! / item.limit!) * 100)) : undefined
+  const used = item.used ?? undefined
+  const limit = item.limit ?? undefined
+  const hasMeter = used !== undefined && limit !== undefined && limit > 0
+  const percent = hasMeter ? Math.min(100, Math.round((used / limit) * 100)) : undefined
   return {
     key: item.feature_key,
     label: LABELS[item.feature_key] ?? item.name,
-    used: item.used,
-    limit: item.limit,
+    used,
+    limit,
     unit: item.unit,
     atLimit: item.at_limit,
     percent: item.at_limit && hasMeter ? 100 : percent,
@@ -103,6 +105,9 @@ export function groupUsage(items: EntitlementSummaryItem[]): UsageGroup[] {
   )
   for (const item of items) {
     if (item.state !== 'quota') continue
+    // media.max_storage_mb tidak ditegakkan backend; batas sebenarnya ada di
+    // storage.max_bytes. Menampilkan keduanya akan menggandakan baris Storage.
+    if (item.feature_key === 'media.max_storage_mb') continue
     buckets.get(groupTitle(item))!.push(item)
   }
   return [...buckets.entries()]

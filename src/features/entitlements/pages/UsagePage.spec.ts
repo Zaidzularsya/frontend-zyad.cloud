@@ -70,4 +70,21 @@ describe('UsagePage', () => {
     const w = await mountPage()
     expect(w.find('[data-testid="usage-empty"]').exists()).toBe(true)
   })
+
+  it('never renders "null" for rows without a usage counter', async () => {
+    subscription.mockResolvedValue({ product: { name: 'Free' } })
+    summary.mockResolvedValue([
+      item({
+        feature_key: 'landing.max_sections_per_page',
+        module: 'landing',
+        used: null,
+        limit: 12,
+        remaining: null,
+        at_limit: false,
+      }),
+    ])
+    const w = await mountPage()
+    expect(w.text()).toContain('batas 12')
+    expect(w.text()).not.toContain('null')
+  })
 })

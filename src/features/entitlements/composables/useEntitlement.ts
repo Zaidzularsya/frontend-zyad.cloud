@@ -21,9 +21,9 @@ export function useEntitlement(featureKey: MaybeRefOrGetter<string>) {
     isLoading: computed(() => query.isLoading.value),
     isHidden: computed(() => loaded.value && state.value === 'hidden'),
     isUnlimited: computed(() => state.value === 'unlimited'),
-    atLimit: computed(() => item.value?.state === 'quota' && item.value.at_limit),
-    limit: computed(() => item.value?.limit),
-    used: computed(() => item.value?.used),
-    remaining: computed(() => item.value?.remaining),
+    atLimit: computed(() => item.value?.state === 'quota' && item.value.at_limit === true),
+    limit: computed(() => item.value?.limit ?? undefined),
+    used: computed(() => item.value?.used ?? undefined),
+    remaining: computed(() => item.value?.remaining ?? undefined),
   }
 }

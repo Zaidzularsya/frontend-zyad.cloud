@@ -12,6 +12,8 @@ export function useEntitlementSummaryQuery() {
     queryKey: entitlementKeys.summary(),
     queryFn: () => entitlementsApi.summary(),
     staleTime: 60_000,
+    // Fail-open: 401/403 tidak perlu diulang; UI tetap berfungsi tanpa ringkasan.
+    retry: false,
   })
 }
 

@@ -63,4 +63,27 @@ describe('groupUsage', () => {
     expect(rows.find((r) => r.key === 'landing.max_sections_per_page')?.percent).toBeUndefined()
     expect(rows.some((r) => r.key === 'foo.max_bar')).toBe(true)
   })
+
+  it('treats null used/limit as absent: no bar and never prints "null"', () => {
+    const groups = groupUsage([
+      q('landing.max_sections_per_page', 'landing', { used: null, limit: 12, remaining: null }),
+      q('foo.max_bar', 'foo', { used: null, limit: null, remaining: null }),
+      q('foo.max_baz', 'foo', { used: 3, limit: null, remaining: null }),
+    ])
+    const rows = groups.flatMap((g) => g.rows)
+    const sections = rows.find((r) => r.key === 'landing.max_sections_per_page')!
+    expect(sections.format).toBe('batas 12')
+    expect(sections.percent).toBeUndefined()
+    expect(rows.find((r) => r.key === 'foo.max_bar')!.format).toBe('-')
+    expect(rows.find((r) => r.key === 'foo.max_baz')!.format).toBe('3')
+    expect(rows.map((r) => r.format).join(' ')).not.toContain('null')
+  })
+
+  it('excludes media.max_storage_mb (duplicate of storage.max_bytes)', () => {
+    const groups = groupUsage([
+      q('media.max_storage_mb', 'media', { used: null, limit: 500 }),
+      q('storage.max_bytes', 'storage', { used: 1, limit: 2 }),
+    ])
+    expect(groups.flatMap((g) => g.rows.map((r) => r.key))).toEqual(['storage.max_bytes'])
+  })
 })
