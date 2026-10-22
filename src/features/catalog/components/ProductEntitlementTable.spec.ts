@@ -90,7 +90,13 @@ describe('ProductEntitlementTable', () => {
     await row(w, 'crm').get('select[name="status"]').setValue('unlimited')
     const form = (w.emitted('update:modelValue') as ProductForm[][]).at(-1)![0]!
     expect(form.features).toEqual([{ key: 'crm', raw: true, displayLabel: '' }])
-    const w2 = mountWith({ ...emptyProductForm(), features: [] })
+    const w2 = mount(ProductEntitlementTable, {
+      props: {
+        modelValue: emptyProductForm(),
+        defs,
+        'onUpdate:modelValue': (v: ProductForm) => w2.setProps({ modelValue: v }),
+      },
+    })
     await row(w2, 'lead').get('select[name="status"]').setValue('quota')
     await row(w2, 'lead').get('input[name="limit"]').setValue('50')
     const f2 = (w2.emitted('update:modelValue') as ProductForm[][]).at(-1)![0]!
@@ -215,5 +221,77 @@ describe('ProductEntitlementTable', () => {
     expect(w.get('[role="alert"]').text()).toBe('Maksimal 30 fitur per produk.')
     expect(w.emitted('update:modelValue')).toBeUndefined()
     expect(w.get('[data-testid="entitlement-counter"]').text()).toBe('30 / 30 fitur')
+  })
+
+  describe('display label', () => {
+    it('clears a stale custom label when the limit changes; untouched rows keep theirs', async () => {
+      const w = mountWith({
+        ...emptyProductForm(),
+        name: 'P',
+        basePrice: '1',
+        features: [
+          { key: 'lead', raw: '500', displayLabel: '500 lead' },
+          { key: 'quotation', raw: '5', displayLabel: '5 penawaran' },
+        ],
+      })
+      await row(w, 'lead').get('input[name="limit"]').setValue('1000')
+      const form = (w.emitted('update:modelValue') as ProductForm[][]).at(-1)![0]!
+      const payload = buildProductPayload(form, { platform: true, featureDefs: defs })
+      const byKey = Object.fromEntries(payload.features!.map((f) => [f.feature_key, f]))
+      expect(byKey.lead!.value).toBe(1000)
+      expect(byKey.lead!.display_label).toBeUndefined()
+      expect(byKey.quotation!.display_label).toBe('5 penawaran')
+    })
+
+    it('keeps the label when the same value is re-entered', async () => {
+      const w = mountWith({
+        ...emptyProductForm(),
+        features: [{ key: 'lead', raw: '500', displayLabel: '500 lead' }],
+      })
+      await row(w, 'lead').get('input[name="limit"]').setValue('500')
+      const emitted = w.emitted('update:modelValue') as ProductForm[][] | undefined
+      const form = emitted?.at(-1)?.[0]
+      expect(form?.features[0]?.displayLabel ?? '500 lead').toBe('500 lead')
+    })
+  })
+
+  describe('quota without a limit', () => {
+    // Menyalurkan v-model agar perubahan form terlihat oleh tabel.
+    function mountModel() {
+      const w = mount(ProductEntitlementTable, {
+        props: {
+          modelValue: { ...emptyProductForm(), name: 'P', basePrice: '1' },
+          defs,
+          'onUpdate:modelValue': (v: ProductForm) => w.setProps({ modelValue: v }),
+        },
+      })
+      return w
+    }
+    const current = (w: ReturnType<typeof mountModel>) => w.props('modelValue') as ProductForm
+    const validate = (w: ReturnType<typeof mountModel>) =>
+      validateProductForm(current(w), { platform: true, featureDefs: defs })
+
+    it('shows a hint and blocks save while the limit is empty', async () => {
+      const w = mountModel()
+      await row(w, 'lead').get('select[name="status"]').setValue('quota')
+      expect(row(w, 'lead').get('[data-testid="pending-hint"]').text()).toBe('Batas belum diisi')
+      expect(validate(w)).toMatch(/Lead: batas belum diisi/)
+    })
+
+    it('clears the hint and validation once a valid limit is typed', async () => {
+      const w = mountModel()
+      await row(w, 'lead').get('select[name="status"]').setValue('quota')
+      await row(w, 'lead').get('input[name="limit"]').setValue('25')
+      expect(row(w, 'lead').find('[data-testid="pending-hint"]').exists()).toBe(false)
+      expect(validate(w)).toBeNull()
+    })
+
+    it('clears the hint and validation when Tidak diatur is chosen', async () => {
+      const w = mountModel()
+      await row(w, 'lead').get('select[name="status"]').setValue('quota')
+      await row(w, 'lead').get('select[name="status"]').setValue('unset')
+      expect(row(w, 'lead').find('[data-testid="pending-hint"]').exists()).toBe(false)
+      expect(validate(w)).toBeNull()
+    })
   })
 })

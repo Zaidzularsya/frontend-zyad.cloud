@@ -38,6 +38,9 @@ export interface ProductForm {
   listingCode: string
   listingOrder: string
   features: FeatureRow[]
+  // Key integer yang dipilih "Berkuota" tetapi batasnya belum diisi. Tidak punya baris di
+  // `features`, jadi tanpa penanda ini ia akan hilang diam-diam saat disimpan.
+  incompleteQuota: string[]
 }
 
 export function emptyProductForm(): ProductForm {
@@ -57,6 +60,7 @@ export function emptyProductForm(): ProductForm {
     listingCode: '',
     listingOrder: '0',
     features: [],
+    incompleteQuota: [],
   }
 }
 
@@ -77,6 +81,7 @@ export function productToForm(p: CatalogProduct, defs: CatalogFeatureDef[] = [])
     isPublic: p.is_public ?? false,
     listingCode: p.listing_code ?? '',
     listingOrder: String(p.listing_order ?? 0),
+    incompleteQuota: [],
     // Key nonaktif tidak ada di defs: nilai asli dipertahankan apa adanya sampai pengguna menggantinya.
     features: (p.features ?? []).map((f) => {
       const def = byKey.get(f.feature_key)
@@ -119,6 +124,10 @@ function validatePublishing(f: ProductForm, defs: CatalogFeatureDef[]): string |
   if (!/^\d{1,6}$/.test(f.listingOrder.trim() || '0')) return 'Urutan harus bilangan bulat.'
   if (f.features.length > MAX_FEATURES) return `Maksimal ${MAX_FEATURES} fitur per produk.`
   const byKey = new Map(defs.map((d) => [d.key, d]))
+  const pending = f.incompleteQuota.find((key) => !f.features.some((r) => r.key === key))
+  if (pending) {
+    return `${byKey.get(pending)?.name ?? pending}: batas belum diisi. Isi batas atau pilih "Tidak diatur".`
+  }
   for (const row of f.features) {
     const def = byKey.get(row.key)
     if (!def) return `Fitur "${row.key || '(belum dipilih)'}" tidak aktif. Ganti atau hapus.`

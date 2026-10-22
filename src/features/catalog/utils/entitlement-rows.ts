@@ -67,7 +67,13 @@ export function applyRowChange(
   const raw = status === 'quota' ? String(value) : (value as boolean)
 
   if (index >= 0) {
-    return { features: features.map((r, i) => (i === index ? { ...r, raw } : r)) }
+    // Label kustom (mis. "500 lead") jadi basi bila nilai berubah: kosongkan agar
+    // label diturunkan otomatis dari registry. Baris yang tidak berubah tetap memakai labelnya.
+    return {
+      features: features.map((r, i) =>
+        i === index ? { ...r, raw, displayLabel: r.raw === raw ? r.displayLabel : '' } : r,
+      ),
+    }
   }
   if (features.length >= MAX_FEATURES) {
     return { features, error: `Maksimal ${MAX_FEATURES} fitur per produk.` }

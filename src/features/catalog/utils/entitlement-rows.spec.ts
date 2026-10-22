@@ -82,10 +82,13 @@ describe('applyRowChange', () => {
     expect(applyRowChange(added.features, int, 'quota', '').features).toEqual([])
   })
 
-  it('keeps the display label when changing an existing row', () => {
+  it('clears the custom display label when the value changes, keeps it when unchanged', () => {
     const rows: FeatureRow[] = [{ key: 'crm', raw: true, displayLabel: 'CRM lengkap' }]
     expect(applyRowChange(rows, bool, 'hidden').features).toEqual([
-      { key: 'crm', raw: false, displayLabel: 'CRM lengkap' },
+      { key: 'crm', raw: false, displayLabel: '' },
+    ])
+    expect(applyRowChange(rows, bool, 'unlimited').features).toEqual([
+      { key: 'crm', raw: true, displayLabel: 'CRM lengkap' },
     ])
   })
 

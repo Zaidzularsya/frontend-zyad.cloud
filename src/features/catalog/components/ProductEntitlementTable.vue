@@ -21,7 +21,8 @@ const emit = defineEmits<{ (e: 'update:modelValue', value: ProductForm): void }>
 
 const message = ref('')
 // Integer yang dipilih Berkuota tetapi batasnya belum diisi (belum ada baris di form).
-const pendingQuota = ref(new Set<string>())
+// Disimpan di form agar validasi simpan bisa menolaknya.
+const pendingQuota = computed(() => new Set(props.modelValue.incompleteQuota))
 
 const inputClass =
   'w-full rounded-lg border bg-white px-2 py-1.5 text-sm outline-none focus:border-brand-500 disabled:opacity-50 dark:bg-gray-950'
@@ -57,16 +58,22 @@ function view(def: CatalogFeatureDef) {
 }
 
 function change(def: CatalogFeatureDef, status: RowStatus, limit = '') {
-  const next = new Set(pendingQuota.value)
-  if (status === 'quota') next.add(def.key)
-  else next.delete(def.key)
-  pendingQuota.value = next
   const result = applyRowChange(props.modelValue.features, def, status, limit)
   message.value = result.error ?? ''
-  if (result.error) return
-  if (result.features !== props.modelValue.features) {
-    emit('update:modelValue', { ...props.modelValue, features: result.features })
+  const pending = new Set(pendingQuota.value)
+  if (status === 'quota' && !result.features.some((r) => r.key === def.key)) {
+    pending.add(def.key)
+  } else {
+    pending.delete(def.key)
   }
+  const pendingChanged =
+    pending.size !== pendingQuota.value.size || [...pending].some((k) => !pendingQuota.value.has(k))
+  if (result.features === props.modelValue.features && !pendingChanged) return
+  emit('update:modelValue', {
+    ...props.modelValue,
+    features: result.features,
+    incompleteQuota: [...pending],
+  })
 }
 
 function changeLimit(def: CatalogFeatureDef, event: Event) {
@@ -74,6 +81,10 @@ function changeLimit(def: CatalogFeatureDef, event: Event) {
   change(def, 'quota', input.value)
   // Jika ditolak, state tidak berubah: sinkronkan tampilan dengan state.
   if (message.value) input.value = view(def).limit
+}
+
+function isPending(def: CatalogFeatureDef) {
+  return !rowByKey.value.has(def.key) && pendingQuota.value.has(def.key)
 }
 
 function removeOrphan(key: string) {
@@ -150,6 +161,14 @@ function removeOrphan(key: string) {
         <span data-testid="reset" class="text-gray-600">
           {{ view(def).status === 'quota' ? resetLabel(def.reset_strategy) : '-' }}
         </span>
+        <small
+          v-if="isPending(def)"
+          data-testid="pending-hint"
+          class="col-span-full text-xs text-red-600"
+          role="alert"
+        >
+          Batas belum diisi
+        </small>
       </div>
     </section>
     <section v-if="orphans.length > 0" data-testid="orphan-section" class="space-y-1">
