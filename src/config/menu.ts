@@ -257,7 +257,7 @@ export const customerMenuGroups: MenuGroup[] = [
         icon: Globe,
         children: buildLandingManagementMenuItems('landing-pages'),
       },
-      { label: 'Team & Roles', route: 'users', icon: ShieldCheck },
+      { label: 'Team & Roles', route: 'users', icon: ShieldCheck, permission: 'user.read' },
     ],
   },
   {
