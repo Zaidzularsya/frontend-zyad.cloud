@@ -36,7 +36,7 @@ const groups = (): MenuGroup[] => [
 describe('filterMenuByEntitlement', () => {
   it('hides item whose feature is hidden', () => {
     const result = filterMenuByEntitlement(groups(), (k) => k === 'crm.enabled')
-    expect(result[0].items.map((i) => i.label)).toEqual(['Produk'])
+    expect(result[0]!.items.map((i) => i.label)).toEqual(['Produk'])
   })
 
   it('keeps item without feature', () => {
@@ -51,7 +51,7 @@ describe('filterMenuByEntitlement', () => {
 
   it('drops parent when all children hidden and keeps it when some remain', () => {
     const some = filterMenuByEntitlement(groups(), (k) => k === 'domain.enabled')
-    expect(some[2].items[0].children?.map((c) => c.label)).toEqual(['Pages'])
+    expect(some[2]!.items[0]!.children?.map((c) => c.label)).toEqual(['Pages'])
     const none = filterMenuByEntitlement(
       groups(),
       (k) => k === 'domain.enabled' || k === 'landing.enabled',

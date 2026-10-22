@@ -35,6 +35,15 @@ const quota = (atLimit: boolean) => [
   },
 ]
 
+const customDomainFeature = (state: 'unlimited' | 'hidden') => ({
+  feature_key: 'landing.custom_domain',
+  module: 'landing',
+  name: 'Custom domain',
+  state,
+  reset_strategy: 'never',
+  at_limit: false,
+})
+
 const existing = {
   id: 'd1',
   organization_id: 'o1',
@@ -69,7 +78,7 @@ describe('DomainManagementPage quota', () => {
   })
 
   it('shows banner and upgrade button when domain quota is full', async () => {
-    summary.mockResolvedValue(quota(true))
+    summary.mockResolvedValue([...quota(true), customDomainFeature('unlimited')])
     const { w } = await mountPage()
     expect(w.get('[role="status"]').text()).toContain('Kuota domain')
     expect(w.text()).not.toContain('+ Add Domain')
@@ -81,13 +90,13 @@ describe('DomainManagementPage quota', () => {
   })
 
   it('keeps the domain list available when quota is full', async () => {
-    summary.mockResolvedValue(quota(true))
+    summary.mockResolvedValue([...quota(true), customDomainFeature('unlimited')])
     const { w } = await mountPage()
     expect(w.text()).toContain('tokoanda.com')
   })
 
   it('shows normal add button when room', async () => {
-    summary.mockResolvedValue(quota(false))
+    summary.mockResolvedValue([...quota(false), customDomainFeature('unlimited')])
     const { w } = await mountPage()
     expect(w.find('[role="status"]').exists()).toBe(false)
     await w
@@ -98,7 +107,7 @@ describe('DomainManagementPage quota', () => {
   })
 
   it('shows the quota message and refreshes entitlements on a 409 create', async () => {
-    summary.mockResolvedValue(quota(false))
+    summary.mockResolvedValue([...quota(false), customDomainFeature('unlimited')])
     domains.create.mockRejectedValue({
       response: { status: 409, data: { code: 'QUOTA_EXCEEDED', message: 'x' } },
     })
@@ -115,5 +124,55 @@ describe('DomainManagementPage quota', () => {
       ([f]) => (f as { queryKey?: unknown[] })?.queryKey?.[0] === 'entitlements',
     )
     expect(calls.length).toBeGreaterThan(0)
+  })
+})
+
+describe('DomainManagementPage custom domain option', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    domains.list.mockResolvedValue([])
+    landing.getAvailableDomains.mockResolvedValue({ data: [] })
+    landing.getAllDomainBindings.mockResolvedValue({ data: [] })
+    landing.getPages.mockResolvedValue({ data: [] })
+  })
+
+  async function openDrawer(w: Awaited<ReturnType<typeof mountPage>>['w']) {
+    await w
+      .findAll('button')
+      .find((b) => b.text().includes('+ Add Domain'))!
+      .trigger('click')
+  }
+
+  it('custom domain option is not rendered when landing.custom_domain is hidden', async () => {
+    summary.mockResolvedValue([...quota(false), customDomainFeature('hidden')])
+    const { w } = await mountPage()
+    await openDrawer(w)
+    const drawer = w.get('form')
+    expect(drawer.find('option[value="custom"]').exists()).toBe(false)
+    expect(drawer.find('input[placeholder="tokoanda.com"]').exists()).toBe(false)
+    expect(drawer.find('input[placeholder="toko-anda"]').exists()).toBe(true)
+    expect(drawer.text()).not.toContain('domain milik Anda sendiri')
+  })
+
+  it('submits a subdomain when custom domain is hidden', async () => {
+    summary.mockResolvedValue([...quota(false), customDomainFeature('hidden')])
+    domains.create.mockResolvedValue({
+      challenge_type: 'auto_verified',
+      domain: { ...existing, type: 'subdomain' },
+    })
+    const { w } = await mountPage()
+    await openDrawer(w)
+    await w.get('input[placeholder="toko-anda"]').setValue('tokoku')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(domains.create).toHaveBeenCalledWith(expect.objectContaining({ type: 'subdomain' }))
+  })
+
+  it('custom domain option is rendered when landing.custom_domain is available', async () => {
+    summary.mockResolvedValue([...quota(false), customDomainFeature('unlimited')])
+    const { w } = await mountPage()
+    await openDrawer(w)
+    expect(w.get('form').find('option[value="custom"]').exists()).toBe(true)
+    expect(w.get('form').find('input[placeholder="tokoanda.com"]').exists()).toBe(true)
   })
 })
