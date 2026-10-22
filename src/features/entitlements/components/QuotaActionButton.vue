@@ -29,6 +29,7 @@ function onClick(event: MouseEvent) {
 
 <template>
   <BaseButton :disabled="disabled" @click="onClick">
+    <slot v-if="!atLimit" name="icon" />
     {{ atLimit ? upgradeLabel : label }}
   </BaseButton>
 </template>

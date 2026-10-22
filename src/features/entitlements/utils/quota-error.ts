@@ -9,3 +9,8 @@ export function isQuotaExceededError(error: unknown): boolean {
 export function quotaExceededMessage(noun: string): string {
   return `Kuota ${noun} paket Anda sudah penuh. Upgrade plan untuk menambah ${noun} baru.`
 }
+
+// Untuk aksi yang bisa menambah beberapa jenis data sekaligus (mis. convert lead).
+export function quotaExceededGenericMessage(): string {
+  return 'Kuota paket Anda sudah penuh. Upgrade plan untuk menambah data baru.'
+}

@@ -162,7 +162,9 @@ async function handleArchive(pipeline: Pipeline) {
         label="Pipeline Baru"
         upgrade-label="Upgrade untuk tambah pipeline"
         @click="openCreateModal"
-      />
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
     <QuotaLimitBanner feature-key="crm.max_pipelines" noun="pipeline" />
 

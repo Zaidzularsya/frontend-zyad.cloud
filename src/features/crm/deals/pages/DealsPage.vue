@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
+  Plus,
   CircleDollarSign,
   Search,
   Trash2,
@@ -260,7 +261,9 @@ async function submitForm() {
         upgrade-label="Upgrade untuk tambah deal"
         :disabled="!selectedPipelineId"
         @click="openCreateModal"
-      />
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
     <QuotaLimitBanner feature-key="crm.max_deals" noun="deal" />
 

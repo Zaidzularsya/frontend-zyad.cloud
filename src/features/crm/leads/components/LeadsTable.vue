@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  isQuotaExceededError,
+  quotaExceededGenericMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import {
@@ -244,6 +248,7 @@ const assignMutation = useAssignLeadMutation()
 const isBulkActing = ref(false)
 
 function extractError(error: unknown): string {
+  if (isQuotaExceededError(error)) return quotaExceededGenericMessage()
   if (error && typeof error === 'object' && 'response' in error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
     if (response?.data?.message) return response.data.message

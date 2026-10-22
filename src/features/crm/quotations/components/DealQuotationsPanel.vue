@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Plus } from 'lucide-vue-next'
 
 import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
 import type { QuotationStatus } from '@/features/crm/quotations/api/quotations.api'
@@ -59,7 +60,9 @@ function create() {
         label="Buat quotation"
         upgrade-label="Upgrade untuk buat quotation"
         @click="create"
-      />
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </div>
     <p v-if="quotationsQuery.isPending.value" class="py-6 text-center text-sm text-gray-500">
       Memuat data...

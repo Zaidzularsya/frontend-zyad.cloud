@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutDashboard, List } from 'lucide-vue-next'
+import { LayoutDashboard, List, Plus } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
@@ -130,7 +130,9 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
         label="Lead Baru"
         upgrade-label="Upgrade untuk tambah lead"
         @click="openCreateModal"
-      />
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
     <QuotaLimitBanner feature-key="crm.max_leads" noun="lead" />
 

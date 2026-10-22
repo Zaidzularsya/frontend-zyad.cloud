@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { Building2, RotateCcw, Search, Trash2 } from 'lucide-vue-next'
+import { Building2, Plus, RotateCcw, Search, Trash2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
@@ -136,7 +136,9 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
         label="Company Baru"
         upgrade-label="Upgrade untuk tambah company"
         @click="openCreateModal"
-      />
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
     <QuotaLimitBanner feature-key="crm.max_companies" noun="company" />
 

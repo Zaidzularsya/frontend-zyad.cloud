@@ -117,6 +117,7 @@ export function useAssignLeadMutation() {
 
 export function useConvertLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ConvertLeadPayload }) =>
       leadsApi.convert(id, payload),
@@ -125,18 +126,27 @@ export function useConvertLeadMutation() {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
       void queryClient.invalidateQueries({ queryKey: companyKeys.all })
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
 
 export function useCreateLeadDealMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ConvertDealInput }) =>
       leadsApi.createDeal(id, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }

@@ -93,4 +93,25 @@ describe('LeadsPage quota', () => {
       .trigger('click')
     expect(w.text()).toContain('Nama Kontak')
   })
+
+  it('shows the quota message when create is rejected with 409 QUOTA_EXCEEDED', async () => {
+    summary.mockResolvedValue(quota(false))
+    createMutate.mockRejectedValue({
+      response: {
+        status: 409,
+        data: { code: 'QUOTA_EXCEEDED', message: 'billing quota has been exceeded' },
+      },
+    })
+    const w = await mountPage()
+    await w
+      .findAll('button')
+      .find((b) => b.text().includes('Lead Baru'))!
+      .trigger('click')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.text()).toContain(
+      'Kuota lead paket Anda sudah penuh. Upgrade plan untuk menambah lead baru.',
+    )
+    expect(w.text()).not.toContain('billing quota has been exceeded')
+  })
 })

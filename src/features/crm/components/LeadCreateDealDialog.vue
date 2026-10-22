@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import DealFormFields from '@/features/crm/components/DealFormFields.vue'
@@ -51,8 +55,10 @@ async function submit() {
       payload: buildDealInput(form.value),
     })
     emit('created', deal)
-  } catch {
-    error.value = 'Deal gagal dibuat. Coba lagi.'
+  } catch (e) {
+    error.value = isQuotaExceededError(e)
+      ? quotaExceededMessage('deal')
+      : 'Deal gagal dibuat. Coba lagi.'
   }
 }
 </script>

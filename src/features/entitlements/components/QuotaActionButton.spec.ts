@@ -29,6 +29,7 @@ async function mountButton() {
       label: 'Tambah Lead',
       upgradeLabel: 'Upgrade untuk tambah lead',
     },
+    slots: { icon: '<i data-testid="icon" />' },
     global: { plugins: [[VueQueryPlugin, { queryClient: client }]] },
   })
   await flushPromises()
@@ -41,6 +42,7 @@ describe('QuotaActionButton', () => {
     push.mockClear()
     const w = await mountButton()
     expect(w.text()).toBe('Tambah Lead')
+    expect(w.find('[data-testid="icon"]').exists()).toBe(true)
     await w.get('button').trigger('click')
     expect(w.emitted('click')).toHaveLength(1)
     expect(push).not.toHaveBeenCalled()
@@ -51,6 +53,7 @@ describe('QuotaActionButton', () => {
     push.mockClear()
     const w = await mountButton()
     expect(w.text()).toBe('Upgrade untuk tambah lead')
+    expect(w.find('[data-testid="icon"]').exists()).toBe(false)
     await w.get('button').trigger('click')
     expect(w.emitted('click')).toBeUndefined()
     expect(push).toHaveBeenCalledWith({ name: 'billing' })

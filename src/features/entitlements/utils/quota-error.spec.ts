@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { isQuotaExceededError, quotaExceededMessage } from './quota-error'
+import {
+  isQuotaExceededError,
+  quotaExceededGenericMessage,
+  quotaExceededMessage,
+} from './quota-error'
 
 const apiError = (status: number, body: unknown) => ({ response: { status, data: body } })
 
@@ -29,6 +33,14 @@ describe('quotaExceededMessage', () => {
   it('builds the Indonesian message with the noun', () => {
     expect(quotaExceededMessage('lead')).toBe(
       'Kuota lead paket Anda sudah penuh. Upgrade plan untuk menambah lead baru.',
+    )
+  })
+})
+
+describe('quotaExceededGenericMessage', () => {
+  it('builds a message without a noun', () => {
+    expect(quotaExceededGenericMessage()).toBe(
+      'Kuota paket Anda sudah penuh. Upgrade plan untuk menambah data baru.',
     )
   })
 })
