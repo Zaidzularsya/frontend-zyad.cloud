@@ -24,6 +24,13 @@ import {
   type OrganizationDomainSslStatus,
   type OrganizationDomainType,
 } from '@/features/domains/api/domain.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
   LandingAvailableDomain,
@@ -97,6 +104,8 @@ const pageById = computed(() => {
   }
   return map
 })
+
+const invalidateEntitlements = useInvalidateEntitlements()
 
 function extractError(error: unknown) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -376,6 +385,7 @@ async function submitDomain() {
       is_primary: false,
     })
     addDrawerOpen.value = false
+    invalidateEntitlements()
     if (challenge.challenge_type === 'auto_verified') {
       await refreshData()
       successMessage.value = 'Subdomain berhasil dibuat dan langsung aktif.'
@@ -387,7 +397,13 @@ async function submitDomain() {
       successMessage.value = 'Domain berhasil dibuat. Lanjutkan verifikasi DNS.'
     }
   } catch (error) {
-    errorMessage.value = extractError(error)
+    if (isQuotaExceededError(error)) {
+      // Drawer tetap terbuka, jadi tampilkan pesan di sana.
+      invalidateEntitlements()
+      addDomainForm.error = quotaExceededMessage('domain')
+    } else {
+      errorMessage.value = extractError(error)
+    }
   } finally {
     isSaving.value = false
   }
@@ -452,6 +468,7 @@ function confirmDeleteDomain(domain: OrganizationDomain) {
     variant: 'danger',
     run: async () => {
       await organizationDomainService.delete(domain.id)
+      invalidateEntitlements()
       await refreshData()
       successMessage.value = 'Domain berhasil dinonaktifkan.'
     },
@@ -489,8 +506,14 @@ onMounted(refreshData)
         <RefreshCw v-else class="h-4 w-4" />
         Refresh
       </BaseButton>
-      <BaseButton @click="openAddDrawer">+ Add Domain</BaseButton>
+      <QuotaActionButton
+        feature-key="domain.max_domains"
+        label="+ Add Domain"
+        upgrade-label="Upgrade untuk tambah domain"
+        @click="openAddDrawer"
+      />
     </PageHeader>
+    <QuotaLimitBanner feature-key="domain.max_domains" noun="domain" />
 
     <div
       v-if="errorMessage"
