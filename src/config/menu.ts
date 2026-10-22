@@ -8,6 +8,7 @@ import {
   FileMinus,
   FileSignature,
   FileText,
+  Gauge,
   Globe,
   HardDrive,
   LayoutDashboard,
@@ -365,6 +366,11 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Billing',
     items: [
+      {
+        label: 'Pemakaian Paket',
+        route: 'billing-usage',
+        icon: Gauge,
+      },
       {
         label: 'Invoices',
         route: 'billing-invoices',
