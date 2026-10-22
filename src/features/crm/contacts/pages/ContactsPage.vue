@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Plus, RotateCcw, Search, Trash2, Users } from 'lucide-vue-next'
+import { RotateCcw, Search, Trash2, Users } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -134,7 +140,9 @@ async function submitForm() {
     }
     isModalOpen.value = false
   } catch (error) {
-    errorMessage.value = extractError(error)
+    errorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('contact')
+      : extractError(error)
   }
 }
 
@@ -153,11 +161,14 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
 <template>
   <div class="space-y-6">
     <PageHeader title="Contacts" description="Kelola kontak prospek dan pelanggan aktif tenant.">
-      <BaseButton @click="openCreateModal">
-        <Plus class="size-4" />
-        Contact Baru
-      </BaseButton>
+      <QuotaActionButton
+        feature-key="crm.max_contacts"
+        label="Contact Baru"
+        upgrade-label="Upgrade untuk tambah contact"
+        @click="openCreateModal"
+      />
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_contacts" noun="contact" />
 
     <div class="flex gap-2 border-b">
       <button

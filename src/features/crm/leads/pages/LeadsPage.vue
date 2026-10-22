@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutDashboard, List, Plus } from 'lucide-vue-next'
+import { LayoutDashboard, List } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import TextField from '@/components/form/TextField.vue'
@@ -104,7 +110,9 @@ async function submitForm() {
     }
     isModalOpen.value = false
   } catch (error) {
-    errorMessage.value = extractError(error)
+    errorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('lead')
+      : extractError(error)
   }
 }
 
@@ -117,11 +125,14 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
       title="Leads"
       description="Pantau pertumbuhan prospek dan follow-up sebelum dikonversi menjadi contact/company."
     >
-      <BaseButton @click="openCreateModal">
-        <Plus class="size-4" />
-        Lead Baru
-      </BaseButton>
+      <QuotaActionButton
+        feature-key="crm.max_leads"
+        label="Lead Baru"
+        upgrade-label="Upgrade untuk tambah lead"
+        @click="openCreateModal"
+      />
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_leads" noun="lead" />
 
     <div class="flex gap-1 overflow-x-auto border-b" role="tablist" aria-label="Tampilan leads">
       <button

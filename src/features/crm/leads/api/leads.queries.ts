@@ -14,6 +14,8 @@ import {
 import { companyKeys } from '@/features/crm/companies/api/companies.queries'
 import { contactKeys } from '@/features/crm/contacts/api/contacts.queries'
 import { dealKeys } from '@/features/crm/deals/api/deals.queries'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const leadKeys = {
   all: ['crm', 'leads'] as const,
@@ -53,10 +55,15 @@ export function useLeadQuery(id: Ref<string>) {
 
 export function useCreateLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: LeadPayload) => leadsApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }

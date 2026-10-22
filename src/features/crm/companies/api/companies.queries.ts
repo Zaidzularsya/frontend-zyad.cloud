@@ -6,6 +6,8 @@ import {
   type CompanyListParams,
   type CompanyPayload,
 } from '@/features/crm/companies/api/companies.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const companyKeys = {
   all: ['crm', 'companies'] as const,
@@ -43,10 +45,15 @@ export function useCompaniesQuery(params: Ref<CompanyListParams>) {
 
 export function useCreateCompanyMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: CompanyPayload) => companiesApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: companyKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }

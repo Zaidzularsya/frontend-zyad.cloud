@@ -7,6 +7,8 @@ import {
   type PipelinePayload,
   type StageInput,
 } from '@/features/crm/pipelines/api/pipelines.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const pipelineKeys = {
   all: ['crm', 'pipelines'] as const,
@@ -26,10 +28,15 @@ export function usePipelinesQuery(params: Ref<PipelineListParams>) {
 
 export function useCreatePipelineMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: PipelinePayload) => pipelinesApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pipelineKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }

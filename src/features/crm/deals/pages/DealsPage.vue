@@ -3,7 +3,6 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   CircleDollarSign,
-  Plus,
   Search,
   Trash2,
   TrendingDown,
@@ -12,6 +11,12 @@ import {
 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -239,7 +244,9 @@ async function submitForm() {
     await createMutation.mutateAsync({ ...form })
     isModalOpen.value = false
   } catch (error) {
-    errorMessage.value = extractError(error)
+    errorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('deal')
+      : extractError(error)
   }
 }
 </script>
@@ -247,11 +254,15 @@ async function submitForm() {
 <template>
   <div class="space-y-6">
     <PageHeader title="Deals" description="Kanban board deal berdasarkan tahapan pipeline.">
-      <BaseButton :disabled="!selectedPipelineId" @click="openCreateModal">
-        <Plus class="size-4" />
-        Deal Baru
-      </BaseButton>
+      <QuotaActionButton
+        feature-key="crm.max_deals"
+        label="Deal Baru"
+        upgrade-label="Upgrade untuk tambah deal"
+        :disabled="!selectedPipelineId"
+        @click="openCreateModal"
+      />
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_deals" noun="deal" />
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <BaseCard class="!p-4">

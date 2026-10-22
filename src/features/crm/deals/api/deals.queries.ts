@@ -2,6 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { computed, type Ref } from 'vue'
 
 import { dealsApi, type DealListParams, type DealPayload } from '@/features/crm/deals/api/deals.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const dealKeys = {
   all: ['crm', 'deals'] as const,
@@ -29,10 +31,15 @@ export function useDealsQuery(params: Ref<DealListParams>) {
 
 export function useCreateDealMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: DealPayload) => dealsApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
