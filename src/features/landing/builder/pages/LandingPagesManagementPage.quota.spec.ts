@@ -7,6 +7,7 @@ const api = vi.hoisted(() => ({
   getPages: vi.fn(),
   updatePage: vi.fn(),
   createPage: vi.fn(),
+  duplicatePage: vi.fn(),
 }))
 const summary = vi.hoisted(() => vi.fn())
 const push = vi.hoisted(() => vi.fn())
@@ -128,5 +129,46 @@ describe('LandingPagesManagementPage quota', () => {
       ([f]) => (f as { queryKey?: unknown[] })?.queryKey?.[0] === 'entitlements',
     )
     expect(calls.length).toBeGreaterThan(0)
+  })
+
+  describe('duplicate', () => {
+    const entitlementCalls = (spy: { mock: { calls: unknown[][] } }) =>
+      spy.mock.calls.filter(
+        ([f]) => (f as { queryKey?: unknown[] })?.queryKey?.[0] === 'entitlements',
+      )
+    const dup = (w: ReturnType<typeof mount>) =>
+      w.findAll('button').find((b) => b.text().includes('Duplicate'))!
+
+    beforeEach(() => vi.spyOn(window, 'confirm').mockReturnValue(true))
+
+    it('is disabled with an explanation when quota is full while edit stays available', async () => {
+      summary.mockResolvedValue(quota(true))
+      const { w } = await mountPage()
+      expect(dup(w).attributes('disabled')).toBeDefined()
+      expect(dup(w).attributes('title')).toContain('Kuota landing page penuh')
+      expect(w.findAll('button').some((b) => b.text() === 'Kelola')).toBe(true)
+    })
+
+    it('duplicates when there is room and refreshes entitlements', async () => {
+      summary.mockResolvedValue(quota(false))
+      api.duplicatePage.mockResolvedValue({ data: existing })
+      const { w, spy } = await mountPage()
+      await dup(w).trigger('click')
+      await flushPromises()
+      expect(api.duplicatePage).toHaveBeenCalledTimes(1)
+      expect(entitlementCalls(spy).length).toBeGreaterThan(0)
+    })
+
+    it('shows the quota message and refreshes entitlements on a 409', async () => {
+      summary.mockResolvedValue(quota(false))
+      api.duplicatePage.mockRejectedValue({
+        response: { status: 409, data: { code: 'QUOTA_EXCEEDED', message: 'x' } },
+      })
+      const { w, spy } = await mountPage()
+      await dup(w).trigger('click')
+      await flushPromises()
+      expect(w.text()).toContain('Kuota landing page paket Anda sudah penuh')
+      expect(entitlementCalls(spy).length).toBeGreaterThan(0)
+    })
   })
 })
