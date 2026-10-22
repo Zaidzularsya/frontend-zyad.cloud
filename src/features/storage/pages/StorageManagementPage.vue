@@ -4,7 +4,12 @@ import { Download, File as FileIcon, Trash2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
 import { useEntitlement } from '@/features/entitlements/composables/useEntitlement'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import StorageUploader from '@/features/storage/components/StorageUploader.vue'
 import {
   storageApi,
@@ -25,6 +30,7 @@ const notice = ref('')
 
 // `used` tetap dari endpoint usage halaman ini (satu sumber). Ringkasan entitlement
 // hanya memberi batas paket dan status penuh; fail-open ke limit dari endpoint usage.
+const invalidateEntitlements = useInvalidateEntitlements()
 const storageEntitlement = useEntitlement('storage.max_bytes')
 const limitBytes = computed(
   () => storageEntitlement.limit.value ?? usage.value?.limit_bytes ?? undefined,
@@ -33,7 +39,12 @@ const usagePercent = computed(() => {
   if (!usage.value || !limitBytes.value) return null
   return Math.min(100, Math.round((usage.value.used_bytes / limitBytes.value) * 100))
 })
-const isFull = computed(() => storageEntitlement.atLimit.value === true)
+// Ringkasan entitlement bisa stale; label tidak boleh bertentangan dengan angka yang tampil.
+const isFull = computed(
+  () =>
+    storageEntitlement.atLimit.value === true ||
+    (!!limitBytes.value && !!usage.value && usage.value.used_bytes >= limitBytes.value),
+)
 
 onMounted(load)
 
@@ -72,9 +83,15 @@ async function handleUpload(file: File, options: { class: StorageObjectClass }) 
   try {
     await storageApi.upload(file, options)
     showNotice('File berhasil diunggah.')
+    invalidateEntitlements()
     await load()
   } catch (error) {
-    errorMessage.value = apiMessage(error, 'Gagal mengunggah file.')
+    if (isQuotaExceededError(error)) {
+      errorMessage.value = quotaExceededMessage('storage')
+      invalidateEntitlements()
+    } else {
+      errorMessage.value = apiMessage(error, 'Gagal mengunggah file.')
+    }
   } finally {
     uploading.value = false
   }
@@ -99,6 +116,7 @@ async function handleDelete(object: StorageObject) {
   try {
     await storageApi.delete(object.id)
     showNotice(`${object.filename} berhasil dihapus.`)
+    invalidateEntitlements()
     await load()
   } catch (error) {
     errorMessage.value = apiMessage(error, 'Gagal menghapus file.')

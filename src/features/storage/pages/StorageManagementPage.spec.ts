@@ -1,12 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 const summary = vi.hoisted(() => vi.fn())
 const getUsage = vi.hoisted(() => vi.fn())
+const list = vi.hoisted(() => vi.fn())
+const upload = vi.hoisted(() => vi.fn())
+const del = vi.hoisted(() => vi.fn())
 vi.mock('@/features/entitlements/api/entitlements.api', () => ({ entitlementsApi: { summary } }))
 vi.mock('@/features/storage/api/storage.api', () => ({
-  storageApi: { list: vi.fn().mockResolvedValue([]), getUsage },
+  storageApi: { list, getUsage, upload, delete: del },
 }))
 
 import StorageManagementPage from './StorageManagementPage.vue'
@@ -38,14 +41,20 @@ async function mountPage() {
     },
   })
   await flushPromises()
-  return w
+  return { w, client }
 }
 
 describe('StorageManagementPage usage indicator', () => {
+  beforeEach(() => {
+    list.mockReset().mockResolvedValue([])
+    upload.mockReset()
+    del.mockReset()
+  })
+
   it('shows used from the page usage endpoint and limit from the summary', async () => {
     getUsage.mockResolvedValue({ used_bytes: 120 * MB, limit_bytes: null })
     summary.mockResolvedValue([storageItem()])
-    const w = await mountPage()
+    const { w } = await mountPage()
     expect(w.text().replace(/\s+/g, ' ')).toContain('120.0 MB / 500.0 MB')
     expect(w.find('[role="progressbar"]').attributes('aria-valuenow')).toBe('24')
     expect(w.text()).not.toContain('penuh')
@@ -54,15 +63,55 @@ describe('StorageManagementPage usage indicator', () => {
   it('marks the indicator as full when the summary says at_limit', async () => {
     getUsage.mockResolvedValue({ used_bytes: 500 * MB, limit_bytes: null })
     summary.mockResolvedValue([storageItem({ at_limit: true })])
-    const w = await mountPage()
+    const { w } = await mountPage()
     expect(w.text()).toContain('penuh')
   })
 
   it('shows no limit or bar when storage is unlimited or absent', async () => {
     getUsage.mockResolvedValue({ used_bytes: 120 * MB, limit_bytes: null })
     summary.mockResolvedValue([])
-    const w = await mountPage()
+    const { w } = await mountPage()
     expect(w.text()).toContain('tanpa batas')
     expect(w.find('[role="progressbar"]').exists()).toBe(false)
+  })
+
+  it('shows "penuh" when used >= limit even if the summary is stale', async () => {
+    getUsage.mockResolvedValue({ used_bytes: 500 * MB, limit_bytes: null })
+    summary.mockResolvedValue([storageItem({ at_limit: false })])
+    const { w } = await mountPage()
+    expect(w.text()).toContain('penuh')
+  })
+
+  it('invalidates entitlements after a successful upload', async () => {
+    getUsage.mockResolvedValue({ used_bytes: 1 * MB, limit_bytes: null })
+    summary.mockResolvedValue([storageItem()])
+    upload.mockResolvedValue({})
+    const { w, client } = await mountPage()
+    const spy = vi.spyOn(client, 'invalidateQueries')
+    w.findComponent({ name: 'StorageUploader' }).vm.$emit('upload', new File(['a'], 'a.txt'), {
+      class: 'private',
+    })
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['entitlements'] })
+  })
+
+  it('invalidates entitlements after a successful delete', async () => {
+    getUsage.mockResolvedValue({ used_bytes: 1 * MB, limit_bytes: null })
+    summary.mockResolvedValue([storageItem()])
+    list.mockResolvedValue([
+      {
+        id: 'o1',
+        filename: 'a.txt',
+        size_bytes: 10,
+        class: 'private',
+        created_at: '2026-10-01T00:00:00Z',
+      },
+    ])
+    del.mockResolvedValue({})
+    const { w, client } = await mountPage()
+    const spy = vi.spyOn(client, 'invalidateQueries')
+    await w.find('button[title="Hapus"]').trigger('click')
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['entitlements'] })
   })
 })

@@ -63,4 +63,11 @@ describe('UsagePage', () => {
     const w = await mountPage()
     expect(w.find('[role="alert"]').exists()).toBe(true)
   })
+
+  it('shows an empty message when no quota applies', async () => {
+    subscription.mockRejectedValue(new Error('x'))
+    summary.mockResolvedValue([])
+    const w = await mountPage()
+    expect(w.find('[data-testid="usage-empty"]').exists()).toBe(true)
+  })
 })

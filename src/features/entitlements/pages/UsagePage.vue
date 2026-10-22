@@ -64,6 +64,9 @@ const title = computed(() => {
       Pemakaian paket belum dapat dimuat. Coba muat ulang halaman beberapa saat lagi.
     </p>
     <template v-else>
+      <p v-if="!groups.length" class="text-sm text-gray-500" data-testid="usage-empty">
+        Belum ada kuota yang berlaku untuk paket Anda.
+      </p>
       <BaseCard v-for="group in groups" :key="group.title">
         <h2 class="mb-3 font-semibold text-gray-900 dark:text-gray-100">{{ group.title }}</h2>
         <ul class="space-y-3 text-sm">
