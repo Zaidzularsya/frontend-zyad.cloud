@@ -20,6 +20,8 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:modelValue', value: ProductForm): void }>()
 
 const message = ref('')
+// Integer yang dipilih Berkuota tetapi batasnya belum diisi (belum ada baris di form).
+const pendingQuota = ref(new Set<string>())
 
 const inputClass =
   'w-full rounded-lg border bg-white px-2 py-1.5 text-sm outline-none focus:border-brand-500 disabled:opacity-50 dark:bg-gray-950'
@@ -36,28 +38,49 @@ const groups = computed(() => {
 })
 
 const rowByKey = computed(() => new Map(props.modelValue.features.map((r) => [r.key, r])))
-const hiddenCount = computed(
+const defKeys = computed(() => new Set(props.defs.map((d) => d.key)))
+// Tipe aktif yang tidak didukung tabel (decimal/string): dipertahankan dan dikirim apa adanya.
+const preservedCount = computed(
   () =>
-    props.modelValue.features.length -
-    supported.value.filter((d) => rowByKey.value.has(d.key)).length,
+    props.modelValue.features.filter(
+      (r) => defKeys.value.has(r.key) && !supported.value.some((d) => d.key === r.key),
+    ).length,
 )
+// Key yang tidak ada di registry aktif: harus dihapus admin agar validasi lolos.
+const orphans = computed(() => props.modelValue.features.filter((r) => !defKeys.value.has(r.key)))
 
 function view(def: CatalogFeatureDef) {
   const row = rowByKey.value.get(def.key)
-  const status: RowStatus = row ? statusOfRow(def, row.raw) : availableStatuses(def)[0]!
-  const defaultStatus = def.value_type === 'boolean' ? 'hidden' : status
-  return {
-    status: row ? status : defaultStatus,
-    limit: def.value_type === 'integer' && row ? String(row.raw) : '',
-    isDefault: !row,
-  }
+  let status: RowStatus = row ? statusOfRow(def, row.raw) : 'unset'
+  if (!row && pendingQuota.value.has(def.key)) status = 'quota'
+  return { status, limit: def.value_type === 'integer' && row ? String(row.raw) : '' }
 }
 
 function change(def: CatalogFeatureDef, status: RowStatus, limit = '') {
+  const next = new Set(pendingQuota.value)
+  if (status === 'quota') next.add(def.key)
+  else next.delete(def.key)
+  pendingQuota.value = next
   const result = applyRowChange(props.modelValue.features, def, status, limit)
   message.value = result.error ?? ''
   if (result.error) return
-  emit('update:modelValue', { ...props.modelValue, features: result.features })
+  if (result.features !== props.modelValue.features) {
+    emit('update:modelValue', { ...props.modelValue, features: result.features })
+  }
+}
+
+function changeLimit(def: CatalogFeatureDef, event: Event) {
+  const input = event.target as HTMLInputElement
+  change(def, 'quota', input.value)
+  // Jika ditolak, state tidak berubah: sinkronkan tampilan dengan state.
+  if (message.value) input.value = view(def).limit
+}
+
+function removeOrphan(key: string) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    features: props.modelValue.features.filter((r) => r.key !== key),
+  })
 }
 </script>
 
@@ -65,15 +88,14 @@ function change(def: CatalogFeatureDef, status: RowStatus, limit = '') {
   <fieldset class="space-y-3 rounded-lg border p-3">
     <legend class="px-1 text-sm font-medium">Entitlement</legend>
     <div class="flex items-center justify-between text-xs text-gray-500">
-      <span>Hanya fitur yang diatur yang disimpan; sisanya Disembunyikan.</span>
+      <span>Tidak diatur = fitur tidak diberikan (tersembunyi).</span>
       <span data-testid="entitlement-counter">
         {{ modelValue.features.length }} / {{ MAX_FEATURES }} fitur
       </span>
     </div>
     <p v-if="message" class="text-xs text-red-600" role="alert">{{ message }}</p>
-    <p v-if="hiddenCount > 0" class="text-xs text-gray-500">
-      {{ hiddenCount }} fitur lain (tipe lain atau nonaktif) dipertahankan dan tidak diubah di
-      tabel.
+    <p v-if="preservedCount > 0" class="text-xs text-gray-500">
+      {{ preservedCount }} fitur lain (tipe lain) dipertahankan dan tidak diubah di tabel.
     </p>
 
     <section
@@ -123,11 +145,36 @@ function change(def: CatalogFeatureDef, status: RowStatus, limit = '') {
           :value="view(def).limit"
           :disabled="view(def).status !== 'quota'"
           :aria-label="`Batas ${def.name}`"
-          @change="change(def, 'quota', ($event.target as HTMLInputElement).value)"
+          @change="changeLimit(def, $event)"
         />
         <span data-testid="reset" class="text-gray-600">
           {{ view(def).status === 'quota' ? resetLabel(def.reset_strategy) : '-' }}
         </span>
+      </div>
+    </section>
+    <section v-if="orphans.length > 0" data-testid="orphan-section" class="space-y-1">
+      <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Fitur tidak aktif / tidak dikenal
+      </h4>
+      <p class="text-xs text-gray-500">Hapus fitur ini agar produk bisa disimpan.</p>
+      <div
+        v-for="row in orphans"
+        :key="row.key"
+        data-testid="orphan-row"
+        :data-key="row.key"
+        class="flex items-center justify-between gap-2 text-sm"
+      >
+        <span>
+          {{ row.key }}
+          <small class="text-xs text-gray-500">= {{ String(row.raw) }}</small>
+        </span>
+        <button
+          type="button"
+          class="rounded-lg border px-2 py-1 text-xs"
+          @click="removeOrphan(row.key)"
+        >
+          Hapus
+        </button>
       </div>
     </section>
   </fieldset>

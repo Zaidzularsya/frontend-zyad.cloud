@@ -19,6 +19,11 @@ describe('statusOfRow', () => {
     expect(statusOfRow(bool, false)).toBe('hidden')
     expect(statusOfRow(int, 50)).toBe('quota')
   })
+
+  it('treats a missing value as unset', () => {
+    expect(statusOfRow(bool, undefined)).toBe('unset')
+    expect(statusOfRow(int, undefined)).toBe('unset')
+  })
 })
 
 describe('valueForStatus', () => {
@@ -27,6 +32,13 @@ describe('valueForStatus', () => {
     expect(valueForStatus(bool, 'hidden')).toBe(false)
     expect(valueForStatus(int, 'quota', 0)).toBe(0)
     expect(valueForStatus(int, 'quota', 25)).toBe(25)
+    expect(valueForStatus(bool, 'unset')).toBeUndefined()
+    expect(valueForStatus(int, 'unset')).toBeUndefined()
+  })
+
+  it('rejects unsafe integers', () => {
+    expect(() => valueForStatus(int, 'quota', 2 ** 53)).toThrow(RangeError)
+    expect(applyRowChange([], int, 'quota', '1000000000000000000000').error).toMatch(/bilangan/)
   })
 
   it('rejects negative or fractional limit', () => {
@@ -44,8 +56,8 @@ describe('valueForStatus', () => {
 
 describe('availableStatuses', () => {
   it('depends on value type', () => {
-    expect(availableStatuses(bool)).toEqual(['unlimited', 'hidden'])
-    expect(availableStatuses(int)).toEqual(['quota'])
+    expect(availableStatuses(bool)).toEqual(['unset', 'unlimited', 'hidden'])
+    expect(availableStatuses(int)).toEqual(['unset', 'quota'])
     expect(availableStatuses(dec)).toEqual([])
   })
 })
@@ -57,6 +69,11 @@ describe('applyRowChange', () => {
     const r = applyRowChange(none, bool, 'hidden')
     expect(r.error).toBeUndefined()
     expect(r.features).toEqual([{ key: 'crm', raw: false, displayLabel: '' }])
+  })
+
+  it('unset removes a stored row and frees the cap count', () => {
+    const rows: FeatureRow[] = [{ key: 'crm', raw: false, displayLabel: '' }]
+    expect(applyRowChange(rows, bool, 'unset').features).toEqual([])
   })
 
   it('stores an integer limit as text and removes the row when emptied', () => {

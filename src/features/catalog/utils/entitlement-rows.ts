@@ -1,17 +1,19 @@
 import type { CatalogFeatureDef } from '@/features/catalog/api/catalog.api'
 import { MAX_FEATURES, type FeatureRow } from '@/features/catalog/utils/product-form'
 
-export type RowStatus = 'unlimited' | 'quota' | 'hidden'
+export type RowStatus = 'unset' | 'unlimited' | 'quota' | 'hidden'
 
 // Perilaku diturunkan dari value_type registry: boolean true = Penuh, boolean false =
-// Disembunyikan, integer = Berkuota. Tipe lain (decimal/string) tidak didukung tabel ini.
+// Disembunyikan (false tersimpan), integer = Berkuota, tanpa nilai = Tidak diatur (baris tidak
+// dikirim; berperilaku seperti tersembunyi saat runtime). Tipe lain (decimal/string) tidak didukung tabel ini.
 export function availableStatuses(def: CatalogFeatureDef): RowStatus[] {
-  if (def.value_type === 'boolean') return ['unlimited', 'hidden']
-  if (def.value_type === 'integer') return ['quota']
+  if (def.value_type === 'boolean') return ['unset', 'unlimited', 'hidden']
+  if (def.value_type === 'integer') return ['unset', 'quota']
   return []
 }
 
 export function statusOfRow(def: CatalogFeatureDef, value: unknown): RowStatus {
+  if (value === undefined) return 'unset'
   if (def.value_type === 'boolean') return value === true ? 'unlimited' : 'hidden'
   if (def.value_type === 'integer') return 'quota'
   throw new RangeError(`Tipe fitur ${def.value_type} tidak didukung tabel entitlement`)
@@ -22,8 +24,9 @@ export function valueForStatus(def: CatalogFeatureDef, status: RowStatus, limit?
   if (!availableStatuses(def).includes(status)) {
     throw new RangeError(`Status ${status} tidak diizinkan untuk fitur ${def.key}`)
   }
+  if (status === 'unset') return undefined
   if (status === 'quota') {
-    if (limit === undefined || !Number.isInteger(limit) || limit < 0) {
+    if (limit === undefined || !Number.isSafeInteger(limit) || limit < 0) {
       throw new RangeError('Batas harus bilangan bulat 0 atau lebih')
     }
     return limit
@@ -50,7 +53,7 @@ export function applyRowChange(
   const index = features.findIndex((r) => r.key === def.key)
   const text = limitText.trim()
 
-  if (status === 'quota' && text === '') {
+  if (status === 'unset' || (status === 'quota' && text === '')) {
     return { features: index < 0 ? features : features.filter((_, i) => i !== index) }
   }
 
@@ -80,6 +83,7 @@ export function resetLabel(strategy?: string): string {
 }
 
 export const STATUS_LABEL: Record<RowStatus, string> = {
+  unset: 'Tidak diatur',
   unlimited: 'Penuh',
   quota: 'Berkuota',
   hidden: 'Disembunyikan',
