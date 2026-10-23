@@ -5,6 +5,7 @@ import { Download, File as FileIcon, Trash2 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
 import { useEntitlement } from '@/features/entitlements/composables/useEntitlement'
 import {
   isQuotaExceededError,
@@ -146,6 +147,15 @@ async function handleDelete(object: StorageObject) {
       {{ errorMessage }}
     </div>
 
+    <QuotaLimitBanner
+      feature-key="storage.max_bytes"
+      noun="storage"
+      :format="formatBytes"
+      :full="isFull"
+      :used-override="usage?.used_bytes"
+      :limit-override="limitBytes"
+    />
+
     <BaseCard v-if="usage">
       <div class="flex items-center justify-between text-sm">
         <span class="font-semibold text-gray-900 dark:text-gray-100">Pemakaian storage</span>
@@ -167,7 +177,7 @@ async function handleDelete(object: StorageObject) {
       >
         <div
           class="h-full rounded-full transition-all"
-          :class="isFull || usagePercent >= 90 ? 'bg-red-500' : 'bg-brand-500'"
+          :class="isFull ? 'bg-red-500' : 'bg-brand-500'"
           :style="{ width: `${usagePercent}%` }"
         />
       </div>

@@ -114,4 +114,29 @@ describe('StorageManagementPage usage indicator', () => {
     await flushPromises()
     expect(spy).toHaveBeenCalledWith({ queryKey: ['entitlements'] })
   })
+
+  it('shows the full-quota banner in bytes with an upgrade link', async () => {
+    getUsage.mockResolvedValue({ used_bytes: 500 * MB, limit_bytes: null })
+    summary.mockResolvedValue([storageItem({ at_limit: true, used: null })])
+    const { w } = await mountPage()
+    const banner = w.get('[role="status"]')
+    expect(banner.text()).toContain('500.0 MB dari 500.0 MB')
+    expect(banner.text()).toContain('Upgrade plan')
+  })
+
+  it('shows no banner when there is room', async () => {
+    getUsage.mockResolvedValue({ used_bytes: 120 * MB, limit_bytes: null })
+    summary.mockResolvedValue([storageItem()])
+    const { w } = await mountPage()
+    expect(w.find('[role="status"]').exists()).toBe(false)
+  })
+
+  it('turns the bar red only when full, not at 90%', async () => {
+    getUsage.mockResolvedValue({ used_bytes: 460 * MB, limit_bytes: null })
+    summary.mockResolvedValue([storageItem()])
+    const { w } = await mountPage()
+    const fill = w.get('[role="progressbar"] > div')
+    expect(fill.classes()).toContain('bg-brand-500')
+    expect(fill.classes()).not.toContain('bg-red-500')
+  })
 })

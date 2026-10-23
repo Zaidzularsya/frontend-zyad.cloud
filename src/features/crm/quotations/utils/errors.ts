@@ -29,11 +29,6 @@ export function quotationErrorCode(error: unknown): string | undefined {
   return body?.code ?? body?.error?.code
 }
 
-import {
-  isQuotaExceededError,
-  quotaExceededMessage,
-} from '@/features/entitlements/utils/quota-error'
-
 export function quotationErrorMessage(error: unknown): string {
   // Approve internal membuat sales order, sehingga bisa menabrak kuota SO bulanan.
   if (isQuotaExceededError(error)) return quotaExceededMessage('sales order')

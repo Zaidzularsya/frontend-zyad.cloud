@@ -52,6 +52,17 @@ describe('QuotaLimitBanner', () => {
     expect(w.find('[data-testid="upgrade"]').exists()).toBe(true)
   })
 
+  it('formats numbers with the format prop', async () => {
+    summary.mockResolvedValue([item(2048, true)])
+    const client = new QueryClient()
+    const w = mount(QuotaLimitBanner, {
+      props: { featureKey: 'crm.max_leads', noun: 'lead', format: (n: number) => `${n} B` },
+      global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { RouterLink: true } },
+    })
+    await flushPromises()
+    expect(w.get('[role="status"]').text()).toContain('2048 B dari 50 B')
+  })
+
   it('is not rendered while loading', () => {
     summary.mockReturnValue(new Promise(() => {}))
     const client = new QueryClient()
