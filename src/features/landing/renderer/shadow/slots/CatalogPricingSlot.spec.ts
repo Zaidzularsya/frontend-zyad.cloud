@@ -12,12 +12,16 @@ import { LANDING_PAGE_CONTEXT } from '../page-context'
 
 const push = vi.fn()
 const listListings = vi.fn()
+const listTenantCatalog = vi.fn()
 const authState = { isAuthenticated: false }
 
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => authState }))
 vi.mock('@/features/public/api/public-catalog.api', () => ({
   publicCatalogApi: { listListings: (...a: unknown[]) => listListings(...a) },
+}))
+vi.mock('@/features/public/api/tenant-checkout.api', () => ({
+  tenantCheckoutApi: { listCatalog: (...a: unknown[]) => listTenantCatalog(...a) },
 }))
 
 import CatalogPricingSlot from './CatalogPricingSlot.vue'
@@ -91,16 +95,51 @@ function mountSlot(config: unknown = {}, ctx = ctxFor()) {
 beforeEach(() => {
   push.mockReset()
   listListings.mockReset()
+  listTenantCatalog.mockReset()
   authState.isAuthenticated = false
 })
 
 describe('CatalogPricingSlot', () => {
-  it('renders nothing and does not fetch for non-platform orgs', async () => {
+  it('does not fetch anything when the org type is unknown', async () => {
     listListings.mockResolvedValue([category('c1')])
+    const { w } = mountSlot({}, ctxFor(''))
+    await flushPromises()
+    expect(listListings).not.toHaveBeenCalled()
+    expect(listTenantCatalog).not.toHaveBeenCalled()
+    expect(w.html()).not.toContain('zy-slot-catalog-pricing')
+  })
+
+  it('platform host keeps using the platform listing, never the tenant catalog', async () => {
+    listListings.mockResolvedValue([category('c1')])
+    mountSlot({}, ctxFor('platform'))
+    await flushPromises()
+    expect(listListings).toHaveBeenCalledTimes(1)
+    expect(listTenantCatalog).not.toHaveBeenCalled()
+  })
+
+  it('tenant host loads tenant-catalog and links the CTA to /checkout/:id (no auth redirect)', async () => {
+    listTenantCatalog.mockResolvedValue([category('c1')])
     const { w } = mountSlot({}, ctxFor('customer'))
     await flushPromises()
     expect(listListings).not.toHaveBeenCalled()
-    expect(w.html()).not.toContain('zy-slot-catalog-pricing')
+    expect(listTenantCatalog).toHaveBeenCalledTimes(1)
+    await w.find('button.zy-slot-catalog-pricing__cta').trigger('click')
+    expect(push).toHaveBeenLastCalledWith('/checkout/p1')
+    authState.isAuthenticated = true
+    await w.find('button.zy-slot-catalog-pricing__cta').trigger('click')
+    expect(push).toHaveBeenLastCalledWith('/checkout/p1')
+  })
+
+  it('tenant host: non-checkout variants fall back to contact, never platform register', async () => {
+    const free = listing({
+      variants: [variant({ product_id: 'z', price_with_tax: '0', base_price: '0' })],
+    })
+    listTenantCatalog.mockResolvedValue([category('c1', { listings: [free] })])
+    const { w, ctx } = mountSlot({}, ctxFor('customer'))
+    await flushPromises()
+    await w.find('button.zy-slot-catalog-pricing__cta').trigger('click')
+    expect(push).not.toHaveBeenCalledWith('/auth/register')
+    expect(ctx.scrollToId).toHaveBeenCalledWith('konsultasi')
   })
 
   it('renders tabs only with more than one category', async () => {

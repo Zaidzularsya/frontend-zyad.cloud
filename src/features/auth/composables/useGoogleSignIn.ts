@@ -15,7 +15,7 @@ interface UseGoogleSignInOptions {
 
 let googleScriptPromise: Promise<void> | null = null
 
-function loadGoogleScript() {
+export function loadGoogleScript() {
   if (window.google?.accounts?.id) return Promise.resolve()
   if (googleScriptPromise) return googleScriptPromise
 

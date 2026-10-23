@@ -82,6 +82,14 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Invoice', public: true },
   },
   {
+    // Checkout publik di domain tenant: tanpa login, tenant di-resolve backend dari Host.
+    // Dua segmen path, jadi tidak bertabrakan dengan `/:slug` landing page.
+    path: '/checkout/:productId',
+    name: 'tenant-checkout',
+    component: () => import('@/features/public/pages/TenantCheckoutPage.vue'),
+    meta: { title: 'Checkout', public: true },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MarketingLayout.vue'),
     children: [
