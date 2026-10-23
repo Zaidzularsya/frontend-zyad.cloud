@@ -130,7 +130,7 @@ function validatePublishing(f: ProductForm, defs: CatalogFeatureDef[]): string |
   return validateFeatures(f, defs)
 }
 
-function validateFeatures(
+export function validateFeatures(
   f: ProductForm,
   defs: CatalogFeatureDef[],
   maxByKey?: Record<string, number>,

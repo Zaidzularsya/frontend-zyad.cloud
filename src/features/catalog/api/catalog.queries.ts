@@ -1,6 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
+import { useTenantStore } from '@/stores/tenant.store'
+
 import {
   catalogApi,
   type CategoryPayload,
@@ -13,7 +15,8 @@ export const catalogKeys = {
   products: (params: ProductListParams) => [...catalogKeys.all, 'products', params] as const,
   product: (id: string) => [...catalogKeys.all, 'product', id] as const,
   categories: () => [...catalogKeys.all, 'categories'] as const,
-  features: () => [...catalogKeys.all, 'features'] as const,
+  // Diskop per organisasi aktif: registry/tenant_max berbeda antar org dan izin.
+  features: (orgId: string | null) => [...catalogKeys.all, 'features', orgId] as const,
 }
 
 export function useProductsQuery(params: Ref<ProductListParams>) {
@@ -34,8 +37,9 @@ export function useCategoriesQuery() {
 // Registry fitur: platform, atau org lain yang berizin catalog_product.manage_entitlements
 // (backend 403 tanpa izin, jadi query dimatikan).
 export function useCatalogFeaturesQuery(enabled: Ref<boolean>) {
+  const tenant = useTenantStore()
   return useQuery({
-    queryKey: catalogKeys.features(),
+    queryKey: computed(() => catalogKeys.features(tenant.activeTenantId)),
     queryFn: () => catalogApi.features(),
     enabled,
     staleTime: 5 * 60_000,

@@ -15,6 +15,7 @@ import ProductPublishingSection from '@/features/catalog/components/ProductPubli
 import { catalogErrorMessage, errorCode } from '@/features/catalog/utils/errors'
 import {
   buildProductPayload,
+  validateFeatures,
   emptyProductForm,
   productToForm,
   validateProductForm,
@@ -73,7 +74,7 @@ watch(
       : emptyProductForm()
     errorMessage.value = ''
     listingError.value = ''
-    advancedOpen.value = false
+    advancedOpen.value = Boolean(props.product?.needs_update) && canTenantEntitlements.value
   },
 )
 
@@ -86,12 +87,19 @@ watch(featureDefs, (defs) => {
 async function submit() {
   const platformOpts = {
     platform: isPlatform.value,
-    entitlements: canTenantEntitlements.value,
+    // Tanpa defs yang berhasil dimuat, features tidak dikirim (data stale bisa menimpa/403).
+    entitlements: canTenantEntitlements.value && featuresQuery.isSuccess.value,
     featureDefs: featureDefs.value,
     maxByKey: maxByKey.value,
   }
   const invalid = validateProductForm(form.value, platformOpts)
   if (invalid) {
+    // Jangan sembunyikan error fitur di balik collapse yang tertutup.
+    if (
+      platformOpts.entitlements &&
+      validateFeatures(form.value, featureDefs.value, maxByKey.value)
+    )
+      advancedOpen.value = true
     errorMessage.value = invalid
     return
   }
@@ -240,7 +248,28 @@ const inputClass =
           <span class="text-xs text-gray-500">{{ advancedOpen ? 'Tutup' : 'Buka' }}</span>
         </button>
         <div v-if="advancedOpen" class="border-t p-3">
-          <ProductEntitlementTable v-model="form" :defs="featureDefs" :max-by-key="maxByKey" />
+          <div
+            v-if="featuresQuery.isError.value"
+            data-testid="features-error"
+            class="flex items-center justify-between gap-2 text-sm text-red-600"
+            role="alert"
+          >
+            <span>Daftar fitur gagal dimuat. Pengaturan fitur tidak akan disimpan.</span>
+            <button
+              type="button"
+              data-testid="features-retry"
+              class="rounded-lg border px-2 py-1 text-xs"
+              @click="featuresQuery.refetch()"
+            >
+              Coba lagi
+            </button>
+          </div>
+          <ProductEntitlementTable
+            v-else
+            v-model="form"
+            :defs="featureDefs"
+            :max-by-key="maxByKey"
+          />
         </div>
       </section>
 
