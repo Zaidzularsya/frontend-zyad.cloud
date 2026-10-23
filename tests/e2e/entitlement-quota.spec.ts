@@ -15,9 +15,9 @@ type SummaryItem = {
   name: string
   unit?: string
   state: 'unlimited' | 'quota' | 'hidden'
-  limit?: number
-  used?: number
-  remaining?: number
+  limit?: number | null
+  used?: number | null
+  remaining?: number | null
   reset_strategy: 'never' | 'monthly'
   at_limit: boolean
 }
@@ -51,6 +51,9 @@ function unlimited(feature_key: string, module: string): SummaryItem {
     module,
     name: feature_key,
     state: 'unlimited',
+    limit: null,
+    used: null,
+    remaining: null,
     reset_strategy: 'never',
     at_limit: false,
   }
@@ -70,22 +73,32 @@ function lead(i: number) {
   }
 }
 
-async function stubApi(page: Page, summary: SummaryItem[] | 'error') {
+interface StubOptions {
+  roles?: string[]
+  permissions?: string[]
+  /** Respond to the lead create POST with 409 QUOTA_EXCEEDED. */
+  createLeadQuota409?: boolean
+  landingPages?: unknown[]
+}
+
+const OWNER_PERMISSIONS = [
+  'lead.read',
+  'lead.update',
+  'lead.assign',
+  'activity.read',
+  'activity.update',
+  'whatsapp.session.read',
+]
+
+async function stubApi(page: Page, summary: SummaryItem[] | 'error', options: StubOptions = {}) {
   await page.route('**/api/v1/**', (route) => json(route, []))
   await page.route('**/api/v1/auth/me', (route) =>
     json(route, {
       id: 'user-1',
       name: 'QA',
       email: 'qa@example.com',
-      permissions: [
-        'lead.read',
-        'lead.update',
-        'lead.assign',
-        'activity.read',
-        'activity.update',
-        'whatsapp.session.read',
-      ],
-      roles: ['super_admin'],
+      permissions: options.permissions ?? OWNER_PERMISSIONS,
+      roles: options.roles ?? ['super_admin'],
     }),
   )
   await page.route('**/api/v1/users/me/organizations', (route) =>
@@ -105,9 +118,32 @@ async function stubApi(page: Page, summary: SummaryItem[] | 'error') {
         })
       : json(route, summary),
   )
-  await page.route(/\/api\/v1\/app\/crm\/leads(\?|$)/, (route) =>
-    json(route, [lead(1), lead(2), lead(3)], { page: 1, per_page: 20, total: 3, total_pages: 1 }),
-  )
+  await page.route(/\/api\/v1\/app\/crm\/leads(\?|$)/, (route) => {
+    if (route.request().method() === 'POST') {
+      return options.createLeadQuota409
+        ? route.fulfill({
+            status: 409,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              success: false,
+              code: 'QUOTA_EXCEEDED',
+              message: 'billing quota has been exceeded',
+            }),
+          })
+        : json(route, lead(99))
+    }
+    return json(route, [lead(1), lead(2), lead(3)], {
+      page: 1,
+      per_page: 20,
+      total: 3,
+      total_pages: 1,
+    })
+  })
+  if (options.landingPages) {
+    await page.route(/\/api\/v1\/admin\/landing-pages(\?|$)/, (route) =>
+      json(route, options.landingPages, { page: 1, per_page: 20, total: 1, total_pages: 1 }),
+    )
+  }
 }
 
 test.skip(({ isMobile }) => Boolean(isMobile), 'Desktop layout only')
@@ -201,4 +237,118 @@ test('add-domain drawer offers the custom type when landing.custom_domain is unl
   await page.getByRole('button', { name: '+ Add Domain' }).click()
   await expect(page.getByRole('heading', { name: 'Add Domain' })).toBeVisible()
   await expect(page.locator('option[value="custom"]')).toHaveCount(2) // filter + drawer
+})
+
+test('usage page never renders "null" for rows without a usage counter', async ({ page }) => {
+  await stubApi(page, [
+    leadsQuota(10),
+    {
+      feature_key: 'landing.max_sections_per_page',
+      module: 'landing',
+      name: 'Bagian per page',
+      unit: 'bagian',
+      state: 'quota',
+      limit: 12,
+      used: null,
+      remaining: null,
+      reset_strategy: 'never',
+      at_limit: false,
+    },
+    unlimited('crm.enabled', 'crm'),
+  ])
+  await page.goto('/app/billing/usage')
+
+  await expect(page.getByTestId('usage-row-landing.max_sections_per_page')).toContainText(
+    'batas 12',
+  )
+  await expect(page.getByTestId('usage-row-crm.max_leads')).toContainText('10 / 50')
+  await expect(page.locator('body')).not.toContainText('null')
+})
+
+test('non-owner member (no feature.read permission) still sees the banner and upgrade CTA', async ({
+  page,
+}) => {
+  await stubApi(page, [leadsQuota(50), unlimited('crm.enabled', 'crm')], {
+    roles: ['member'],
+    permissions: ['lead.read', 'lead.create', 'activity.read'],
+  })
+  await page.goto('/app/crm/leads?tab=all')
+
+  await expect(
+    page.getByRole('status').filter({ hasText: 'sudah penuh (50 dari 50)' }),
+  ).toContainText('Kuota lead')
+  await expect(page.getByRole('button', { name: 'Upgrade untuk tambah lead' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Lead Baru' })).toHaveCount(0)
+})
+
+test('409 QUOTA_EXCEEDED on lead submit shows the Indonesian message and refetches the summary', async ({
+  page,
+}) => {
+  let summaryRequests = 0
+  await stubApi(page, [leadsQuota(10), unlimited('crm.enabled', 'crm')], {
+    createLeadQuota409: true,
+  })
+  page.on('request', (req) => {
+    if (req.url().includes('/organization/entitlements/summary')) summaryRequests += 1
+  })
+  await page.goto('/app/crm/leads?tab=all')
+  await page.getByRole('button', { name: 'Lead Baru' }).click()
+
+  const dialog = page.getByRole('dialog')
+  await dialog.locator('input').first().fill('Budi Santoso')
+  const before = summaryRequests
+  await dialog.locator('form').evaluate((f) => (f as HTMLFormElement).requestSubmit())
+
+  await expect(
+    page.getByText('Kuota lead paket Anda sudah penuh. Upgrade plan untuk menambah lead baru.'),
+  ).toBeVisible()
+  await expect(page.getByText('billing quota has been exceeded')).toHaveCount(0)
+  await expect.poll(() => summaryRequests).toBeGreaterThan(before)
+})
+
+test('landing pages at limit: banner, Create Page becomes the upgrade CTA, Duplicate disabled', async ({
+  page,
+}) => {
+  await stubApi(
+    page,
+    [
+      {
+        feature_key: 'landing.max_pages',
+        module: 'landing',
+        name: 'Maks. page',
+        state: 'quota',
+        limit: 3,
+        used: 3,
+        remaining: 0,
+        reset_strategy: 'never',
+        at_limit: true,
+      },
+      unlimited('landing.enabled', 'landing'),
+    ],
+    {
+      landingPages: [
+        {
+          id: 'p1',
+          name: 'Public Marketing',
+          title: 'Public Marketing',
+          slug: 'public-marketing',
+          page_type: 'landing',
+          status: 'draft',
+          visibility: 'public',
+          locale: 'id-ID',
+          timezone: 'Asia/Jakarta',
+          is_homepage: false,
+          is_template: false,
+          seo: {},
+          updated_at: '2026-10-07T03:00:00Z',
+        },
+      ],
+    },
+  )
+  await page.goto('/app/landing-pages/pages')
+
+  await expect(page.getByRole('status').filter({ hasText: 'Kuota landing page' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create Page' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Upgrade untuk tambah page' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Duplicate/ }).first()).toBeDisabled()
 })
