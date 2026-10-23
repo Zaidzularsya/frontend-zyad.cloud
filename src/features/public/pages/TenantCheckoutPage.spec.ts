@@ -174,17 +174,24 @@ describe('TenantCheckoutPage', () => {
     expect(assign).toHaveBeenCalledWith(`${window.location.origin}/i/x`)
   })
 
-  it.each(['/\\evil.com', '//evil.com', 'javascript:alert(1)', 'https://user:pw@host.example/'])(
-    'refuses unsafe invoice_url %s',
-    async (url) => {
-      checkout.mockResolvedValue({ invoice_url: url })
-      const w = await mountReady()
-      onCredential('t')
-      await flushPromises()
-      expect(assign).not.toHaveBeenCalled()
-      expect(w.find('[role="alert"]').exists()).toBe(true)
-    },
-  )
+  it.each([
+    '/\\evil.com',
+    '//evil.com',
+    'javascript:alert(1)',
+    'https://user:pw@host.example/',
+    '/\t/evil.com',
+    '/\n/evil.com',
+    ' //evil.com',
+    '\t//evil.com',
+    'java\nscript:alert(1)',
+  ])('refuses unsafe invoice_url %s', async (url) => {
+    checkout.mockResolvedValue({ invoice_url: url })
+    const w = await mountReady()
+    onCredential('t')
+    await flushPromises()
+    expect(assign).not.toHaveBeenCalled()
+    expect(w.find('[role="alert"]').exists()).toBe(true)
+  })
 
   it('allows a relative path (resolved to current origin) and a normal https URL', async () => {
     checkout.mockResolvedValue({ invoice_url: '/pay/x' })

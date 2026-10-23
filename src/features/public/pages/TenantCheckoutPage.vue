@@ -33,11 +33,19 @@ function money(amount: string, currency: string) {
 // Tujuan harus http(s) tanpa kredensial. Tidak wajib same-origin: backend membangun link invoice
 // dari APP_FRONTEND_URL yang bisa berbeda dari host tenant. Mengembalikan href hasil parse.
 function safeRedirectUrl(raw: string): string | null {
-  if (!raw || raw.includes('\\') || raw.startsWith('//')) return null
+  if (!raw || raw.startsWith('//')) return null
+  // WHATWG URL membuang tab/newline dan memangkas spasi/kontrol di depan, sehingga "/\t/evil.com"
+  // bisa menjadi "//evil.com". Link invoice tidak pernah memuat karakter ini: tolak sebelum parse.
+  for (const ch of raw) {
+    const code = ch.charCodeAt(0)
+    if (code <= 0x20 || code === 0x7f || ch === '\\') return null
+  }
   try {
     const url = new URL(raw, window.location.origin)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
     if (url.username || url.password) return null
+    // Path relatif (diawali satu "/") harus tetap di origin saat ini.
+    if (raw.startsWith('/') && url.origin !== window.location.origin) return null
     return url.href
   } catch {
     return null
