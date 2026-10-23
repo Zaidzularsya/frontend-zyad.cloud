@@ -24,6 +24,14 @@ import {
   type OrganizationDomainSslStatus,
   type OrganizationDomainType,
 } from '@/features/domains/api/domain.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { useEntitlement } from '@/features/entitlements/composables/useEntitlement'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
   LandingAvailableDomain,
@@ -68,6 +76,12 @@ const addDomainForm = reactive({
   error: '',
 })
 
+// Tenant tanpa landing.custom_domain hanya ditawari subdomain; tipe custom disembunyikan.
+const customDomainHidden = useEntitlement('landing.custom_domain').isHidden
+const effectiveDomainType = computed<OrganizationDomainType>(() =>
+  customDomainHidden.value ? 'subdomain' : addDomainForm.type,
+)
+
 // Dashboard dilayani dari path (/app) pada domain platform yang sama
 // (mis. zyad.cloud/app), sehingga hostname saat ini adalah domain primer
 // tempat subdomain tenant baru didaftarkan.
@@ -97,6 +111,8 @@ const pageById = computed(() => {
   }
   return map
 })
+
+const invalidateEntitlements = useInvalidateEntitlements()
 
 function extractError(error: unknown) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -350,13 +366,13 @@ async function unbindDomain(binding: LandingDomainBinding) {
 function openAddDrawer() {
   addDomainForm.canonical_host = ''
   addDomainForm.subdomainLabel = ''
-  addDomainForm.type = 'custom'
+  addDomainForm.type = customDomainHidden.value ? 'subdomain' : 'custom'
   addDomainForm.error = ''
   addDrawerOpen.value = true
 }
 
 async function submitDomain() {
-  const isSubdomain = addDomainForm.type === 'subdomain'
+  const isSubdomain = effectiveDomainType.value === 'subdomain'
   addDomainForm.error = isSubdomain
     ? validateSubdomainLabel(addDomainForm.subdomainLabel)
     : validateHost(addDomainForm.canonical_host)
@@ -372,10 +388,11 @@ async function submitDomain() {
   try {
     const challenge = await organizationDomainService.create({
       canonical_host: canonicalHost,
-      type: addDomainForm.type,
+      type: effectiveDomainType.value,
       is_primary: false,
     })
     addDrawerOpen.value = false
+    invalidateEntitlements()
     if (challenge.challenge_type === 'auto_verified') {
       await refreshData()
       successMessage.value = 'Subdomain berhasil dibuat dan langsung aktif.'
@@ -387,7 +404,13 @@ async function submitDomain() {
       successMessage.value = 'Domain berhasil dibuat. Lanjutkan verifikasi DNS.'
     }
   } catch (error) {
-    errorMessage.value = extractError(error)
+    if (isQuotaExceededError(error)) {
+      // Drawer tetap terbuka, jadi tampilkan pesan di sana.
+      invalidateEntitlements()
+      addDomainForm.error = quotaExceededMessage('domain')
+    } else {
+      errorMessage.value = extractError(error)
+    }
   } finally {
     isSaving.value = false
   }
@@ -452,6 +475,7 @@ function confirmDeleteDomain(domain: OrganizationDomain) {
     variant: 'danger',
     run: async () => {
       await organizationDomainService.delete(domain.id)
+      invalidateEntitlements()
       await refreshData()
       successMessage.value = 'Domain berhasil dinonaktifkan.'
     },
@@ -489,8 +513,14 @@ onMounted(refreshData)
         <RefreshCw v-else class="h-4 w-4" />
         Refresh
       </BaseButton>
-      <BaseButton @click="openAddDrawer">+ Add Domain</BaseButton>
+      <QuotaActionButton
+        feature-key="domain.max_domains"
+        label="+ Add Domain"
+        upgrade-label="Upgrade untuk tambah domain"
+        @click="openAddDrawer"
+      />
     </PageHeader>
+    <QuotaLimitBanner feature-key="domain.max_domains" noun="domain" />
 
     <div
       v-if="errorMessage"
@@ -861,7 +891,7 @@ onMounted(refreshData)
         </div>
 
         <form class="space-y-4" @submit.prevent="submitDomain">
-          <label class="block text-sm font-medium">
+          <label v-if="!customDomainHidden" class="block text-sm font-medium">
             Type
             <select
               v-model="addDomainForm.type"
@@ -875,7 +905,7 @@ onMounted(refreshData)
             </select>
           </label>
 
-          <template v-if="addDomainForm.type === 'subdomain'">
+          <template v-if="effectiveDomainType === 'subdomain'">
             <label class="block text-sm font-medium">
               Nama subdomain
               <div

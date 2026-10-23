@@ -3,6 +3,12 @@ import { computed, reactive, ref } from 'vue'
 import { Archive, Layers, Plus, RotateCcw, Star, Trash2, Waypoints } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -84,7 +90,9 @@ async function submitCreate() {
     })
     isCreateModalOpen.value = false
   } catch (error) {
-    createErrorMessage.value = extractError(error)
+    createErrorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('pipeline')
+      : extractError(error)
   }
 }
 
@@ -149,11 +157,16 @@ async function handleArchive(pipeline: Pipeline) {
       title="Pipelines"
       description="Kelola tahapan penjualan (sales stages) per pipeline."
     >
-      <BaseButton @click="openCreateModal">
-        <Plus class="size-4" />
-        Pipeline Baru
-      </BaseButton>
+      <QuotaActionButton
+        feature-key="crm.max_pipelines"
+        label="Pipeline Baru"
+        upgrade-label="Upgrade untuk tambah pipeline"
+        @click="openCreateModal"
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_pipelines" noun="pipeline" />
 
     <div v-if="!pipelinesQuery.isPending.value" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <BaseCard class="!p-4">

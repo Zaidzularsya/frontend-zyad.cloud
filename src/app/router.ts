@@ -259,6 +259,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Langganan' },
       },
       {
+        path: 'billing/usage',
+        name: 'billing-usage',
+        component: () => import('@/features/entitlements/pages/UsagePage.vue'),
+        meta: { title: 'Pemakaian Paket' },
+      },
+      {
         path: 'checkout',
         name: 'checkout',
         component: () => import('@/features/customer/pages/CheckoutPage.vue'),

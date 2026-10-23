@@ -8,6 +8,7 @@ import {
   FileMinus,
   FileSignature,
   FileText,
+  Gauge,
   Globe,
   HardDrive,
   LayoutDashboard,
@@ -39,6 +40,8 @@ export interface MenuItem {
   description?: string
   children?: MenuChildItem[]
   permission?: Permission | Permission[]
+  // Entitlement feature key; the item is hidden when that feature is hidden for the tenant.
+  feature?: string
 }
 
 export interface MenuChildItem {
@@ -49,6 +52,7 @@ export interface MenuChildItem {
   description?: string
   children?: MenuChildItem[]
   permission?: Permission | Permission[]
+  feature?: string
 }
 
 export interface MenuGroup {
@@ -247,6 +251,15 @@ export const platformMenuGroups: MenuGroup[] = [
   },
 ]
 
+// Landing sub-pages follow landing.enabled, except Domains which is gated by domain.enabled
+// on the backend (organization domain service) and must stay reachable on its own.
+function tagCustomerLandingChildren(children: MenuChildItem[]): MenuChildItem[] {
+  return children.map((child) => ({
+    ...child,
+    feature: child.route === 'landing-pages-domains' ? 'domain.enabled' : 'landing.enabled',
+  }))
+}
+
 export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Workspace',
@@ -255,7 +268,7 @@ export const customerMenuGroups: MenuGroup[] = [
         label: 'Landing Page',
         route: 'landing-pages',
         icon: Globe,
-        children: buildLandingManagementMenuItems('landing-pages'),
+        children: tagCustomerLandingChildren(buildLandingManagementMenuItems('landing-pages')),
       },
       { label: 'Team & Roles', route: 'users', icon: ShieldCheck, permission: 'user.read' },
     ],
@@ -274,14 +287,45 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'CRM',
     items: [
-      { label: 'Leads', route: 'crm-leads', icon: Magnet, permission: 'lead.read' },
-      { label: 'Contacts', route: 'crm-contacts', icon: Users, permission: 'contact.read' },
-      { label: 'Companies', route: 'crm-companies', icon: Building2, permission: 'company.read' },
-      { label: 'Deals', route: 'crm-deals', icon: Waypoints, permission: 'deal.read' },
-      { label: 'Pipelines', route: 'crm-pipelines', icon: Waypoints, permission: 'pipeline.read' },
+      {
+        label: 'Leads',
+        route: 'crm-leads',
+        feature: 'crm.enabled',
+        icon: Magnet,
+        permission: 'lead.read',
+      },
+      {
+        label: 'Contacts',
+        route: 'crm-contacts',
+        feature: 'crm.enabled',
+        icon: Users,
+        permission: 'contact.read',
+      },
+      {
+        label: 'Companies',
+        route: 'crm-companies',
+        feature: 'crm.enabled',
+        icon: Building2,
+        permission: 'company.read',
+      },
+      {
+        label: 'Deals',
+        route: 'crm-deals',
+        feature: 'crm.enabled',
+        icon: Waypoints,
+        permission: 'deal.read',
+      },
+      {
+        label: 'Pipelines',
+        route: 'crm-pipelines',
+        feature: 'crm.enabled',
+        icon: Waypoints,
+        permission: 'pipeline.read',
+      },
       {
         label: 'Activities',
         route: 'crm-activities',
+        feature: 'crm.enabled',
         icon: FileClock,
         permission: 'activity.read',
       },
@@ -299,18 +343,21 @@ export const customerMenuGroups: MenuGroup[] = [
       {
         label: 'Quotations',
         route: 'crm-quotations',
+        feature: 'crm.enabled',
         icon: FileText,
         permission: 'quotation.read',
       },
       {
         label: 'Sales Orders',
         route: 'sales-orders',
+        feature: 'crm.enabled',
         icon: ClipboardList,
         permission: 'sales_order.read',
       },
       {
         label: 'Contracts',
         route: 'contracts',
+        feature: 'receivable.enabled',
         icon: FileSignature,
         permission: 'contract.read',
       },
@@ -319,29 +366,50 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Billing',
     items: [
-      { label: 'Invoices', route: 'billing-invoices', icon: Receipt, permission: 'invoice.read' },
-      { label: 'Payments', route: 'billing-payments', icon: Wallet, permission: 'invoice.read' },
+      {
+        label: 'Pemakaian Paket',
+        route: 'billing-usage',
+        icon: Gauge,
+      },
+      {
+        label: 'Invoices',
+        route: 'billing-invoices',
+        feature: 'receivable.enabled',
+        icon: Receipt,
+        permission: 'invoice.read',
+      },
+      {
+        label: 'Payments',
+        route: 'billing-payments',
+        feature: 'receivable.enabled',
+        icon: Wallet,
+        permission: 'invoice.read',
+      },
       {
         label: 'Pengaturan Penagihan',
         route: 'billing-receivable-settings',
+        feature: 'receivable.enabled',
         icon: Settings2,
         permission: 'invoice.read',
       },
       {
         label: 'Recurring Billing',
         route: 'billing-recurring',
+        feature: 'receivable.enabled',
         icon: RefreshCw,
         permission: 'contract.read',
       },
       {
         label: 'Credit Notes',
         route: 'billing-credit-notes',
+        feature: 'receivable.enabled',
         icon: FileMinus,
         description: 'Belum tersedia — placeholder sampai modul backend Credit Notes dibangun.',
       },
       {
         label: 'Refunds',
         route: 'billing-refunds',
+        feature: 'receivable.enabled',
         icon: RotateCcw,
         description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
       },
@@ -353,18 +421,21 @@ export const customerMenuGroups: MenuGroup[] = [
       {
         label: 'Integrations',
         route: 'crm-integrations',
+        feature: 'crm.enabled',
         icon: Plug,
         permission: 'integration.read',
       },
       {
         label: 'WhatsApp',
         route: 'whatsapp',
+        feature: 'whatsapp.enabled',
         icon: MessageCircle,
         permission: 'whatsapp.session.read',
       },
       {
         label: 'Pengaturan CRM',
         route: 'crm-settings',
+        feature: 'crm.enabled',
         icon: Settings2,
         permission: 'crm_settings.update',
       },

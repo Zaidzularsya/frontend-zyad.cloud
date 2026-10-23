@@ -4,6 +4,13 @@ import { Download, File as FileIcon, Trash2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import { useEntitlement } from '@/features/entitlements/composables/useEntitlement'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import StorageUploader from '@/features/storage/components/StorageUploader.vue'
 import {
   storageApi,
@@ -22,11 +29,23 @@ const busyId = ref('')
 const errorMessage = ref('')
 const notice = ref('')
 
+// `used` tetap dari endpoint usage halaman ini (satu sumber). Ringkasan entitlement
+// hanya memberi batas paket dan status penuh; fail-open ke limit dari endpoint usage.
+const invalidateEntitlements = useInvalidateEntitlements()
+const storageEntitlement = useEntitlement('storage.max_bytes')
+const limitBytes = computed(
+  () => storageEntitlement.limit.value ?? usage.value?.limit_bytes ?? undefined,
+)
 const usagePercent = computed(() => {
-  if (!usage.value?.limit_bytes) return null
-  if (usage.value.limit_bytes <= 0) return 0
-  return Math.min(100, Math.round((usage.value.used_bytes / usage.value.limit_bytes) * 100))
+  if (!usage.value || !limitBytes.value) return null
+  return Math.min(100, Math.round((usage.value.used_bytes / limitBytes.value) * 100))
 })
+// Ringkasan entitlement bisa stale; label tidak boleh bertentangan dengan angka yang tampil.
+const isFull = computed(
+  () =>
+    storageEntitlement.atLimit.value === true ||
+    (!!limitBytes.value && !!usage.value && usage.value.used_bytes >= limitBytes.value),
+)
 
 onMounted(load)
 
@@ -65,9 +84,15 @@ async function handleUpload(file: File, options: { class: StorageObjectClass }) 
   try {
     await storageApi.upload(file, options)
     showNotice('File berhasil diunggah.')
+    invalidateEntitlements()
     await load()
   } catch (error) {
-    errorMessage.value = apiMessage(error, 'Gagal mengunggah file.')
+    if (isQuotaExceededError(error)) {
+      errorMessage.value = quotaExceededMessage('storage')
+      invalidateEntitlements()
+    } else {
+      errorMessage.value = apiMessage(error, 'Gagal mengunggah file.')
+    }
   } finally {
     uploading.value = false
   }
@@ -92,6 +117,7 @@ async function handleDelete(object: StorageObject) {
   try {
     await storageApi.delete(object.id)
     showNotice(`${object.filename} berhasil dihapus.`)
+    invalidateEntitlements()
     await load()
   } catch (error) {
     errorMessage.value = apiMessage(error, 'Gagal menghapus file.')
@@ -121,22 +147,37 @@ async function handleDelete(object: StorageObject) {
       {{ errorMessage }}
     </div>
 
+    <QuotaLimitBanner
+      feature-key="storage.max_bytes"
+      noun="storage"
+      :format="formatBytes"
+      :full="isFull"
+      :used-override="usage?.used_bytes"
+      :limit-override="limitBytes"
+    />
+
     <BaseCard v-if="usage">
       <div class="flex items-center justify-between text-sm">
         <span class="font-semibold text-gray-900 dark:text-gray-100">Pemakaian storage</span>
         <span class="text-gray-500">
           {{ formatBytes(usage.used_bytes) }}
-          <template v-if="usage.limit_bytes"> / {{ formatBytes(usage.limit_bytes) }}</template>
+          <template v-if="limitBytes"> / {{ formatBytes(limitBytes) }}</template>
           <template v-else> (tanpa batas)</template>
+          <b v-if="isFull" class="ml-1 text-red-600 dark:text-red-400">penuh</b>
         </span>
       </div>
       <div
         v-if="usagePercent !== null"
+        role="progressbar"
+        aria-label="Pemakaian storage"
+        :aria-valuenow="usagePercent"
+        aria-valuemin="0"
+        aria-valuemax="100"
         class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
       >
         <div
           class="h-full rounded-full transition-all"
-          :class="usagePercent >= 90 ? 'bg-red-500' : 'bg-brand-500'"
+          :class="isFull ? 'bg-red-500' : 'bg-brand-500'"
           :style="{ width: `${usagePercent}%` }"
         />
       </div>

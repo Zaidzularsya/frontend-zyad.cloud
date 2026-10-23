@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { FREQUENCIES, priceSuffix } from '@/features/catalog/utils/pricing'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 import { formatCurrency } from '@/lib/utils'
 
 import { publicQuotationApi, type PublicQuotation } from '../api/public-quotation.api'
@@ -38,6 +39,11 @@ const justResponded = ref<'approved' | 'revision_requested' | null>(null)
 function failureMessage(err: unknown): string {
   const response = (err as { response?: { status?: number; data?: { message?: string } } } | null)
     ?.response
+  // Kuota tenant bukan urusan pelanggan, dan penawaran belum direspons: jangan
+  // memakai pesan 409 "sudah direspons".
+  if (isQuotaExceededError(err)) {
+    return 'Penawaran belum dapat disetujui saat ini. Silakan hubungi penjual.'
+  }
   switch (response?.status) {
     case 409:
       return 'Penawaran ini sudah direspons sebelumnya. Halaman diperbarui.'
@@ -54,7 +60,7 @@ function onFailure(err: unknown) {
   dialogError.value = failureMessage(err)
   const status = (err as { response?: { status?: number } } | null)?.response?.status
   // 409: sudah direspons; 404: link dicabut/kedaluwarsa. Muat ulang untuk menampilkan keadaan terbaru.
-  if (status === 409 || status === 404) {
+  if ((status === 409 && !isQuotaExceededError(err)) || status === 404) {
     dialog.value = null
     void queryClient.invalidateQueries({ queryKey: queryKey.value })
   }

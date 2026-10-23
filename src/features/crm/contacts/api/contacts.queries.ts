@@ -6,6 +6,8 @@ import {
   type ContactListParams,
   type ContactPayload,
 } from '@/features/crm/contacts/api/contacts.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const contactKeys = {
   all: ['crm', 'contacts'] as const,
@@ -34,10 +36,15 @@ export function useContactQuery(id: Ref<string>) {
 
 export function useCreateContactMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: ContactPayload) => contactsApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
@@ -55,20 +62,24 @@ export function useUpdateContactMutation() {
 
 export function useDeleteContactMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => contactsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useRestoreContactMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => contactsApi.restore(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
+      invalidateEntitlements()
     },
   })
 }
