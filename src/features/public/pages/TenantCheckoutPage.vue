@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -30,9 +30,18 @@ function money(amount: string, currency: string) {
   return Number.isNaN(numeric) ? amount : formatCurrency(numeric, currency || 'IDR')
 }
 
-// Hanya tujuan http(s) atau path same-origin; menolak skema lain (javascript:, data:).
-function isSafeRedirect(url: string) {
-  return /^https?:\/\//i.test(url) || (url.startsWith('/') && !url.startsWith('//'))
+// Tujuan harus http(s) tanpa kredensial. Tidak wajib same-origin: backend membangun link invoice
+// dari APP_FRONTEND_URL yang bisa berbeda dari host tenant. Mengembalikan href hasil parse.
+function safeRedirectUrl(raw: string): string | null {
+  if (!raw || raw.includes('\\') || raw.startsWith('//')) return null
+  try {
+    const url = new URL(raw, window.location.origin)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    if (url.username || url.password) return null
+    return url.href
+  } catch {
+    return null
+  }
 }
 
 async function onCredential(credential: string) {
@@ -41,10 +50,11 @@ async function onCredential(credential: string) {
   errorMessage.value = ''
   try {
     const result = await tenantCheckoutApi.checkout(credential, variant.value.product_id)
-    if (!isSafeRedirect(result.invoice_url)) {
+    const target = safeRedirectUrl(result.invoice_url)
+    if (!target) {
       errorMessage.value = 'Pembayaran belum bisa disiapkan. Coba lagi.'
     } else {
-      window.location.assign(result.invoice_url)
+      window.location.assign(target)
       return // tetap "pending" sampai halaman berpindah
     }
   } catch (error) {
@@ -58,12 +68,17 @@ const { googleEnabled, googleError } = useGoogleCredential({
   onCredential: (credential) => void onCredential(credential),
 })
 
-onMounted(async () => {
+async function loadProduct(id: string) {
+  loading.value = true
+  listing.value = null
+  variant.value = null
+  errorMessage.value = ''
   try {
     const categories = await tenantCheckoutApi.listCatalog()
+    if (id !== productId.value) return // param berubah selagi memuat
     for (const category of categories) {
       for (const item of category.listings) {
-        const found = item.variants.find((v) => v.product_id === productId.value)
+        const found = item.variants.find((v) => v.product_id === id)
         if (found && found.checkout_enabled) {
           listing.value = item
           variant.value = found
@@ -73,9 +88,11 @@ onMounted(async () => {
   } catch {
     // Katalog tidak termuat diperlakukan sama dengan produk tidak tersedia.
   } finally {
-    loading.value = false
+    if (id === productId.value) loading.value = false
   }
-})
+}
+
+watch(productId, (id) => void loadProduct(id), { immediate: true })
 </script>
 
 <template>
@@ -102,7 +119,7 @@ onMounted(async () => {
       </p>
       <ul v-if="listing.benefits.length" class="mt-4 space-y-2 text-sm text-gray-600">
         <li v-for="benefit in listing.benefits" :key="benefit.label" class="flex gap-2">
-          <span class="text-brand-600">✓</span>
+          <span class="text-brand-600" aria-hidden="true">✓</span>
           <span>{{ benefit.label }}</span>
         </li>
       </ul>
@@ -132,7 +149,12 @@ onMounted(async () => {
           :aria-busy="isSubmitting"
           :class="{ 'pointer-events-none opacity-60': isSubmitting }"
         ></div>
-        <p v-if="isSubmitting" class="mt-2 text-center text-sm text-gray-500">
+        <p
+          v-if="isSubmitting"
+          role="status"
+          aria-live="polite"
+          class="mt-2 text-center text-sm text-gray-500"
+        >
           Menyiapkan pembayaran...
         </p>
         <p v-if="googleError" class="mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">

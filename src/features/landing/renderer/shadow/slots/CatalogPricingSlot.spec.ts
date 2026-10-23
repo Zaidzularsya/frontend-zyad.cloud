@@ -130,6 +130,15 @@ describe('CatalogPricingSlot', () => {
     expect(push).toHaveBeenLastCalledWith('/checkout/p1')
   })
 
+  it('tenant host: checkout_enabled=false never links to /checkout/:id', async () => {
+    const off = listing({ variants: [variant({ product_id: 'off', checkout_enabled: false })] })
+    listTenantCatalog.mockResolvedValue([category('c1', { listings: [off] })])
+    const { w } = mountSlot({}, ctxFor('customer'))
+    await flushPromises()
+    await w.find('button.zy-slot-catalog-pricing__cta').trigger('click')
+    expect(push).not.toHaveBeenCalledWith('/checkout/off')
+  })
+
   it('tenant host: non-checkout variants fall back to contact, never platform register', async () => {
     const free = listing({
       variants: [variant({ product_id: 'z', price_with_tax: '0', base_price: '0' })],

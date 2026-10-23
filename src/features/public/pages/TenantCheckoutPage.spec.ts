@@ -171,15 +171,54 @@ describe('TenantCheckoutPage', () => {
     expect(w.find('[data-testid="google-button"]').attributes('aria-busy')).toBe('true')
     resolve({ invoice_url: '/i/x' })
     await flushPromises()
-    expect(assign).toHaveBeenCalledWith('/i/x')
+    expect(assign).toHaveBeenCalledWith(`${window.location.origin}/i/x`)
   })
 
-  it('refuses a non-http(s) invoice_url', async () => {
-    checkout.mockResolvedValue({ invoice_url: 'javascript:alert(1)' })
-    const w = await mountReady()
+  it.each(['/\\evil.com', '//evil.com', 'javascript:alert(1)', 'https://user:pw@host.example/'])(
+    'refuses unsafe invoice_url %s',
+    async (url) => {
+      checkout.mockResolvedValue({ invoice_url: url })
+      const w = await mountReady()
+      onCredential('t')
+      await flushPromises()
+      expect(assign).not.toHaveBeenCalled()
+      expect(w.find('[role="alert"]').exists()).toBe(true)
+    },
+  )
+
+  it('allows a relative path (resolved to current origin) and a normal https URL', async () => {
+    checkout.mockResolvedValue({ invoice_url: '/pay/x' })
+    await mountReady()
     onCredential('t')
     await flushPromises()
-    expect(assign).not.toHaveBeenCalled()
-    expect(w.find('[role="alert"]').exists()).toBe(true)
+    expect(assign).toHaveBeenLastCalledWith(`${window.location.origin}/pay/x`)
+
+    checkout.mockResolvedValue({ invoice_url: 'https://pay.example/i/abc' })
+    await mountReady()
+    onCredential('t')
+    await flushPromises()
+    expect(assign).toHaveBeenLastCalledWith('https://pay.example/i/abc')
+  })
+
+  it('reloads the product when the productId route param changes', async () => {
+    listCatalog.mockResolvedValue([
+      ...catalog(),
+      {
+        ...catalog()[0]!,
+        id: 'c2',
+        listings: [
+          {
+            ...catalog()[0]!.listings[0]!,
+            name: 'Pro',
+            variants: [{ ...catalog()[0]!.listings[0]!.variants[0]!, product_id: 'p2' }],
+          },
+        ],
+      },
+    ])
+    const w = await mountReady()
+    expect(w.text()).toContain('Basic')
+    route.params = { productId: 'p2' }
+    await flushPromises()
+    expect(w.text()).toContain('Pro')
   })
 })
