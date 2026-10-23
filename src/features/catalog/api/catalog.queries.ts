@@ -31,7 +31,8 @@ export function useCategoriesQuery() {
   })
 }
 
-// Registry fitur hanya untuk katalog platform; query dimatikan untuk org lain (backend 403).
+// Registry fitur: platform, atau org lain yang berizin catalog_product.manage_entitlements
+// (backend 403 tanpa izin, jadi query dimatikan).
 export function useCatalogFeaturesQuery(enabled: Ref<boolean>) {
   return useQuery({
     queryKey: catalogKeys.features(),

@@ -81,6 +81,16 @@ export function applyRowChange(
   return { features: [...features, { key: def.key, raw, displayLabel: '' }] }
 }
 
+// Validasi batas produk tenant: 1..max. Tanpa max (platform) tidak ada batasan di sini.
+export function limitError(raw: string | boolean, max: number | undefined): string | null {
+  if (max === undefined || typeof raw === 'boolean') return null
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return null
+  if (n < 1) return 'Minimal 1'
+  if (n > max) return `Maksimum ${max}`
+  return null
+}
+
 export function resetLabel(strategy?: string): string {
   if (!strategy) return '-'
   if (strategy === 'never') return 'Total'

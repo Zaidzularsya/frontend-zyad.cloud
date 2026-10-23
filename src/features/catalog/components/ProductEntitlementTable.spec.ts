@@ -294,4 +294,65 @@ describe('ProductEntitlementTable', () => {
       expect(validate(w)).toBeNull()
     })
   })
+
+  describe('maxByKey (tenant)', () => {
+    const mountMax = (form: ProductForm) =>
+      mount(ProductEntitlementTable, {
+        props: { modelValue: form, defs: defs.slice(0, 3), maxByKey: { lead: 10 } },
+      })
+
+    it('shows "Maksimum N" for a limit above max and nothing otherwise', () => {
+      const over = mountMax({
+        ...emptyProductForm(),
+        features: [{ key: 'lead', raw: '11', displayLabel: '' }],
+      })
+      expect(over.get('[data-testid="limit-error"]').text()).toBe('Maksimum 10')
+      const ok = mountMax({
+        ...emptyProductForm(),
+        features: [{ key: 'lead', raw: '10', displayLabel: '' }],
+      })
+      expect(ok.find('[data-testid="limit-error"]').exists()).toBe(false)
+    })
+
+    it('shows the error right after typing 11', async () => {
+      const form = emptyProductForm()
+      const w = mountMax(form)
+      await w.get('[data-key="lead"] select[name="status"]').setValue('quota')
+      await w.setProps({ modelValue: w.emitted('update:modelValue')!.at(-1)![0] as ProductForm })
+      const input = w.get('[data-key="lead"] input[name="limit"]')
+      ;(input.element as HTMLInputElement).value = '11'
+      await input.trigger('change')
+      const emitted = w.emitted('update:modelValue')!.at(-1)![0] as ProductForm
+      await w.setProps({ modelValue: emitted })
+      expect(w.get('[data-testid="limit-error"]').text()).toBe('Maksimum 10')
+    })
+
+    it('validateProductForm blocks submit above max', () => {
+      const form = {
+        ...emptyProductForm(),
+        name: 'X',
+        features: [{ key: 'lead', raw: '11', displayLabel: '' }],
+      }
+      expect(
+        validateProductForm(form, {
+          entitlements: true,
+          featureDefs: defs,
+          maxByKey: { lead: 10 },
+        }),
+      ).toBe('Lead: Maksimum 10.')
+    })
+
+    it('does not attach listing fields for tenant payload', () => {
+      const form = {
+        ...emptyProductForm(),
+        name: 'X',
+        features: [{ key: 'lead', raw: '5', displayLabel: '' }],
+      }
+      const p = buildProductPayload(form, { entitlements: true, featureDefs: defs })
+      expect(p.features).toEqual([
+        { feature_key: 'lead', value: 5, display_label: undefined, position: 0 },
+      ])
+      expect(p.is_public).toBeUndefined()
+    })
+  })
 })

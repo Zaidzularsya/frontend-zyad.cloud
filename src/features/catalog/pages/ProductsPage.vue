@@ -204,6 +204,13 @@ function formatTax(value: string) {
                   >
                     Publik
                   </span>
+                  <span
+                    v-if="product.needs_update"
+                    data-testid="needs-update-badge"
+                    class="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                  >
+                    Perlu diperbarui
+                  </span>
                 </p>
                 <p v-if="product.description" class="line-clamp-1 text-xs text-gray-500">
                   {{ product.description }}

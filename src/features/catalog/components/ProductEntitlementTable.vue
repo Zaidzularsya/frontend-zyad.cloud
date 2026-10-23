@@ -5,6 +5,7 @@ import type { CatalogFeatureDef } from '@/features/catalog/api/catalog.api'
 import {
   applyRowChange,
   availableStatuses,
+  limitError,
   resetLabel,
   STATUS_LABEL,
   statusOfRow,
@@ -15,6 +16,8 @@ import { MAX_FEATURES, type ProductForm } from '@/features/catalog/utils/product
 const props = defineProps<{
   modelValue: ProductForm
   defs: CatalogFeatureDef[]
+  // Batas atas integer per key (produk tenant); kosong = tanpa batas (platform).
+  maxByKey?: Record<string, number>
 }>()
 
 const emit = defineEmits<{ (e: 'update:modelValue', value: ProductForm): void }>()
@@ -81,6 +84,11 @@ function changeLimit(def: CatalogFeatureDef, event: Event) {
   change(def, 'quota', input.value)
   // Jika ditolak, state tidak berubah: sinkronkan tampilan dengan state.
   if (message.value) input.value = view(def).limit
+}
+
+function rowLimitError(def: CatalogFeatureDef) {
+  const row = rowByKey.value.get(def.key)
+  return row && def.value_type === 'integer' ? limitError(row.raw, props.maxByKey?.[def.key]) : null
 }
 
 function isPending(def: CatalogFeatureDef) {
@@ -150,6 +158,7 @@ function removeOrphan(key: string) {
           name="limit"
           type="number"
           min="0"
+          :max="maxByKey?.[def.key]"
           step="1"
           inputmode="numeric"
           :class="inputClass"
@@ -161,6 +170,14 @@ function removeOrphan(key: string) {
         <span data-testid="reset" class="text-gray-600">
           {{ view(def).status === 'quota' ? resetLabel(def.reset_strategy) : '-' }}
         </span>
+        <small
+          v-if="rowLimitError(def)"
+          data-testid="limit-error"
+          class="col-span-full text-xs text-red-600"
+          role="alert"
+        >
+          {{ rowLimitError(def) }}
+        </small>
         <small
           v-if="isPending(def)"
           data-testid="pending-hint"

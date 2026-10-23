@@ -4,6 +4,7 @@ import type {
   CatalogProduct,
   ProductPayload,
 } from '@/features/catalog/api/catalog.api'
+import { limitError } from '@/features/catalog/utils/entitlement-rows'
 import { featureInputText, parseFeatureInput } from '@/features/catalog/utils/feature-value'
 import {
   normalizePricing,
@@ -102,7 +103,10 @@ const PERCENT = /^\d{1,3}(\.\d{1,2})?$/
 
 export interface PlatformOptions {
   platform?: boolean
+  // Org non-platform berizin catalog_product.manage_entitlements: hanya fitur yang dikirim.
+  entitlements?: boolean
   featureDefs?: CatalogFeatureDef[]
+  maxByKey?: Record<string, number>
 }
 
 export function validateProductForm(f: ProductForm, opts: PlatformOptions = {}): string | null {
@@ -111,6 +115,7 @@ export function validateProductForm(f: ProductForm, opts: PlatformOptions = {}):
   const tax = f.taxPercent.trim().replace(',', '.') || '0'
   if (!PERCENT.test(tax) || Number(tax) > 100) return 'Pajak harus antara 0 dan 100.'
   if (opts.platform) return validatePublishing(f, opts.featureDefs ?? [])
+  if (opts.entitlements) return validateFeatures(f, opts.featureDefs ?? [], opts.maxByKey)
   return null
 }
 
@@ -122,6 +127,14 @@ function validatePublishing(f: ProductForm, defs: CatalogFeatureDef[]): string |
     return 'Kode listing hanya huruf kecil, angka, dan tanda -, maksimal 50 karakter.'
   }
   if (!/^\d{1,6}$/.test(f.listingOrder.trim() || '0')) return 'Urutan harus bilangan bulat.'
+  return validateFeatures(f, defs)
+}
+
+function validateFeatures(
+  f: ProductForm,
+  defs: CatalogFeatureDef[],
+  maxByKey?: Record<string, number>,
+): string | null {
   if (f.features.length > MAX_FEATURES) return `Maksimal ${MAX_FEATURES} fitur per produk.`
   const byKey = new Map(defs.map((d) => [d.key, d]))
   const pending = f.incompleteQuota.find((key) => !f.features.some((r) => r.key === key))
@@ -133,6 +146,8 @@ function validatePublishing(f: ProductForm, defs: CatalogFeatureDef[]): string |
     if (!def) return `Fitur "${row.key || '(belum dipilih)'}" tidak aktif. Ganti atau hapus.`
     const parsed = parseFeatureInput(def, row.raw)
     if (!parsed.ok) return `${def.name}: ${parsed.error}.`
+    const limit = def.value_type === 'integer' ? limitError(row.raw, maxByKey?.[row.key]) : null
+    if (limit) return `${def.name}: ${limit}.`
     if (row.displayLabel.trim().length > 200) return `${def.name}: label maksimal 200 karakter.`
   }
   return null
@@ -161,12 +176,15 @@ export function buildProductPayload(
     payment_timing: pricing.payment_timing,
     is_active: f.isActive,
   }
-  // Listing & fitur hanya dikirim untuk katalog platform (backend menolak org lain dengan 422).
+  // Listing hanya untuk katalog platform (backend menolak org lain dengan 422). Fitur juga
+  // boleh dikirim org lain yang berizin; tanpa izin key `features` tidak dikirim (403).
   if (opts.platform) {
-    const byKey = new Map((opts.featureDefs ?? []).map((d) => [d.key, d]))
     payload.is_public = f.isPublic
     payload.listing_code = f.listingCode.trim()
     payload.listing_order = Number(f.listingOrder.trim() || '0')
+  }
+  if (opts.platform || opts.entitlements) {
+    const byKey = new Map((opts.featureDefs ?? []).map((d) => [d.key, d]))
     payload.features = f.features.map((row, position) => {
       const def = byKey.get(row.key)
       const parsed = def ? parseFeatureInput(def, row.raw) : null

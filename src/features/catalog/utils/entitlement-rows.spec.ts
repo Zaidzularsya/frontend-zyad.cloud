@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { CatalogFeatureDef } from '@/features/catalog/api/catalog.api'
 import {
   applyRowChange,
+  limitError,
   availableStatuses,
   statusOfRow,
   valueForStatus,
@@ -110,5 +111,18 @@ describe('applyRowChange', () => {
     const edit = applyRowChange(full, { ...bool, key: 'k3' }, 'hidden')
     expect(edit.error).toBeUndefined()
     expect(edit.features).toHaveLength(30)
+  })
+})
+
+describe('limitError', () => {
+  it('returns null when no max is known', () => {
+    expect(limitError('999', undefined)).toBeNull()
+  })
+
+  it('accepts 1..max and rejects the rest', () => {
+    expect(limitError('1', 10)).toBeNull()
+    expect(limitError('10', 10)).toBeNull()
+    expect(limitError('11', 10)).toBe('Maksimum 10')
+    expect(limitError('0', 10)).toBe('Minimal 1')
   })
 })
