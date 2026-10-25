@@ -82,7 +82,7 @@ describe('ActivationInvoiceDialog', () => {
     await w.get('input[name="due_value"]').setValue('2')
     await w.get('form').trigger('submit')
     await flushPromises()
-    const payload = createInvoice.mock.calls[0][1]
+    const payload = createInvoice.mock.calls[0]![1]
     expect(payload.invoice_due_days).toBe(2)
     expect(payload).not.toHaveProperty('invoice_due_hours')
   })

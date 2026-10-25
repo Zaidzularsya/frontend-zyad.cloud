@@ -31,6 +31,12 @@ import {
   isQuotaExceededError,
   quotaExceededMessage,
 } from '@/features/entitlements/utils/quota-error'
+import ActivationInvoiceDialog from '@/features/landing/activation/components/ActivationInvoiceDialog.vue'
+import {
+  activationBadge,
+  activationButtonLabel,
+  canCreateActivation,
+} from '@/features/landing/activation/utils/activation-state'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
@@ -256,6 +262,18 @@ function dateValue(value?: string | null) {
 
 const invalidateEntitlements = useInvalidateEntitlements()
 const { atLimit: pagesAtLimit } = useEntitlement('landing.max_pages')
+
+// Fail-closed untuk fitur reseller: useEntitlement fail-open (state 'unlimited' saat belum
+// termuat/gagal), jadi tombol hanya tampil bila ringkasan termuat dan fitur ada serta tidak hidden.
+const { item: activationEntitlement, isLoading: activationLoading } =
+  useEntitlement('landing.page_activation')
+const activationEnabled = computed(
+  () =>
+    !activationLoading.value &&
+    !!activationEntitlement.value &&
+    activationEntitlement.value.state !== 'hidden',
+)
+const activationPage = ref<LandingPage | null>(null)
 
 function getApiMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -1202,6 +1220,21 @@ async function runPageAction(
                 <p v-if="page.published_at" class="mt-2 text-xs text-gray-500">
                   Published {{ formatDate(page.published_at) }}
                 </p>
+                <p
+                  v-if="activationBadge(page)"
+                  data-testid="activation-badge"
+                  class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1"
+                  :class="{
+                    'bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-950 dark:text-amber-300':
+                      activationBadge(page)!.kind === 'preview',
+                    'bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-950 dark:text-emerald-300':
+                      activationBadge(page)!.kind === 'publish',
+                    'bg-red-50 text-red-700 ring-red-100 dark:bg-red-950 dark:text-red-300':
+                      activationBadge(page)!.kind === 'expired',
+                  }"
+                >
+                  {{ activationBadge(page)!.label }}
+                </p>
               </td>
               <td class="px-5 py-4">
                 <p class="font-medium text-gray-800 dark:text-gray-200">
@@ -1232,6 +1265,13 @@ async function runPageAction(
               </td>
               <td class="px-5 py-4">
                 <div class="flex flex-wrap justify-end gap-2">
+                  <button
+                    v-if="activationEnabled && canCreateActivation(page)"
+                    class="rounded-lg border border-brand-200 px-3 py-1.5 font-medium text-brand-700 hover:bg-brand-50 dark:border-gray-700"
+                    @click="activationPage = page"
+                  >
+                    {{ activationButtonLabel(page.activation_state) }}
+                  </button>
                   <button
                     class="inline-flex items-center gap-2 rounded-lg bg-gray-950 px-3 py-1.5 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-gray-800 dark:bg-white dark:text-gray-950"
                     @click="openManagePage(page)"
@@ -1558,5 +1598,15 @@ async function runPageAction(
         </div>
       </form>
     </BaseCard>
+
+    <ActivationInvoiceDialog
+      v-if="activationPage"
+      :open="!!activationPage"
+      :page-id="activationPage.id"
+      :page-title="displayTitle(activationPage)"
+      :renewal="activationPage.activation_state === 'expired'"
+      @close="activationPage = null"
+      @created="loadPages()"
+    />
   </div>
 </template>
