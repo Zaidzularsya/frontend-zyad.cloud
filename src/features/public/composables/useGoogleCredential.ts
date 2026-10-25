@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { onUnmounted, ref, watch, type Ref } from 'vue'
 
 import { loadGoogleScript } from '@/features/auth/composables/useGoogleSignIn'
 import { env } from '@/config/env'
@@ -16,7 +16,9 @@ export function useGoogleCredential(options: {
   const googleError = ref('')
   let disposed = false
 
-  onMounted(async () => {
+  // Tombol baru ada di DOM setelah katalog termuat (kartu loading ditukar), bisa sebelum atau
+  // sesudah skrip GIS siap: render saat elemennya muncul, bukan sekali di onMounted.
+  async function renderButton() {
     if (!googleEnabled) return
     try {
       await loadGoogleScript()
@@ -43,6 +45,11 @@ export function useGoogleCredential(options: {
     } catch {
       googleError.value = 'Tombol Google belum bisa dimuat. Coba refresh halaman.'
     }
+  }
+
+  watch(options.buttonRef, (el) => void (el && renderButton()), {
+    immediate: true,
+    flush: 'post',
   })
 
   onUnmounted(() => {
