@@ -188,6 +188,12 @@ const routes: RouteRecordRaw[] = [
       ...buildContractRoutes('sales', 'contracts', 'contract-detail'),
       ...buildReceivableRoutes('billing'),
       {
+        path: 'billing/settlement',
+        name: 'billing-settlement',
+        component: () => import('@/features/settlement/pages/MyBalancePage.vue'),
+        meta: { title: 'Saldo Pembayaran', permissions: ['settlement.read'] },
+      },
+      {
         path: 'billing/credit-notes',
         name: 'billing-credit-notes',
         component: placeholder,
@@ -444,6 +450,12 @@ const routes: RouteRecordRaw[] = [
         name: 'platform-audit-logs',
         component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
         meta: { title: 'Audit Logs', permissions: ['audit.read'] },
+      },
+      {
+        path: 'settlements',
+        name: 'platform-settlements',
+        component: () => import('@/features/settlement/pages/SettlementOverviewPage.vue'),
+        meta: { title: 'Saldo & Setoran', permissions: ['settlement.manage'] },
       },
       {
         path: 'storage',

@@ -11,6 +11,7 @@ import {
   Gauge,
   Globe,
   HardDrive,
+  Landmark,
   LayoutDashboard,
   Magnet,
   Package,
@@ -84,6 +85,13 @@ export const platformMenuGroups: MenuGroup[] = [
         icon: HardDrive,
         description: 'Atur batas kapasitas storage per tenant.',
         permission: 'platform.organization.manage',
+      },
+      {
+        label: 'Saldo & Setoran',
+        route: 'platform-settlements',
+        icon: Landmark,
+        description: 'Saldo pembayaran online per organisasi dan pencatatan setoran manual.',
+        permission: 'settlement.manage',
       },
       {
         label: 'Settings',
@@ -384,6 +392,12 @@ export const customerMenuGroups: MenuGroup[] = [
         feature: 'receivable.enabled',
         icon: Wallet,
         permission: 'invoice.read',
+      },
+      {
+        label: 'Saldo Pembayaran',
+        route: 'billing-settlement',
+        icon: Landmark,
+        permission: 'settlement.read',
       },
       {
         label: 'Pengaturan Penagihan',

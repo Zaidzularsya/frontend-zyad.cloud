@@ -122,6 +122,8 @@ export type Permission =
   | 'catalog_product.update'
   | 'catalog_product.delete'
   | 'catalog_product.manage_entitlements'
+  | 'settlement.manage'
+  | 'settlement.read'
   | 'platform.organization.manage'
   | 'storage.object.read'
   | 'storage.object.manage'
