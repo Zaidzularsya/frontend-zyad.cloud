@@ -69,6 +69,9 @@ function normalizePage(raw: RawRecord): LandingPage {
     template: pick(raw, 'template', 'Template', undefined),
     theme: pick(raw, 'theme', 'Theme', undefined),
     preferences: pick(raw, 'preferences', 'Preferences', undefined),
+    activation_state: pick(raw, 'activation_state', 'ActivationState', 'none'),
+    active_until: pick(raw, 'active_until', 'ActiveUntil', null),
+    open_activation: pick(raw, 'open_activation', 'OpenActivation', null),
   }
 }
 
