@@ -120,3 +120,12 @@ describe('validateActivationForm', () => {
     ).toBeTruthy()
   })
 })
+
+describe('canCreateActivation eligibility', () => {
+  it('excludes archived and soft-deleted pages', () => {
+    const base = { builder: 'grapesjs', is_template: false } as const
+    expect(canCreateActivation({ ...base, status: 'archived' })).toBe(false)
+    expect(canCreateActivation({ ...base, deleted_at: '2026-10-01T00:00:00Z' })).toBe(false)
+    expect(canCreateActivation({ ...base, status: 'draft' })).toBe(true)
+  })
+})

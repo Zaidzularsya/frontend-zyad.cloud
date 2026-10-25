@@ -152,4 +152,72 @@ describe('ActivationInvoiceDialog', () => {
     })
     await flushPromises()
   })
+
+  it('ignores every close path while pending and keeps the link afterwards', async () => {
+    let resolve!: (v: unknown) => void
+    createInvoice.mockReturnValue(new Promise((r) => (resolve = r)))
+    const w = mountDialog()
+    await fill(w)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    const batal = w.findAll('button').find((b) => b.text() === 'Batal')!
+    expect(batal.attributes('disabled')).toBeDefined()
+    await batal.trigger('click')
+    await w.get('button[aria-label="Tutup"]').trigger('click')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect(w.emitted('close')).toBeUndefined()
+    resolve({
+      activation: { id: 'a', invoice_due_at: '2026-10-25T03:00:00Z' },
+      preview_url: 'PREVIEW',
+      payment_url: 'PAY',
+    })
+    await flushPromises()
+    expect((w.get('input[name="preview_url"]').element as HTMLInputElement).value).toBe('PREVIEW')
+  })
+
+  it('stays open for retry after a failed request and allows close after success', async () => {
+    createInvoice.mockRejectedValueOnce(apiError(500, 'X'))
+    const w = mountDialog()
+    await fill(w)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.emitted('close')).toBeUndefined()
+    expect(w.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+    createInvoice.mockResolvedValueOnce({
+      activation: { id: 'a', invoice_due_at: '2026-10-25T03:00:00Z' },
+      preview_url: 'P',
+      payment_url: 'Q',
+    })
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Selesai')!
+      .trigger('click')
+    expect(w.emitted('close')).toHaveLength(1)
+  })
+
+  it('shows fresh state when reopened and copies the exact link', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    createInvoice.mockResolvedValue({
+      activation: { id: 'a', invoice_due_at: '2026-10-25T03:00:00Z' },
+      preview_url: 'https://x.test/preview/TOKEN',
+      payment_url: 'https://x.test/i/PAY',
+    })
+    const w = mountDialog()
+    await fill(w)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    await w
+      .findAll('button')
+      .filter((b) => b.text() === 'Salin')[0]!
+      .trigger('click')
+    expect(writeText).toHaveBeenCalledWith('https://x.test/preview/TOKEN')
+    await w.setProps({ open: false })
+    await w.setProps({ open: true })
+    expect(w.find('input[name="preview_url"]').exists()).toBe(false)
+    expect((w.get('input[name="buyer_name"]').element as HTMLInputElement).value).toBe('')
+  })
 })

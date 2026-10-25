@@ -274,6 +274,9 @@ const activationEnabled = computed(
     activationEntitlement.value.state !== 'hidden',
 )
 const activationPage = ref<LandingPage | null>(null)
+const activationBadges = computed(
+  () => new Map(pages.value.map((page) => [page.id, activationBadge(page)])),
+)
 
 function getApiMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -1221,19 +1224,19 @@ async function runPageAction(
                   Published {{ formatDate(page.published_at) }}
                 </p>
                 <p
-                  v-if="activationBadge(page)"
+                  v-if="activationBadges.get(page.id)"
                   data-testid="activation-badge"
                   class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1"
                   :class="{
                     'bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-950 dark:text-amber-300':
-                      activationBadge(page)!.kind === 'preview',
+                      activationBadges.get(page.id)!.kind === 'preview',
                     'bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-950 dark:text-emerald-300':
-                      activationBadge(page)!.kind === 'publish',
+                      activationBadges.get(page.id)!.kind === 'publish',
                     'bg-red-50 text-red-700 ring-red-100 dark:bg-red-950 dark:text-red-300':
-                      activationBadge(page)!.kind === 'expired',
+                      activationBadges.get(page.id)!.kind === 'expired',
                   }"
                 >
-                  {{ activationBadge(page)!.label }}
+                  {{ activationBadges.get(page.id)!.label }}
                 </p>
               </td>
               <td class="px-5 py-4">

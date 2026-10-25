@@ -106,8 +106,17 @@ export function activationButtonLabel(state?: ActivationState): string {
 }
 
 // Hanya halaman GrapesJS milik tenant; halaman legacy `sections` dan template tidak bisa dijual.
-export function canCreateActivation(page: Pick<LandingPage, 'builder' | 'is_template'>): boolean {
-  return page.builder === 'grapesjs' && !page.is_template
+export function canCreateActivation(
+  page: Pick<LandingPage, 'builder' | 'is_template'> &
+    Partial<Pick<LandingPage, 'status' | 'deleted_at'>>,
+): boolean {
+  // Backend menolak halaman archived (ACTIVATION_PAGE_NOT_ELIGIBLE); soft-deleted tak layak jual.
+  return (
+    page.builder === 'grapesjs' &&
+    !page.is_template &&
+    page.status !== 'archived' &&
+    !page.deleted_at
+  )
 }
 
 export function buildActivationPayload(form: ActivationFormState): ActivationInvoicePayload {

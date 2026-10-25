@@ -66,6 +66,13 @@ watch(
 
 const pending = computed(() => mutation.isPending.value)
 
+// Selama request berjalan, semua jalur tutup (Batal, X, ESC, backdrop) diabaikan: invoice bisa
+// sudah terbit di server dan link preview hanya ada di response ini.
+function requestClose() {
+  if (pending.value) return
+  emit('close')
+}
+
 async function submit() {
   if (pending.value || result.value) return
   errors.value = validateActivationForm(form)
@@ -100,9 +107,9 @@ const inputClass =
   <BaseModal
     :open="open"
     :title="`${renewal ? 'Perpanjang' : 'Create invoice'} — ${pageTitle}`"
-    @close="emit('close')"
+    @close="requestClose()"
   >
-    <div v-if="result" class="space-y-4 text-sm">
+    <div v-if="result" class="space-y-4 text-sm" role="status">
       <p
         class="rounded-lg bg-emerald-50 p-3 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
       >
@@ -139,15 +146,22 @@ const inputClass =
         </div>
       </label>
       <div class="flex justify-end pt-2">
-        <BaseButton type="button" @click="emit('close')">Selesai</BaseButton>
+        <BaseButton type="button" @click="requestClose()">Selesai</BaseButton>
       </div>
     </div>
 
     <form v-else class="space-y-4 text-sm" novalidate @submit.prevent="submit()">
       <label class="block space-y-1">
         <span class="font-medium">Nama penagih</span>
-        <input v-model="form.buyer_name" name="buyer_name" maxlength="200" :class="inputClass" />
-        <span v-if="errors.buyer_name" class="block text-xs text-red-600">{{
+        <input
+          v-model="form.buyer_name"
+          name="buyer_name"
+          :aria-invalid="!!errors.buyer_name"
+          :aria-describedby="errors.buyer_name ? 'err-buyer_name' : undefined"
+          maxlength="200"
+          :class="inputClass"
+        />
+        <span v-if="errors.buyer_name" id="err-buyer_name" class="block text-xs text-red-600">{{
           errors.buyer_name
         }}</span>
       </label>
@@ -156,17 +170,29 @@ const inputClass =
         <input
           v-model="form.buyer_contact"
           name="buyer_contact"
+          :aria-invalid="!!errors.buyer_contact"
+          :aria-describedby="errors.buyer_contact ? 'err-buyer_contact' : undefined"
           maxlength="50"
           :class="inputClass"
         />
-        <span v-if="errors.buyer_contact" class="block text-xs text-red-600">{{
-          errors.buyer_contact
-        }}</span>
+        <span
+          v-if="errors.buyer_contact"
+          id="err-buyer_contact"
+          class="block text-xs text-red-600"
+          >{{ errors.buyer_contact }}</span
+        >
       </label>
       <label class="block space-y-1">
         <span class="font-medium">Email (opsional)</span>
-        <input v-model="form.buyer_email" name="buyer_email" type="email" :class="inputClass" />
-        <span v-if="errors.buyer_email" class="block text-xs text-red-600">{{
+        <input
+          v-model="form.buyer_email"
+          name="buyer_email"
+          :aria-invalid="!!errors.buyer_email"
+          :aria-describedby="errors.buyer_email ? 'err-buyer_email' : undefined"
+          type="email"
+          :class="inputClass"
+        />
+        <span v-if="errors.buyer_email" id="err-buyer_email" class="block text-xs text-red-600">{{
           errors.buyer_email
         }}</span>
       </label>
@@ -175,11 +201,15 @@ const inputClass =
         <input
           v-model="form.price"
           name="price"
+          :aria-invalid="!!errors.price"
+          :aria-describedby="errors.price ? 'err-price' : undefined"
           inputmode="decimal"
           placeholder="150000"
           :class="inputClass"
         />
-        <span v-if="errors.price" class="block text-xs text-red-600">{{ errors.price }}</span>
+        <span v-if="errors.price" id="err-price" class="block text-xs text-red-600">{{
+          errors.price
+        }}</span>
       </label>
       <div class="space-y-1">
         <span class="font-medium">Masa aktif halaman</span>
@@ -187,19 +217,29 @@ const inputClass =
           <input
             v-model.number="form.duration_value"
             name="duration_value"
+            aria-label="Lama masa aktif"
+            :aria-describedby="errors.duration_value ? 'err-duration_value' : undefined"
             type="number"
             min="1"
             :class="inputClass"
           />
-          <select v-model="form.duration_unit" name="duration_unit" :class="inputClass">
+          <select
+            v-model="form.duration_unit"
+            name="duration_unit"
+            aria-label="Satuan masa aktif"
+            :class="inputClass"
+          >
             <option v-for="(label, unit) in durationUnitLabel" :key="unit" :value="unit">
               {{ label }}
             </option>
           </select>
         </div>
-        <span v-if="errors.duration_value" class="block text-xs text-red-600">{{
-          errors.duration_value
-        }}</span>
+        <span
+          v-if="errors.duration_value"
+          id="err-duration_value"
+          class="block text-xs text-red-600"
+          >{{ errors.duration_value }}</span
+        >
       </div>
       <div class="space-y-1">
         <span class="font-medium">Jatuh tempo invoice</span>
@@ -207,17 +247,24 @@ const inputClass =
           <input
             v-model.number="form.due_value"
             name="due_value"
+            aria-label="Lama jatuh tempo invoice"
+            :aria-describedby="errors.due_value ? 'err-due_value' : undefined"
             type="number"
             min="1"
             :class="inputClass"
           />
-          <select v-model="form.due_unit" name="due_unit" :class="inputClass">
+          <select
+            v-model="form.due_unit"
+            name="due_unit"
+            aria-label="Satuan jatuh tempo invoice"
+            :class="inputClass"
+          >
             <option v-for="(label, unit) in dueUnitLabel" :key="unit" :value="unit">
               {{ label }}
             </option>
           </select>
         </div>
-        <span v-if="errors.due_value" class="block text-xs text-red-600">{{
+        <span v-if="errors.due_value" id="err-due_value" class="block text-xs text-red-600">{{
           errors.due_value
         }}</span>
       </div>
@@ -225,7 +272,9 @@ const inputClass =
       <p v-if="errorMessage" class="text-red-600" role="alert">{{ errorMessage }}</p>
 
       <div class="flex justify-end gap-2 pt-2">
-        <BaseButton type="button" variant="secondary" @click="emit('close')">Batal</BaseButton>
+        <BaseButton type="button" variant="secondary" :disabled="pending" @click="requestClose()">
+          Batal
+        </BaseButton>
         <BaseButton type="submit" :disabled="pending">
           {{ pending ? 'Membuat...' : 'Buat invoice' }}
         </BaseButton>
