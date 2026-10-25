@@ -5,6 +5,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 const api = vi.hoisted(() => ({ getPages: vi.fn() }))
 const summary = vi.hoisted(() => vi.fn())
 const createInvoice = vi.hoisted(() => vi.fn())
+const permissions = vi.hoisted(() => ({ list: ['landing.page.update'] as string[] }))
 
 vi.mock('@/features/landing/shared/api/landing.api', () => ({ landingApi: api }))
 vi.mock('@/features/entitlements/api/entitlements.api', () => ({
@@ -16,6 +17,9 @@ vi.mock('@/features/landing/activation/api/activation.api', () => ({
 vi.mock('vue-router', () => ({
   useRoute: () => ({ name: 'landing-pages', query: {}, fullPath: '/' }),
   useRouter: () => ({ push: vi.fn(), resolve: vi.fn() }),
+}))
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: () => ({ can: (p: string) => permissions.list.includes(p) }),
 }))
 vi.mock('@/features/landing/builder/composables/usePageSelection', async () => {
   const { ref } = await import('vue')
@@ -74,11 +78,19 @@ beforeEach(() => {
   summary.mockReset()
   createInvoice.mockReset()
   summary.mockResolvedValue([entitled])
+  permissions.list = ['landing.page.update']
 })
 
 describe('LandingPagesManagementPage activation', () => {
   it('hides Create invoice without the entitlement', async () => {
     summary.mockResolvedValue([{ ...entitled, state: 'hidden' }])
+    const w = await mountPage([page()])
+    expect(buttonByText(w, 'Create invoice')).toBeUndefined()
+  })
+
+  // Backend menolak tanpa landing.page.update (403) dan pesan 403 dialog menyesatkan.
+  it('hides Create invoice without permission landing.page.update', async () => {
+    permissions.list = []
     const w = await mountPage([page()])
     expect(buttonByText(w, 'Create invoice')).toBeUndefined()
   })

@@ -39,6 +39,7 @@ import {
 } from '@/features/landing/activation/utils/activation-state'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
+import { useAuthStore } from '@/stores/auth.store'
 import type {
   LandingPage,
   PageStatus,
@@ -267,8 +268,11 @@ const { atLimit: pagesAtLimit } = useEntitlement('landing.max_pages')
 // termuat/gagal), jadi tombol hanya tampil bila ringkasan termuat dan fitur ada serta tidak hidden.
 const { item: activationEntitlement, isLoading: activationLoading } =
   useEntitlement('landing.page_activation')
+// Rute backend juga mewajibkan landing.page.update (403 tanpa itu).
+const auth = useAuthStore()
 const activationEnabled = computed(
   () =>
+    auth.can('landing.page.update') &&
     !activationLoading.value &&
     !!activationEntitlement.value &&
     activationEntitlement.value.state !== 'hidden',

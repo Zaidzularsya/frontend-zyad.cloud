@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createPinia, setActivePinia } from 'pinia'
 
 const api = vi.hoisted(() => ({
   getPages: vi.fn(),
@@ -78,6 +79,9 @@ async function mountPage() {
   await flushPromises()
   return { w, spy }
 }
+
+// Halaman memakai auth store (gerbang tombol aktivasi).
+beforeEach(() => setActivePinia(createPinia()))
 
 describe('LandingPagesManagementPage quota', () => {
   beforeEach(() => {

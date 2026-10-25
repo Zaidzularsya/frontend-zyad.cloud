@@ -51,6 +51,7 @@ export type Permission =
   | 'landing.submission.read'
   | 'landing.submission.update'
   | 'landing.page_template.manage'
+  | 'landing.page.update'
   | 'lead.read'
   | 'lead.create'
   | 'lead.update'
