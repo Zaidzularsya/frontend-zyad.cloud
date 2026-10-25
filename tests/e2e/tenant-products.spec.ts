@@ -160,6 +160,9 @@ test.describe('a. product drawer Advanced (tenant owner)', () => {
     await page.getByRole('button', { name: 'Tambah produk' }).first().click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByTestId('advanced-toggle')).toHaveCount(0)
+    // Tenant boleh mempublikasikan produknya ke katalog publik tenant.
+    await expect(page.locator('input[name="is_public"]')).toBeVisible()
+    await expect(page.locator('input[name="listing_code"]')).toBeVisible()
   })
 })
 
@@ -298,7 +301,8 @@ test.describe('c. reseller landing page activation', () => {
   async function stubPages(page: Page, entitled: boolean) {
     await stubSession(page, {
       roles: ['member'],
-      permissions: [],
+      // Rute activation-invoice mewajibkan landing.page.update; tombol ikut menggerbangnya.
+      permissions: ['landing.page.update'],
       summary: [
         summaryItem('landing.enabled', 'landing'),
         ...(entitled ? [summaryItem('landing.page_activation', 'landing')] : []),
