@@ -43,10 +43,14 @@ const storedProduct = {
   features: [{ feature_key: 'lead', value: 5, position: 0 }],
 }
 
-function mountDrawer(mode: 'platform' | 'workspace', product: unknown = null) {
+function mountDrawer(
+  mode: 'platform' | 'workspace',
+  product: unknown = null,
+  categories: { id: string; name: string }[] = [],
+) {
   setActivePinia(createPinia())
   const w = mount(ProductFormDrawer, {
-    props: { open: false, product: product as never, categories: [], mode },
+    props: { open: false, product: product as never, categories: categories as never, mode },
     global: {
       plugins: [
         [
@@ -234,6 +238,129 @@ describe('ProductFormDrawer entitlement section', () => {
     await fillAndSubmit()
     expect(createProduct).toHaveBeenCalledTimes(1)
     expect(createProduct.mock.calls[0]!.at(-1)).not.toHaveProperty('features')
+    w.unmount()
+  })
+})
+
+describe('ProductFormDrawer publishing (tenant)', () => {
+  const categories = [{ id: 'cat-own', name: 'Internet', position: 0 }]
+
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    features.mockReset().mockResolvedValue(tenantFeatures)
+    createProduct.mockReset().mockResolvedValue({ id: 'p1' })
+    can.mockReset().mockReturnValue(false)
+  })
+
+  // Tiap input memancarkan form utuh dari props; tunggu render agar input berikutnya tidak
+  // menimpa yang sebelumnya (seperti interaksi nyata yang berurutan).
+  async function setInput(name: string, value: string) {
+    const el = body().querySelector(`[name="${name}"]`) as HTMLInputElement | HTMLSelectElement
+    el.value = value
+    el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input'))
+    await flushPromises()
+  }
+
+  async function togglePublic(checked: boolean) {
+    const pub = body().querySelector('input[name="is_public"]') as HTMLInputElement
+    pub.checked = checked
+    pub.dispatchEvent(new Event('change'))
+    await flushPromises()
+  }
+
+  it('workspace mode shows publishing fields without the generic feature list', async () => {
+    const w = mountDrawer('workspace', null, categories)
+    await flushPromises()
+    expect(body().querySelector('input[name="is_public"]')).not.toBeNull()
+    expect(body().querySelector('input[name="listing_code"]')).not.toBeNull()
+    expect(body().querySelector('input[name="listing_order"]')).not.toBeNull()
+    expect(body().querySelector('[data-testid="feature-row"]')).toBeNull()
+    expect(body().textContent).not.toContain('Tambah fitur')
+    w.unmount()
+  })
+
+  it('sends the listing block when the tenant publishes, without features', async () => {
+    const w = mountDrawer('workspace', null, categories)
+    await flushPromises()
+    await setInput('category', 'cat-own')
+    await togglePublic(true)
+    await setInput('listing_code', 'wifi-20')
+    await setInput('listing_order', '2')
+    await fillAndSubmit('WiFi 20 Mbps')
+    expect(createProduct).toHaveBeenCalledTimes(1)
+    const payload = createProduct.mock.calls[0]!.at(-1)
+    expect(payload).toMatchObject({
+      category_id: 'cat-own',
+      is_public: true,
+      listing_code: 'wifi-20',
+      listing_order: 2,
+    })
+    expect(payload).not.toHaveProperty('features')
+    w.unmount()
+  })
+
+  it('blocks publishing without a category', async () => {
+    const w = mountDrawer('workspace', null, categories)
+    await flushPromises()
+    await togglePublic(true)
+    await setInput('listing_code', 'wifi-20')
+    await fillAndSubmit()
+    expect(createProduct).not.toHaveBeenCalled()
+    expect(body().querySelector('[role="alert"]')!.textContent).toContain('Kategori wajib')
+    w.unmount()
+  })
+
+  it('create without publishing sends no listing keys', async () => {
+    const w = mountDrawer('workspace', null, categories)
+    await flushPromises()
+    await fillAndSubmit()
+    const payload = createProduct.mock.calls[0]!.at(-1)
+    expect(payload).not.toHaveProperty('is_public')
+    expect(payload).not.toHaveProperty('listing_code')
+    expect(payload).not.toHaveProperty('listing_order')
+    w.unmount()
+  })
+
+  it('editing a public tenant product can unpublish it (listing block sent)', async () => {
+    const w = mountDrawer(
+      'workspace',
+      {
+        ...storedProduct,
+        features: [],
+        category_id: 'cat-own',
+        is_public: true,
+        listing_code: 'wifi-20',
+        listing_order: 1,
+      },
+      categories,
+    )
+    await flushPromises()
+    const pub = body().querySelector('input[name="is_public"]') as HTMLInputElement
+    expect(pub.checked).toBe(true)
+    pub.checked = false
+    pub.dispatchEvent(new Event('change'))
+    await flushPromises()
+    await fillAndSubmit()
+    expect(createProduct.mock.calls[0]!.at(-1)).toMatchObject({
+      is_public: false,
+      listing_code: 'wifi-20',
+      listing_order: 1,
+    })
+    w.unmount()
+  })
+
+  it('platform mode is unchanged: publishing + entitlement table, listing always sent', async () => {
+    const w = mountDrawer('platform', null, categories)
+    await flushPromises()
+    expect(body().querySelector('input[name="is_public"]')).not.toBeNull()
+    expect(body().querySelector('[data-testid="entitlement-row"]')).not.toBeNull()
+    await fillAndSubmit()
+    expect(createProduct.mock.calls[0]!.at(-1)).toMatchObject({
+      is_public: false,
+      listing_code: '',
+      listing_order: 0,
+      features: [],
+    })
     w.unmount()
   })
 })

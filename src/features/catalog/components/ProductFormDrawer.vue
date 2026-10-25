@@ -26,7 +26,8 @@ const props = defineProps<{
   open: boolean
   product: CatalogProduct | null
   categories: CatalogCategory[]
-  // 'platform' = katalog org platform: bagian Publikasi & Fitur ditampilkan.
+  // 'platform' = katalog org platform: Publikasi + tabel fitur penuh. 'workspace' = katalog
+  // tenant: Publikasi (katalog publik tenant) + fitur hanya lewat Advanced berizin.
   mode?: 'platform' | 'workspace'
 }>()
 
@@ -43,6 +44,7 @@ const form = ref<ProductForm>(emptyProductForm())
 const errorMessage = ref('')
 const saveMutation = useSaveProductMutation()
 const isPlatform = computed(() => props.mode === 'platform')
+const canPublish = computed(() => isPlatform.value || props.mode === 'workspace')
 const auth = useAuthStore()
 // Org non-platform hanya boleh mengatur entitlement bila punya izin khusus (backend 403 tanpa izin).
 const canTenantEntitlements = computed(
@@ -87,6 +89,7 @@ watch(featureDefs, (defs) => {
 async function submit() {
   const platformOpts = {
     platform: isPlatform.value,
+    listing: props.mode === 'workspace',
     // Tanpa defs yang berhasil dimuat, features tidak dikirim (data stale bisa menimpa/403).
     entitlements: canTenantEntitlements.value && featuresQuery.isSuccess.value,
     featureDefs: featureDefs.value,
@@ -229,7 +232,7 @@ const inputClass =
       </fieldset>
 
       <ProductPublishingSection
-        v-if="isPlatform"
+        v-if="canPublish"
         v-model="form"
         :defs="featureDefs"
         :listing-error="listingError"

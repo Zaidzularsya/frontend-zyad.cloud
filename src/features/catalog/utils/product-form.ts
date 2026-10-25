@@ -34,7 +34,7 @@ export interface ProductForm {
   frequency: BillingFrequency
   paymentTiming: PaymentTiming
   isActive: boolean
-  // Publikasi & fitur (katalog platform saja).
+  // Publikasi (semua org; tenant di katalog publiknya sendiri) & fitur.
   isPublic: boolean
   listingCode: string
   listingOrder: string
@@ -103,6 +103,9 @@ const PERCENT = /^\d{1,3}(\.\d{1,2})?$/
 
 export interface PlatformOptions {
   platform?: boolean
+  // Org non-platform: blok publikasi (is_public, listing_code, listing_order) boleh dikirim;
+  // kategori wajib milik org itu sendiri (backend 422 CATEGORY_NOT_FOUND).
+  listing?: boolean
   // Org non-platform berizin catalog_product.manage_entitlements: hanya fitur yang dikirim.
   entitlements?: boolean
   featureDefs?: CatalogFeatureDef[]
@@ -114,12 +117,16 @@ export function validateProductForm(f: ProductForm, opts: PlatformOptions = {}):
   if (normalizeAmount(f.basePrice) === null) return 'Harga harus berupa angka.'
   const tax = f.taxPercent.trim().replace(',', '.') || '0'
   if (!PERCENT.test(tax) || Number(tax) > 100) return 'Pajak harus antara 0 dan 100.'
-  if (opts.platform) return validatePublishing(f, opts.featureDefs ?? [])
+  if (opts.platform) return validateListing(f) ?? validateFeatures(f, opts.featureDefs ?? [])
+  if (opts.listing) {
+    const invalid = validateListing(f)
+    if (invalid) return invalid
+  }
   if (opts.entitlements) return validateFeatures(f, opts.featureDefs ?? [], opts.maxByKey)
   return null
 }
 
-function validatePublishing(f: ProductForm, defs: CatalogFeatureDef[]): string | null {
+function validateListing(f: ProductForm): string | null {
   const code = f.listingCode.trim()
   if (f.isPublic && !code) return 'Kode listing wajib bila tampil di pricing page.'
   if (f.isPublic && !f.categoryId) return 'Kategori wajib bila tampil di pricing page.'
@@ -127,7 +134,7 @@ function validatePublishing(f: ProductForm, defs: CatalogFeatureDef[]): string |
     return 'Kode listing hanya huruf kecil, angka, dan tanda -, maksimal 50 karakter.'
   }
   if (!/^\d{1,6}$/.test(f.listingOrder.trim() || '0')) return 'Urutan harus bilangan bulat.'
-  return validateFeatures(f, defs)
+  return null
 }
 
 export function validateFeatures(
@@ -176,9 +183,11 @@ export function buildProductPayload(
     payment_timing: pricing.payment_timing,
     is_active: f.isActive,
   }
-  // Listing hanya untuk katalog platform (backend menolak org lain dengan 422). Fitur juga
-  // boleh dikirim org lain yang berizin; tanpa izin key `features` tidak dikirim (403).
-  if (opts.platform) {
+  // Platform selalu mengirim blok listing. Org lain mengirimnya saat edit (agar bisa berhenti
+  // tampil) atau saat produk baru diisi publikasinya. Fitur juga boleh dikirim org lain yang
+  // berizin; tanpa izin key `features` tidak dikirim (403).
+  const listingFilled = f.isPublic || f.listingCode.trim() !== ''
+  if (opts.platform || (opts.listing && (opts.editing || listingFilled))) {
     payload.is_public = f.isPublic
     payload.listing_code = f.listingCode.trim()
     payload.listing_order = Number(f.listingOrder.trim() || '0')
