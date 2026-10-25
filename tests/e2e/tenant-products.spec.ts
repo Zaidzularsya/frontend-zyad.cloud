@@ -316,7 +316,7 @@ test.describe('c. reseller landing page activation', () => {
       payload = route.request().postDataJSON()
       return json(route, {
         activation: { id: 'act-1', invoice_due_at: '2026-10-26T03:00:00Z' },
-        preview_url: 'https://tenant.example/api/v1/public/landing/preview/one-time-token',
+        preview_url: 'https://tenant.example/preview/one-time-token',
         payment_url: 'https://tenant.example/i/pay-token',
       })
     })
@@ -332,7 +332,7 @@ test.describe('c. reseller landing page activation', () => {
 
     await expect(dialog.getByText('Invoice berhasil dibuat.')).toBeVisible()
     await expect(dialog.locator('input[name="preview_url"]')).toHaveValue(
-      'https://tenant.example/api/v1/public/landing/preview/one-time-token',
+      'https://tenant.example/preview/one-time-token',
     )
     await expect(dialog.locator('input[name="payment_url"]')).toHaveValue(
       'https://tenant.example/i/pay-token',

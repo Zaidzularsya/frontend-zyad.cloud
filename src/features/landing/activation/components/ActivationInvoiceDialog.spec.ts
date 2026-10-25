@@ -53,7 +53,7 @@ describe('ActivationInvoiceDialog', () => {
   it('sends the exact payload (price string, hours)', async () => {
     createInvoice.mockResolvedValue({
       activation: { id: 'a1', invoice_due_at: '2026-10-25T03:00:00Z' },
-      preview_url: 'https://x.test/api/v1/public/landing/preview/TOKEN',
+      preview_url: 'https://x.test/preview/TOKEN',
       payment_url: 'https://x.test/i/PAY',
     })
     const w = mountDialog()
@@ -90,7 +90,7 @@ describe('ActivationInvoiceDialog', () => {
   it('shows both links once with the one-time note and emits created', async () => {
     createInvoice.mockResolvedValue({
       activation: { id: 'a1', invoice_due_at: '2026-10-25T03:00:00Z' },
-      preview_url: 'https://x.test/api/v1/public/landing/preview/TOKEN',
+      preview_url: 'https://x.test/preview/TOKEN',
       payment_url: 'https://x.test/i/PAY',
     })
     const w = mountDialog()
@@ -98,7 +98,7 @@ describe('ActivationInvoiceDialog', () => {
     await w.get('form').trigger('submit')
     await flushPromises()
     expect((w.get('input[name="preview_url"]').element as HTMLInputElement).value).toBe(
-      'https://x.test/api/v1/public/landing/preview/TOKEN',
+      'https://x.test/preview/TOKEN',
     )
     expect((w.get('input[name="payment_url"]').element as HTMLInputElement).value).toBe(
       'https://x.test/i/PAY',

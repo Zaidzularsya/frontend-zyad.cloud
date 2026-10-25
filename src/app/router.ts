@@ -90,6 +90,14 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Checkout', public: true },
   },
   {
+    // Pratinjau halaman berbayar untuk pembeli (preview_url aktivasi) di domain tenant.
+    // Dua segmen path, jadi tidak bertabrakan dengan `/:slug` landing page.
+    path: '/preview/:token',
+    name: 'landing-activation-preview',
+    component: () => import('@/features/landing/renderer/pages/ActivationPreviewPage.vue'),
+    meta: { title: 'Pratinjau', public: true },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MarketingLayout.vue'),
     children: [
