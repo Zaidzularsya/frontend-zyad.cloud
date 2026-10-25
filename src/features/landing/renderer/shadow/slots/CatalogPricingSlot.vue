@@ -68,6 +68,12 @@ async function loadCatalog() {
     categories.value = picked.length ? picked : all
     activeCategoryId.value = categories.value[0]?.id ?? ''
   } catch (err) {
+    // Host tanpa katalog tenant (mis. pratinjau admin/galeri template di host platform yang
+    // memberi orgType 'customer') menjawab 404: katalog kosong, blok disembunyikan.
+    if (isTenant.value && (err as { response?: { status?: number } })?.response?.status === 404) {
+      categories.value = []
+      return
+    }
     console.error('CatalogPricingSlot: failed to load public catalog listings', err)
     failed.value = true
   } finally {

@@ -292,6 +292,30 @@ describe('CatalogPricingSlot', () => {
     expect(ctx.scrollToId).toHaveBeenCalledWith('konsultasi')
   })
 
+  // Pratinjau admin / galeri template memberi orgType 'customer' di host PLATFORM: backend
+  // menjawab 404 TENANT_CATALOG_NOT_FOUND. Itu katalog kosong, bukan galat: blok disembunyikan.
+  it('tenant catalog 404 is treated as an empty listing (block hidden, no error state)', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    listTenantCatalog.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 404, data: { code: 'TENANT_CATALOG_NOT_FOUND' } },
+    })
+    const { w } = mountSlot({}, ctxFor('customer'))
+    await flushPromises()
+    expect(listTenantCatalog).toHaveBeenCalledTimes(1)
+    expect(w.text()).not.toContain('Harga belum dapat dimuat.')
+    expect(w.html()).not.toContain('zy-slot-catalog-pricing')
+    expect(consoleError).not.toHaveBeenCalled()
+  })
+
+  it('tenant catalog non-404 failure still shows the error state', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    listTenantCatalog.mockRejectedValue({ isAxiosError: true, response: { status: 500 } })
+    const { w } = mountSlot({}, ctxFor('customer'))
+    await flushPromises()
+    expect(w.text()).toContain('Harga belum dapat dimuat.')
+  })
+
   it('loads once when orgType becomes platform after mount', async () => {
     listListings.mockResolvedValue([category('c1')])
     const orgType = ref('')
