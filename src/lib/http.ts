@@ -19,11 +19,15 @@ export const http = axios.create({
   },
 })
 
+function isPublicUrl(url: string | undefined): boolean {
+  const value = url ?? ''
+  return value.startsWith('/public/') || value.includes('/api/v1/public/')
+}
+
 http.interceptors.request.use((config) => {
   const token = tokenStorage.get()
   const tenantId = tenantStorage.get()
-  const url = config.url ?? ''
-  const isPublicEndpoint = url.startsWith('/public/') || url.includes('/api/v1/public/')
+  const isPublicEndpoint = isPublicUrl(config.url)
 
   if (isPublicEndpoint) {
     config.baseURL = '/api/v1'
@@ -80,8 +84,17 @@ http.interceptors.response.use(
 
     const request = error.config as RetryableRequest | undefined
     const isAuthEndpoint = request?.url?.includes('/auth/')
+    // 401 dari endpoint publik (mis. kredensial Google checkout tidak valid) bukan sesi
+    // kedaluwarsa: jangan refresh/redirect ke login, biarkan halaman menampilkan galatnya.
+    const isPublicEndpoint = isPublicUrl(request?.url)
 
-    if (error.response?.status !== 401 || !request || request._retry || isAuthEndpoint) {
+    if (
+      error.response?.status !== 401 ||
+      !request ||
+      request._retry ||
+      isAuthEndpoint ||
+      isPublicEndpoint
+    ) {
       return Promise.reject(error)
     }
 
