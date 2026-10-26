@@ -39,4 +39,16 @@ describe('customerMenuGroups', () => {
   it('Tagihan tidak bergantung pada fitur apa pun (selalu tampil untuk workspace customer)', () => {
     expect(visibleMenu([])).toContain('Tagihan')
   })
+
+  it('Invoice Halaman hanya untuk workspace yang boleh menjual halaman (landing.page_activation)', () => {
+    expect(visibleMenu(['landing.enabled', 'landing.page_activation'])).toContain('Invoice Halaman')
+    expect(visibleMenu(['landing.enabled'])).not.toContain('Invoice Halaman')
+    expect(visibleMenu([])).not.toContain('Invoice Halaman')
+  })
+
+  it('menu Landing Page lain tetap mengikuti landing.enabled', () => {
+    const menu = visibleMenu(['landing.enabled'])
+    expect(menu).toContain('Pages')
+    expect(menu).not.toContain('Invoice Halaman')
+  })
 })

@@ -261,11 +261,17 @@ export const platformMenuGroups: MenuGroup[] = [
 ]
 
 // Landing sub-pages follow landing.enabled, except Domains which is gated by domain.enabled
-// on the backend (organization domain service) and must stay reachable on its own.
+// on the backend (organization domain service) and must stay reachable on its own, and
+// Invoice Halaman which only workspaces allowed to sell pages (landing.page_activation) get.
+const LANDING_CHILD_FEATURE: Record<string, string> = {
+  'landing-pages-domains': 'domain.enabled',
+  'landing-pages-invoices': 'landing.page_activation',
+}
+
 function tagCustomerLandingChildren(children: MenuChildItem[]): MenuChildItem[] {
   return children.map((child) => ({
     ...child,
-    feature: child.route === 'landing-pages-domains' ? 'domain.enabled' : 'landing.enabled',
+    feature: LANDING_CHILD_FEATURE[child.route ?? ''] ?? 'landing.enabled',
   }))
 }
 

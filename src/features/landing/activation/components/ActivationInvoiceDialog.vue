@@ -3,10 +3,9 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import { useToast } from '@/components/ui/toast'
 
 import { useCreateActivationInvoiceMutation } from '../api/activation.queries'
-import { buildShareMessage, buildWhatsAppUrl } from '../utils/activation-share'
+import ActivationLinksPanel from './ActivationLinksPanel.vue'
 import {
   activationErrorMessage,
   buildActivationPayload,
@@ -31,7 +30,6 @@ const emit = defineEmits<{
   (e: 'created', result: ActivationResult): void
 }>()
 
-const toast = useToast()
 const mutation = useCreateActivationInvoiceMutation()
 
 function initialForm(): ActivationFormState {
@@ -91,32 +89,6 @@ async function submit() {
   }
 }
 
-async function copy(value: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(value)
-    toast.success(`${label} disalin.`)
-  } catch {
-    toast.error('Gagal menyalin. Salin manual dari kolom di atas.')
-  }
-}
-
-// Membuka WhatsApp dengan nomor pelanggan dan pesan terisi; kirimnya tetap lewat tombol WhatsApp.
-function shareWhatsApp(kind: 'all' | 'preview' | 'payment') {
-  if (!result.value) return
-  const message = buildShareMessage({
-    buyerName: form.buyer_name,
-    pageTitle: props.pageTitle,
-    previewUrl: kind === 'payment' ? undefined : result.value.preview_url,
-    paymentUrl: kind === 'preview' ? undefined : result.value.payment_url,
-  })
-  const url = buildWhatsAppUrl(form.buyer_contact, message)
-  if (!url) {
-    toast.error('Nomor WhatsApp pelanggan tidak valid.')
-    return
-  }
-  window.open(url, '_blank', 'noopener,noreferrer')
-}
-
 const inputClass =
   'w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950'
 </script>
@@ -133,56 +105,14 @@ const inputClass =
       >
         Invoice berhasil dibuat.
       </p>
-      <label class="block space-y-1">
-        <span class="font-medium">Link preview untuk pelanggan</span>
-        <div class="flex gap-2">
-          <input name="preview_url" readonly :value="result.preview_url" :class="inputClass" />
-          <BaseButton
-            type="button"
-            variant="outline"
-            @click="copy(result.preview_url, 'Link preview')"
-          >
-            Salin
-          </BaseButton>
-          <BaseButton
-            type="button"
-            variant="outline"
-            data-testid="share-whatsapp-preview"
-            @click="shareWhatsApp('preview')"
-          >
-            WhatsApp
-          </BaseButton>
-        </div>
-        <span class="block text-xs text-amber-700 dark:text-amber-300">
-          Link preview hanya ditampilkan sekali. Salin sekarang; setelah dialog ditutup link ini
-          tidak bisa dilihat lagi.
-        </span>
-      </label>
-      <label class="block space-y-1">
-        <span class="font-medium">Link pembayaran</span>
-        <div class="flex gap-2">
-          <input name="payment_url" readonly :value="result.payment_url" :class="inputClass" />
-          <BaseButton
-            type="button"
-            variant="outline"
-            @click="copy(result.payment_url, 'Link pembayaran')"
-          >
-            Salin
-          </BaseButton>
-          <BaseButton
-            type="button"
-            variant="outline"
-            data-testid="share-whatsapp-payment"
-            @click="shareWhatsApp('payment')"
-          >
-            WhatsApp
-          </BaseButton>
-        </div>
-      </label>
-      <div class="flex flex-wrap justify-end gap-2 pt-2">
-        <BaseButton type="button" data-testid="share-whatsapp-all" @click="shareWhatsApp('all')">
-          Kirim ke WhatsApp pelanggan
-        </BaseButton>
+      <ActivationLinksPanel
+        :buyer-name="form.buyer_name"
+        :buyer-contact="form.buyer_contact"
+        :page-title="pageTitle"
+        :preview-url="result.preview_url"
+        :payment-url="result.payment_url"
+      />
+      <div class="flex justify-end pt-2">
         <BaseButton type="button" variant="secondary" @click="requestClose()">Selesai</BaseButton>
       </div>
     </div>
