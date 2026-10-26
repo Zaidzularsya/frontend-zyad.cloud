@@ -12,7 +12,7 @@ import {
 
 const form = (over: Partial<ActivationFormState> = {}): ActivationFormState => ({
   buyer_name: 'Budi',
-  buyer_contact: '0812',
+  buyer_contact: '081234567890',
   buyer_email: '',
   price: '150000',
   duration_value: 1,
@@ -75,7 +75,7 @@ describe('buildActivationPayload', () => {
   it('maps hours to invoice_due_hours and omits email when empty', () => {
     expect(buildActivationPayload(form())).toEqual({
       buyer_name: 'Budi',
-      buyer_contact: '0812',
+      buyer_contact: '081234567890',
       price: '150000',
       duration_value: 1,
       duration_unit: 'month',
@@ -89,7 +89,7 @@ describe('buildActivationPayload', () => {
       ),
     ).toEqual({
       buyer_name: 'Budi',
-      buyer_contact: '0812',
+      buyer_contact: '081234567890',
       buyer_email: 'a@b.co',
       price: '150000',
       duration_value: 1,

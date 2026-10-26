@@ -3,6 +3,7 @@ import type {
   LandingPage,
   LandingPageOpenActivation,
 } from '@/features/landing/shared/types/landing.types'
+import { normalizeWhatsAppNumber } from './activation-share'
 
 export type DurationUnit = 'day' | 'week' | 'month'
 export type DueUnit = 'hour' | 'day'
@@ -141,11 +142,14 @@ function isPositiveInt(n: unknown): n is number {
 export function validateActivationForm(form: ActivationFormState): ActivationFormErrors {
   const errors: ActivationFormErrors = {}
   const name = form.buyer_name.trim()
-  if (!name) errors.buyer_name = 'Nama penagih wajib diisi.'
+  if (!name) errors.buyer_name = 'Nama pelanggan wajib diisi.'
   else if (name.length > 200) errors.buyer_name = 'Maksimal 200 karakter.'
   const contact = form.buyer_contact.trim()
-  if (!contact) errors.buyer_contact = 'Kontak wajib diisi.'
+  if (!contact) errors.buyer_contact = 'Nomor WhatsApp wajib diisi.'
   else if (contact.length > 50) errors.buyer_contact = 'Maksimal 50 karakter.'
+  else if (!normalizeWhatsAppNumber(contact)) {
+    errors.buyer_contact = 'Nomor WhatsApp tidak valid. Contoh: 081234567890.'
+  }
   const email = form.buyer_email.trim()
   if (email && !EMAIL_PATTERN.test(email)) errors.buyer_email = 'Format email belum valid.'
   const price = form.price.trim()

@@ -23,7 +23,7 @@ function mountDialog(extra: Record<string, unknown> = {}) {
 
 async function fill(w: ReturnType<typeof mountDialog>) {
   await w.get('input[name="buyer_name"]').setValue('Budi')
-  await w.get('input[name="buyer_contact"]').setValue('0812')
+  await w.get('input[name="buyer_contact"]').setValue('081234567890')
   await w.get('input[name="price"]').setValue('150000')
 }
 
@@ -47,7 +47,7 @@ describe('ActivationInvoiceDialog', () => {
     const w = mountDialog()
     await w.get('form').trigger('submit')
     expect(createInvoice).not.toHaveBeenCalled()
-    expect(w.text()).toContain('Nama penagih wajib diisi')
+    expect(w.text()).toContain('Nama pelanggan wajib diisi')
   })
 
   it('sends the exact payload (price string, hours)', async () => {
@@ -62,7 +62,7 @@ describe('ActivationInvoiceDialog', () => {
     await flushPromises()
     expect(createInvoice).toHaveBeenCalledWith('p1', {
       buyer_name: 'Budi',
-      buyer_contact: '0812',
+      buyer_contact: '081234567890',
       price: '150000',
       duration_value: 1,
       duration_unit: 'month',
@@ -219,5 +219,76 @@ describe('ActivationInvoiceDialog', () => {
     await w.setProps({ open: true })
     expect(w.find('input[name="preview_url"]').exists()).toBe(false)
     expect((w.get('input[name="buyer_name"]').element as HTMLInputElement).value).toBe('')
+  })
+
+  describe('berbagi lewat WhatsApp', () => {
+    const created = {
+      activation: { id: 'a1', invoice_due_at: '2026-10-25T03:00:00Z' },
+      preview_url: 'https://reseller.zyad.cloud/preview/TOKEN',
+      payment_url: 'https://zyad.cloud/i/PAY',
+    }
+
+    async function createdDialog() {
+      createInvoice.mockResolvedValue(created)
+      const w = mountDialog()
+      await fill(w)
+      await w.get('form').trigger('submit')
+      await flushPromises()
+      return w
+    }
+
+    it('menampilkan label yang relevan untuk pelanggan, bukan "penagih"', () => {
+      const w = mountDialog()
+      expect(w.text()).toContain('Nama pelanggan')
+      expect(w.text()).toContain('Nomor WhatsApp pelanggan')
+      expect(w.text()).not.toMatch(/penagih/i)
+    })
+
+    it('menolak nomor yang tidak bisa dipakai untuk WhatsApp', async () => {
+      const w = mountDialog()
+      await w.get('input[name="buyer_name"]').setValue('Budi')
+      await w.get('input[name="buyer_contact"]').setValue('0812')
+      await w.get('input[name="price"]').setValue('150000')
+      await w.get('form').trigger('submit')
+      expect(createInvoice).not.toHaveBeenCalled()
+      expect(w.text()).toContain('Nomor WhatsApp tidak valid')
+    })
+
+    it('tombol kirim menargetkan nomor pelanggan dengan pesan berisi kedua link', async () => {
+      const open = vi.spyOn(window, 'open').mockReturnValue(null)
+      const w = await createdDialog()
+      await w.get('[data-testid="share-whatsapp-all"]').trigger('click')
+
+      expect(open).toHaveBeenCalledTimes(1)
+      const [url, target, features] = open.mock.calls[0] as [string, string, string]
+      expect(url.startsWith('https://wa.me/6281234567890?text=')).toBe(true)
+      const text = decodeURIComponent(url.split('?text=')[1] ?? '')
+      expect(text).toContain('https://reseller.zyad.cloud/preview/TOKEN')
+      expect(text).toContain('https://zyad.cloud/i/PAY')
+      expect(text).toContain('Budi')
+      expect(target).toBe('_blank')
+      expect(features).toContain('noopener')
+      open.mockRestore()
+    })
+
+    it('tombol per-link hanya membawa link masing-masing', async () => {
+      const open = vi.spyOn(window, 'open').mockReturnValue(null)
+      const w = await createdDialog()
+
+      await w.get('[data-testid="share-whatsapp-preview"]').trigger('click')
+      const previewText = decodeURIComponent(
+        (open.mock.calls[0]?.[0] as string).split('?text=')[1] ?? '',
+      )
+      expect(previewText).toContain('/preview/TOKEN')
+      expect(previewText).not.toContain('/i/PAY')
+
+      await w.get('[data-testid="share-whatsapp-payment"]').trigger('click')
+      const paymentText = decodeURIComponent(
+        (open.mock.calls[1]?.[0] as string).split('?text=')[1] ?? '',
+      )
+      expect(paymentText).toContain('/i/PAY')
+      expect(paymentText).not.toContain('/preview/TOKEN')
+      open.mockRestore()
+    })
   })
 })
