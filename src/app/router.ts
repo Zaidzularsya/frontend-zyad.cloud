@@ -281,6 +281,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Langganan' },
       },
       {
+        path: 'billing/bills',
+        name: 'billing-bills',
+        component: () => import('@/features/customer/pages/BillsPage.vue'),
+        meta: { title: 'Tagihan', permissions: ['organization.billing.read'] },
+      },
+      {
         path: 'billing/usage',
         name: 'billing-usage',
         component: () => import('@/features/entitlements/pages/UsagePage.vue'),

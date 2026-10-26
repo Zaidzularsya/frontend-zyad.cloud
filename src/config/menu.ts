@@ -41,8 +41,9 @@ export interface MenuItem {
   description?: string
   children?: MenuChildItem[]
   permission?: Permission | Permission[]
-  // Entitlement feature key; the item is hidden when that feature is hidden for the tenant.
-  feature?: string
+  // Entitlement feature key (or keys, any one is enough); the item is hidden when the feature
+  // is hidden for the tenant.
+  feature?: string | string[]
 }
 
 export interface MenuChildItem {
@@ -53,7 +54,7 @@ export interface MenuChildItem {
   description?: string
   children?: MenuChildItem[]
   permission?: Permission | Permission[]
-  feature?: string
+  feature?: string | string[]
 }
 
 export interface MenuGroup {
@@ -345,6 +346,8 @@ export const customerMenuGroups: MenuGroup[] = [
       {
         label: 'Produk',
         route: 'crm-products',
+        // Backend: /app/catalog mewajibkan salah satu dari kedua fitur ini.
+        feature: ['crm.enabled', 'receivable.enabled'],
         icon: Package,
         permission: 'catalog_product.read',
       },
@@ -374,6 +377,12 @@ export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Billing',
     items: [
+      {
+        label: 'Tagihan',
+        route: 'billing-bills',
+        icon: FileText,
+        permission: 'organization.billing.read',
+      },
       {
         label: 'Pemakaian Paket',
         route: 'billing-usage',
@@ -456,6 +465,8 @@ export const customerMenuGroups: MenuGroup[] = [
       {
         label: 'Akun Email',
         route: 'email-accounts',
+        // Backend: /app/mailboxes mewajibkan salah satu dari kedua fitur ini.
+        feature: ['crm.enabled', 'receivable.enabled'],
         icon: Mail,
         permission: 'email.read',
       },

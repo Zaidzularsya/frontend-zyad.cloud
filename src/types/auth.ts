@@ -35,6 +35,7 @@ export type Permission =
   | 'notification_preference.update'
   | 'notification_preference.manage'
   | 'audit.read'
+  | 'organization.billing.read'
   | 'organization.user.read'
   | 'organization.user.manage'
   | 'company.read'
