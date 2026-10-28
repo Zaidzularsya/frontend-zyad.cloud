@@ -19,6 +19,7 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
 }))
 
+import { platformHost } from '@/config/env'
 import DomainManagementPage from './DomainManagementPage.vue'
 
 const quota = (atLimit: boolean) => [
@@ -166,6 +167,34 @@ describe('DomainManagementPage custom domain option', () => {
     await w.get('form').trigger('submit')
     await flushPromises()
     expect(domains.create).toHaveBeenCalledWith(expect.objectContaining({ type: 'subdomain' }))
+  })
+
+  it('builds the subdomain under the platform domain, not the current tenant host', async () => {
+    summary.mockResolvedValue([...quota(false), customDomainFeature('hidden')])
+    domains.create.mockResolvedValue({
+      challenge_type: 'auto_verified',
+      domain: { ...existing, type: 'subdomain' },
+    })
+    const original = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...original, hostname: 'ethernet.zyad.cloud' },
+    })
+    try {
+      const { w } = await mountPage()
+      await openDrawer(w)
+      await w.get('input[placeholder="toko-anda"]').setValue('toko-anda')
+      await w.get('form').trigger('submit')
+      await flushPromises()
+      expect(domains.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'subdomain',
+          canonical_host: `toko-anda.${platformHost}`,
+        }),
+      )
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: original })
+    }
   })
 
   it('custom domain option is rendered when landing.custom_domain is available', async () => {
