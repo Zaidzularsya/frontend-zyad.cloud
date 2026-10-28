@@ -245,11 +245,16 @@ const inputClass =
             </p>
           </fieldset>
           <label v-if="canPickPic" class="block space-y-1 text-sm">
-            <span class="font-medium">PIC pengirim (opsional)</span>
+            <span class="font-medium">PIC pengirim (anggota tim, opsional)</span>
             <select v-model="form.picUserId" name="pic" :class="inputClass">
-              <option value="">Pakai pengirim default / yang menerbitkan</option>
+              <option value="">Otomatis: pengirim default di Pengaturan</option>
               <option v-for="s in senders" :key="s.user_id" :value="s.user_id">{{ s.name }}</option>
             </select>
+            <span class="block text-xs text-gray-500">
+              Invoice dikirim lewat email dan WhatsApp milik anggota tim ini, bukan email platform.
+              Bila dikosongkan, dipakai pengirim default di Pengaturan; pada pengiriman manual, akun
+              yang mengirim lebih dulu.
+            </span>
           </label>
         </div>
         <label class="mt-4 block space-y-1 text-sm">

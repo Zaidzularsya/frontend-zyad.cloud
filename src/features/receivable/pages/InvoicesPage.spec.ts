@@ -5,9 +5,15 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 const summary = vi.hoisted(() => vi.fn())
 const invoicesList = vi.hoisted(() => vi.fn())
 const push = vi.hoisted(() => vi.fn())
+const manual = vi.hoisted(() => ({ enabled: true }))
 vi.mock('@/features/entitlements/api/entitlements.api', () => ({ entitlementsApi: { summary } }))
 vi.mock('@/features/receivable/api/receivable.api', () => ({
   receivableApi: { invoices: { list: invoicesList } },
+}))
+vi.mock('@/features/receivable/config/manual-creation', () => ({
+  get MANUAL_CREATION_ENABLED() {
+    return manual.enabled
+  },
 }))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => ({ can: () => true }) }))
 vi.mock('vue-router', () => ({
@@ -62,6 +68,7 @@ async function mountPage() {
 describe('InvoicesPage quota', () => {
   beforeEach(() => {
     push.mockClear()
+    manual.enabled = true
     invoicesList.mockResolvedValue({ data: [invoice], meta: { total: 1 } })
   })
 
@@ -92,5 +99,13 @@ describe('InvoicesPage quota', () => {
       .find((b) => b.text().includes('Invoice baru'))!
       .trigger('click')
     expect(push).toHaveBeenCalledWith('/app/billing/invoices/new')
+  })
+
+  it('hides the new-invoice button while manual creation is disabled', async () => {
+    manual.enabled = false
+    summary.mockResolvedValue(quota(false))
+    const w = await mountPage()
+    expect(w.text()).not.toContain('Invoice baru')
+    expect(w.text()).toContain('INV-001')
   })
 })

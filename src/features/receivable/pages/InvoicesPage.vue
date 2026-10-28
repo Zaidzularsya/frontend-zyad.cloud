@@ -10,6 +10,7 @@ import QuotaActionButton from '@/features/entitlements/components/QuotaActionBut
 import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
 import { formatRupiah } from '@/features/crm/quotations/utils/quotation-editor'
 import type { InvoiceStatus } from '@/features/receivable/api/receivable.api'
+import { MANUAL_CREATION_ENABLED } from '@/features/receivable/config/manual-creation'
 import { useInvoicesQuery } from '@/features/receivable/api/receivable.queries'
 import { INVOICE_STATUS } from '@/features/receivable/utils/invoice-status'
 import { useAuthStore } from '@/stores/auth.store'
@@ -81,7 +82,7 @@ function formatDate(value?: string | null) {
       description="Tagihan ke pelanggan: terbitkan, kirim, dan catat pembayaran."
     >
       <QuotaActionButton
-        v-if="auth.can('invoice.create')"
+        v-if="MANUAL_CREATION_ENABLED && auth.can('invoice.create')"
         feature-key="receivable.max_invoices_per_month"
         label="Invoice baru"
         upgrade-label="Upgrade untuk tambah invoice"

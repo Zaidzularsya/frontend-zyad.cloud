@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { filterMenuByEntitlement } from '@/features/entitlements/utils/menu-filter'
 
-import { customerMenuGroups, type MenuGroup } from './menu'
+import { customerAccountMenuItems, customerMenuGroups, type MenuGroup } from './menu'
 
 function labels(groups: MenuGroup[]): string[] {
   return groups.flatMap((g) =>
@@ -15,12 +15,10 @@ const visibleMenu = (owned: string[]) =>
   labels(filterMenuByEntitlement(customerMenuGroups, (key) => !owned.includes(key)))
 
 describe('customerMenuGroups', () => {
-  it('workspace reseller (landing saja): tanpa menu yang ditolak backend, dengan Tagihan', () => {
+  it('workspace reseller (landing saja): tanpa menu yang ditolak backend, dengan Balance', () => {
     const menu = visibleMenu(['landing.enabled', 'landing.page_activation'])
     expect(menu).toContain('Landing Page')
-    expect(menu).toContain('Tagihan')
-    expect(menu).toContain('Pemakaian Paket')
-    expect(menu).toContain('Saldo Pembayaran')
+    expect(menu).toContain('Balance')
     expect(menu).toContain('Files')
     // /app/catalog dan /app/mailboxes butuh crm.enabled atau receivable.enabled.
     expect(menu).not.toContain('Produk')
@@ -36,8 +34,18 @@ describe('customerMenuGroups', () => {
     }
   })
 
-  it('Tagihan tidak bergantung pada fitur apa pun (selalu tampil untuk workspace customer)', () => {
-    expect(visibleMenu([])).toContain('Tagihan')
+  it('Tagihan dan Pemakaian Paket pindah ke submenu Account, bukan group Billing', () => {
+    expect(customerAccountMenuItems.map((i) => i.label)).toEqual(['Tagihan', 'Pemakaian Paket'])
+    const menu = visibleMenu([])
+    expect(menu).not.toContain('Tagihan')
+    expect(menu).not.toContain('Pemakaian Paket')
+    expect(menu).not.toContain('Saldo Pembayaran')
+  })
+
+  it('Pengaturan menjadi item terakhir group Billing', () => {
+    const billing = customerMenuGroups.find((g) => g.label === 'Billing')!
+    expect(billing.items.at(-1)?.label).toBe('Pengaturan')
+    expect(billing.items.map((i) => i.label)).not.toContain('Pengaturan Penagihan')
   })
 
   it('Invoice Halaman hanya untuk workspace yang boleh menjual halaman (landing.page_activation)', () => {

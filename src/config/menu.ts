@@ -275,6 +275,22 @@ function tagCustomerLandingChildren(children: MenuChildItem[]): MenuChildItem[] 
   }))
 }
 
+// Submenu tombol Account (bawah sidebar workspace): tagihan platform ke tenant dan pemakaian paket
+// miliknya. Dipisah dari group Billing yang khusus piutang tenant ke pelanggannya.
+export const customerAccountMenuItems: MenuChildItem[] = [
+  {
+    label: 'Tagihan',
+    route: 'billing-bills',
+    icon: FileText,
+    permission: 'organization.billing.read',
+  },
+  {
+    label: 'Pemakaian Paket',
+    route: 'billing-usage',
+    icon: Gauge,
+  },
+]
+
 export const customerMenuGroups: MenuGroup[] = [
   {
     label: 'Workspace',
@@ -384,17 +400,6 @@ export const customerMenuGroups: MenuGroup[] = [
     label: 'Billing',
     items: [
       {
-        label: 'Tagihan',
-        route: 'billing-bills',
-        icon: FileText,
-        permission: 'organization.billing.read',
-      },
-      {
-        label: 'Pemakaian Paket',
-        route: 'billing-usage',
-        icon: Gauge,
-      },
-      {
         label: 'Invoices',
         route: 'billing-invoices',
         feature: 'receivable.enabled',
@@ -409,17 +414,10 @@ export const customerMenuGroups: MenuGroup[] = [
         permission: 'invoice.read',
       },
       {
-        label: 'Saldo Pembayaran',
+        label: 'Balance',
         route: 'billing-settlement',
         icon: Landmark,
         permission: 'settlement.read',
-      },
-      {
-        label: 'Pengaturan Penagihan',
-        route: 'billing-receivable-settings',
-        feature: 'receivable.enabled',
-        icon: Settings2,
-        permission: 'invoice.read',
       },
       {
         label: 'Recurring Billing',
@@ -441,6 +439,13 @@ export const customerMenuGroups: MenuGroup[] = [
         feature: 'receivable.enabled',
         icon: RotateCcw,
         description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
+      },
+      {
+        label: 'Pengaturan',
+        route: 'billing-receivable-settings',
+        feature: 'receivable.enabled',
+        icon: Settings2,
+        permission: 'invoice.read',
       },
     ],
   },
