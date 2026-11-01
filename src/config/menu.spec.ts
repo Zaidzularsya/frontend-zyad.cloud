@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { filterMenuByEntitlement } from '@/features/entitlements/utils/menu-filter'
+import { hasPermission } from '@/lib/permission'
+import type { Permission } from '@/types/auth'
 
 import { customerAccountMenuItems, customerMenuGroups, type MenuGroup } from './menu'
 
@@ -58,5 +60,45 @@ describe('customerMenuGroups', () => {
     const menu = visibleMenu(['landing.enabled'])
     expect(menu).toContain('Pages')
     expect(menu).not.toContain('Invoice Halaman')
+  })
+})
+
+const ALL_MIKROTIK: Permission[] = [
+  'mikrotik_router.read',
+  'mikrotik_secret.read',
+  'mikrotik_task.read',
+]
+
+// Meniru urutan di AppSidebar: filter entitlement dulu, lalu permission per item.
+function jaringanLabels(permissions: Permission[], hiddenFeatures: string[]) {
+  const groups = filterMenuByEntitlement(customerMenuGroups, (key) => hiddenFeatures.includes(key))
+  const group = groups.find((g) => g.label === 'Jaringan')
+  const labels = group?.items
+    .filter((i) => !i.permission || hasPermission(permissions, i.permission))
+    .map((i) => i.label)
+  return labels?.length ? labels : undefined
+}
+
+describe('grup menu Jaringan', () => {
+  it('ada di menu tenant dan tiap item memakai feature mikrotik.enabled', () => {
+    const group = customerMenuGroups.find((g) => g.label === 'Jaringan')
+    expect(group?.items.map((i) => i.label)).toEqual(['Ringkasan', 'Router', 'Akun PPPoE', 'Tugas'])
+    for (const item of group?.items ?? []) expect(item.feature).toBe('mikrotik.enabled')
+  })
+
+  it('tampil penuh bila fitur tidak disembunyikan dan permission lengkap', () => {
+    expect(jaringanLabels(ALL_MIKROTIK, [])).toEqual(['Ringkasan', 'Router', 'Akun PPPoE', 'Tugas'])
+  })
+
+  it('tersembunyi bila mikrotik.enabled hidden', () => {
+    expect(jaringanLabels(ALL_MIKROTIK, ['mikrotik.enabled'])).toBeUndefined()
+  })
+
+  it('tersembunyi bila tidak ada permission', () => {
+    expect(jaringanLabels([], [])).toBeUndefined()
+  })
+
+  it('hanya item yang permission-nya terpenuhi', () => {
+    expect(jaringanLabels(['mikrotik_task.read'], [])).toEqual(['Tugas'])
   })
 })
