@@ -92,10 +92,15 @@ const pairs = (o: Record<string, string>) =>
 const line = (a: SetupAction) =>
   [a.kind, a.path, pairs(a.match ?? {}), pairs(a.attrs ?? {})].filter(Boolean).join('  ')
 
+// Input bisa berubah setelah pratinjau; apply hanya valid untuk payload yang dipratinjau.
+const stale = computed(
+  () => JSON.stringify(buildPayload()) !== JSON.stringify(previewedPayload.value),
+)
+
 const busy = computed(() => previewMutation.isPending.value || applyMutation.isPending.value)
 
 async function apply() {
-  if (!plan.value || busy.value) return
+  if (!plan.value || busy.value || stale.value) return
   errorMessage.value = ''
   try {
     const router = await applyMutation.mutateAsync({
@@ -171,13 +176,16 @@ async function apply() {
       >
         {{ notice }}
       </p>
+      <p v-if="plan && stale" class="text-sm text-amber-700 dark:text-amber-300" role="status">
+        Pratinjau ulang dulu — pengaturan berubah sejak pratinjau.
+      </p>
       <p v-if="errorMessage" class="text-sm text-red-600 dark:text-red-400" role="alert">
         {{ errorMessage }}
       </p>
 
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <BaseButton variant="outline" @click="$emit('close')">Tutup</BaseButton>
-        <BaseButton :disabled="!plan || busy" @click="apply">
+        <BaseButton :disabled="!plan || busy || stale" @click="apply">
           {{ applyMutation.isPending.value ? 'Menerapkan...' : 'Terapkan' }}
         </BaseButton>
       </div>

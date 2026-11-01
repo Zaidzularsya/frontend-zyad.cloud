@@ -111,4 +111,22 @@ describe('SetupPlanModal', () => {
       plan_hash: 'hash-abc',
     })
   })
+
+  it('disables Terapkan and asks for a new preview when inputs changed since the preview', async () => {
+    mountModal()
+    await flushPromises()
+    expect(findButton('Terapkan')?.disabled).toBe(false)
+    const input = document.body.querySelector('input[name="profile_name"]') as HTMLInputElement
+    input.value = 'isolir-baru'
+    input.dispatchEvent(new Event('input'))
+    await flushPromises()
+    expect(findButton('Terapkan')?.disabled).toBe(true)
+    expect(document.body.textContent).toContain(
+      'Pratinjau ulang dulu — pengaturan berubah sejak pratinjau.',
+    )
+    findButton('Pratinjau ulang')?.click()
+    await flushPromises()
+    expect(findButton('Terapkan')?.disabled).toBe(false)
+    expect(document.body.textContent).not.toContain('Pratinjau ulang dulu')
+  })
 })
