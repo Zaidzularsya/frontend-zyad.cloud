@@ -6,6 +6,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import {
   useOnboardingQuery,
+  useRoutersQuery,
   useTaskSummaryQuery,
   useTasksQuery,
 } from '@/features/mikrotik/api/mikrotik.queries'
@@ -20,6 +21,7 @@ const onboardingQuery = useOnboardingQuery()
 const summaryQuery = useTaskSummaryQuery()
 const failedParams = ref<TaskListParams>({ status: 'failed', limit: 5 })
 const failedQuery = useTasksQuery(failedParams)
+const routersQuery = useRoutersQuery()
 
 const status = computed(() => onboardingQuery.data.value)
 const counts = computed(() => summaryQuery.data.value?.counts ?? {})
@@ -34,7 +36,13 @@ const STEP_ROUTE: Record<OnboardingStepKey, string> = {
 }
 
 function onNavigate(step: OnboardingStepKey) {
-  const query = step === 'setup' ? { setup: '1' } : undefined
+  let query: Record<string, string> | undefined
+  if (step === 'setup') {
+    query = { setup: '1' }
+    const pending = (routersQuery.data.value?.data ?? []).filter((r) => !r.isolir_ready)
+    // Satu-satunya router yang belum siap langsung dibuka setup-nya.
+    if (pending.length === 1 && pending[0]) query.router_id = pending[0].id
+  }
   void router.push({ name: STEP_ROUTE[step], query })
 }
 

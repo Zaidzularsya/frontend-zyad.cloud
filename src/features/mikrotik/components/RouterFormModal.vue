@@ -9,7 +9,7 @@ import {
   useUpdateRouterMutation,
 } from '@/features/mikrotik/api/mikrotik.queries'
 import type { Router, UpdateRouterPayload } from '@/features/mikrotik/types'
-import { routerActionError } from '@/features/mikrotik/utils/errors'
+import { routerActionError, tlsUntrustedFingerprint } from '@/features/mikrotik/utils/errors'
 
 const props = defineProps<{ open: boolean; router?: Router | null }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'saved', router: Router): void }>()
@@ -28,12 +28,22 @@ const form = reactive({
   tls_fingerprint: '',
 })
 const errorMessage = ref('')
+const untrusted = ref<{ fingerprint: string; pinMismatch: boolean } | null>(null)
+
+function pinFingerprint() {
+  if (!untrusted.value) return
+  form.use_tls = true
+  form.tls_fingerprint = untrusted.value.fingerprint
+  untrusted.value = null
+  errorMessage.value = ''
+}
 
 watch(
   () => props.open,
   (open) => {
     if (!open) return
     errorMessage.value = ''
+    untrusted.value = null
     form.name = props.router?.name ?? ''
     form.host = props.router?.host ?? ''
     form.port = String(props.router?.port ?? 8728)
@@ -50,13 +60,15 @@ const pending = computed(() => createMutation.isPending.value || updateMutation.
 async function submit() {
   if (pending.value) return
   errorMessage.value = ''
+  untrusted.value = null
   const base = {
     name: form.name.trim(),
     host: form.host.trim(),
     port: Number(form.port),
     username: form.username.trim(),
     use_tls: form.use_tls,
-    tls_fingerprint: form.tls_fingerprint.trim(),
+    // Fingerprint lama tidak boleh tersimpan bila TLS dimatikan.
+    tls_fingerprint: form.use_tls ? form.tls_fingerprint.trim() : '',
   }
   try {
     if (props.router) {
@@ -68,7 +80,10 @@ async function submit() {
       emit('saved', await createMutation.mutateAsync({ ...base, password: form.password }))
     }
   } catch (error) {
-    errorMessage.value = routerActionError(error)
+    untrusted.value = tlsUntrustedFingerprint(error)
+    errorMessage.value = untrusted.value
+      ? `Sertifikat router tidak dipercaya. Sidik jari: ${untrusted.value.fingerprint}. Salin ke kolom Fingerprint jika Anda mempercayainya.`
+      : routerActionError(error)
   }
 }
 </script>
@@ -134,6 +149,9 @@ async function submit() {
       <p v-if="errorMessage" class="text-sm text-red-600 dark:text-red-400" role="alert">
         {{ errorMessage }}
       </p>
+      <BaseButton v-if="untrusted" variant="secondary" @click="pinFingerprint">
+        Pakai fingerprint ini
+      </BaseButton>
       <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
         <BaseButton variant="outline" @click="$emit('close')">Batal</BaseButton>
         <BaseButton type="submit" :disabled="pending">

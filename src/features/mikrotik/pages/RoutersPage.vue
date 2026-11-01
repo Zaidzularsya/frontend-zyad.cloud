@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
 
@@ -88,17 +88,24 @@ function onApplied() {
   setupTarget.value = null
   toast.success('Setup isolir diterapkan.')
 }
-onMounted(() => {
-  // Dari checklist: langkah "Setup router" membuka setup untuk router pertama bila hanya ada satu.
-  if (route.query.setup && canSetup.value) {
-    const stop = setInterval(() => {
-      if (!routers.value.length) return
-      clearInterval(stop)
-      if (routers.value.length === 1) setupTarget.value = routers.value[0] ?? null
-    }, 100)
-    setTimeout(() => clearInterval(stop), 5000)
-  }
-})
+
+// Dari checklist (?setup=1[&router_id=]): buka dialog setup sekali saja setelah router dan izin siap.
+const setupHint = ref(false)
+let setupHandled = false
+watch(
+  [routers, canSetup, () => route.query.setup, () => route.query.router_id],
+  () => {
+    if (setupHandled || !route.query.setup || !canSetup.value || listQuery.isLoading.value) return
+    if (!listQuery.data.value) return
+    setupHandled = true
+    const wanted = route.query.router_id
+    const match = routers.value.find((r) => r.id === wanted)
+    const target = match ?? (routers.value.length === 1 ? routers.value[0] : undefined)
+    if (target) setupTarget.value = target
+    else setupHint.value = routers.value.length > 1
+  },
+  { immediate: true },
+)
 
 // --- cleanup ---
 const cleanupTarget = ref<Router | null>(null)
@@ -117,6 +124,10 @@ async function confirmCleanup() {
 // --- delete ---
 const deleteTarget = ref<Router | null>(null)
 const deleteBlocked = ref('')
+function openDelete(r: Router) {
+  deleteBlocked.value = ''
+  deleteTarget.value = r
+}
 async function confirmDelete() {
   const target = deleteTarget.value
   if (!target) return
@@ -150,10 +161,15 @@ async function confirmDelete() {
       role="alert"
     >
       {{ deleteBlocked }}
+      <button type="button" class="ml-2 underline" @click="deleteBlocked = ''">Tutup</button>
       <RouterLink :to="{ name: 'mikrotik-tasks' }" class="font-medium underline">
         Lihat tugas isolir
       </RouterLink>
     </div>
+
+    <p v-if="setupHint" class="text-sm text-brand-600" role="status">
+      Pilih router lalu klik Setup isolir.
+    </p>
 
     <p class="text-sm text-gray-500 dark:text-gray-400">
       Redirect ke halaman bayar bersifat best-effort: pelanggan terisolir pasti terputus dari
@@ -224,7 +240,7 @@ async function confirmDelete() {
                   Setup isolir
                 </BaseButton>
                 <BaseButton
-                  v-if="canSetup && r.isolir_ready"
+                  v-if="canSetup"
                   variant="outline"
                   class="ml-1 !px-2 !py-1 !text-xs"
                   @click="cleanupTarget = r"
@@ -243,7 +259,7 @@ async function confirmDelete() {
                   v-if="canDelete"
                   variant="danger"
                   class="ml-1 !px-2 !py-1 !text-xs"
-                  @click="deleteTarget = r"
+                  @click="openDelete(r)"
                 >
                   Hapus
                 </BaseButton>

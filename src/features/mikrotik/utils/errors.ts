@@ -66,6 +66,7 @@ export function taskErrorAction(code: string): TaskErrorAction {
 interface ApiErrorBody {
   code?: string
   message?: string
+  data?: { fingerprint?: string; pin_mismatch?: boolean }
   error?: { code?: string }
 }
 
@@ -100,6 +101,25 @@ const ROUTER_ACTION_ERRORS: Record<string, string> = {
     'Rencana berubah sejak pratinjau (state router atau input berubah). Periksa pratinjau terbaru sebelum menerapkan.',
   MIKROTIK_SETUP_IN_PROGRESS:
     'Setup atau pembersihan lain sedang berjalan untuk router ini. Coba lagi setelah selesai.',
+  MIKROTIK_ROUTER_NOT_FOUND: 'Router tidak ditemukan. Muat ulang halaman.',
+  MIKROTIK_TLS_UNTRUSTED:
+    'Sertifikat TLS router tidak dipercaya. Periksa sertifikat router atau atur fingerprint TLS.',
+  MIKROTIK_TLS_REQUIRED: 'Router yang dapat dijangkau dari internet wajib memakai TLS.',
+  MIKROTIK_HOST_NOT_ALLOWED:
+    'Host router ditolak oleh kebijakan host. Gunakan alamat jaringan privat yang diizinkan.',
+  MIKROTIK_AUTH_FAILED: 'Router menolak username/password. Periksa kredensial user API.',
+  MIKROTIK_UNREACHABLE:
+    'Router tidak terjangkau. Periksa jaringan/WireGuard, port API, dan firewall router.',
+  MIKROTIK_SETUP_REST_UNVERIFIED:
+    'Router ini memakai REST API yang belum terverifikasi untuk setup isolir. Gunakan API biner (port 8728/8729) atau hubungi admin platform.',
+  MIKROTIK_SETUP_MARK_FAILED:
+    'Setup tidak diterapkan karena status siap isolir gagal disimpan; router tidak diubah. Coba lagi.',
+  MIKROTIK_SETUP_STATE_NOT_SAVED:
+    'Setup sudah diterapkan di router, tetapi status tidak tersimpan. Jalankan Cek lalu terapkan ulang setup.',
+  MIKROTIK_SETUP_FAILED:
+    'Router menolak salah satu langkah setup. Status isolir belum ditandai siap; aman diulang. Bila terjadi saat pembersihan, pembersihan belum lengkap dan bisa diulang.',
+  VALIDATION_ERROR: 'Data tidak valid. Periksa isian lalu coba lagi.',
+  INTERNAL_ERROR: 'Terjadi kesalahan di server. Coba lagi nanti.',
   MIKROTIK_SETUP_CONFLICT:
     'Ada objek di router yang bentrok dengan setup. Jalankan Bersihkan lalu terapkan ulang, atau periksa urutan rule firewall.',
 }
@@ -111,4 +131,13 @@ export function routerActionError(error: unknown): string {
     return ROUTER_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
   const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
   return body?.message || 'Terjadi kesalahan, silakan coba lagi.'
+}
+
+// Sidik jari sertifikat yang dikembalikan backend untuk MIKROTIK_TLS_UNTRUSTED (response.data.data).
+export function tlsUntrustedFingerprint(
+  error: unknown,
+): { fingerprint: string; pinMismatch: boolean } | null {
+  const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
+  if (apiErrorCode(error) !== 'MIKROTIK_TLS_UNTRUSTED' || !body?.data?.fingerprint) return null
+  return { fingerprint: body.data.fingerprint, pinMismatch: Boolean(body.data.pin_mismatch) }
 }

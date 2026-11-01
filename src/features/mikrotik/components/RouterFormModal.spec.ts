@@ -48,4 +48,64 @@ describe('RouterFormModal', () => {
       password: 'rahasia',
     })
   })
+
+  it('creates with port as number and password', async () => {
+    mountForm()
+    await flushPromises()
+    const set = (name: string, value: string) => {
+      const el = document.body.querySelector(`input[name="${name}"]`) as HTMLInputElement
+      el.value = value
+      el.dispatchEvent(new Event('input'))
+    }
+    set('name', 'R2')
+    set('host', '10.0.0.2')
+    set('port', '8729')
+    set('username', 'zyad')
+    set('password', 'pw')
+    document.body.querySelector('form')?.dispatchEvent(new Event('submit'))
+    await flushPromises()
+    expect(mikrotikApi.routers.create).toHaveBeenCalledWith({
+      name: 'R2',
+      host: '10.0.0.2',
+      port: 8729,
+      username: 'zyad',
+      password: 'pw',
+      use_tls: false,
+      tls_fingerprint: '',
+    })
+  })
+
+  it('clears a stale fingerprint when TLS is off', async () => {
+    mountForm(routerFixture({ use_tls: false, tls_fingerprint: 'AA:BB' }))
+    await flushPromises()
+    document.body.querySelector('form')?.dispatchEvent(new Event('submit'))
+    await flushPromises()
+    expect(vi.mocked(mikrotikApi.routers.update).mock.calls[0]?.[1]).toMatchObject({
+      tls_fingerprint: '',
+    })
+  })
+
+  it('offers to pin the fingerprint from a TLS_UNTRUSTED error', async () => {
+    vi.mocked(mikrotikApi.routers.create).mockRejectedValueOnce({
+      response: {
+        data: {
+          code: 'MIKROTIK_TLS_UNTRUSTED',
+          message: 'x',
+          data: { fingerprint: 'AA:BB:CC', pin_mismatch: false },
+        },
+      },
+    })
+    mountForm()
+    await flushPromises()
+    document.body.querySelector('form')?.dispatchEvent(new Event('submit'))
+    await flushPromises()
+    expect(document.body.textContent).toContain('Sidik jari: AA:BB:CC')
+    const btn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Pakai fingerprint ini'),
+    )
+    btn?.click()
+    await flushPromises()
+    const fp = document.body.querySelector('input[name="tls_fingerprint"]') as HTMLInputElement
+    expect(fp.value).toBe('AA:BB:CC')
+  })
 })

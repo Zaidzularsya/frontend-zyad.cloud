@@ -10,6 +10,12 @@ vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: { setup: { preview: vi.fn(), apply: vi.fn(), cleanup: vi.fn() } },
 }))
 
+function findButton(label: string) {
+  return Array.from(document.body.querySelectorAll('button')).find(
+    (b) => b.textContent?.trim() === label,
+  )
+}
+
 function mountModal() {
   return mount(SetupPlanModal, {
     props: { open: true, router: routerFixture() },
@@ -56,5 +62,53 @@ describe('SetupPlanModal', () => {
     await flushPromises()
     expect(mikrotikApi.setup.preview).toHaveBeenCalledTimes(2)
     expect(document.body.textContent).toContain('Rencana berubah')
+  })
+
+  it('applies with the NEW hash after a PLAN_CHANGED re-preview', async () => {
+    vi.mocked(mikrotikApi.setup.preview)
+      .mockReset()
+      .mockResolvedValueOnce(planFixture())
+      .mockResolvedValueOnce({ ...planFixture(), hash: 'hash-new' })
+    vi.mocked(mikrotikApi.setup.apply).mockRejectedValueOnce({
+      response: { data: { code: 'MIKROTIK_SETUP_PLAN_CHANGED', message: 'berubah' } },
+    })
+    mountModal()
+    await flushPromises()
+    findButton('Terapkan')?.click()
+    await flushPromises()
+    findButton('Terapkan')?.click()
+    await flushPromises()
+    expect(vi.mocked(mikrotikApi.setup.apply).mock.calls[1]?.[1]).toEqual({ plan_hash: 'hash-new' })
+  })
+
+  it('keeps Terapkan disabled until a preview exists', async () => {
+    vi.mocked(mikrotikApi.setup.preview)
+      .mockReset()
+      .mockReturnValue(new Promise(() => {}))
+    mountModal()
+    await flushPromises()
+    expect(findButton('Terapkan')?.disabled).toBe(true)
+    expect(mikrotikApi.setup.apply).not.toHaveBeenCalled()
+  })
+
+  it('sends the same non-empty advanced payload plus plan_hash', async () => {
+    mountModal()
+    await flushPromises()
+    const input = document.body.querySelector('input[name="profile_name"]') as HTMLInputElement
+    input.value = 'isolir-x'
+    input.dispatchEvent(new Event('input'))
+    const hosts = document.body.querySelector('input[name="doku_hosts"]') as HTMLInputElement
+    hosts.value = 'a.doku.com, b.doku.com'
+    hosts.dispatchEvent(new Event('input'))
+    findButton('Pratinjau ulang')?.click()
+    await flushPromises()
+    const expected = { profile_name: 'isolir-x', doku_hosts: ['a.doku.com', 'b.doku.com'] }
+    expect(mikrotikApi.setup.preview).toHaveBeenLastCalledWith('r1', expected)
+    findButton('Terapkan')?.click()
+    await flushPromises()
+    expect(mikrotikApi.setup.apply).toHaveBeenCalledWith('r1', {
+      ...expected,
+      plan_hash: 'hash-abc',
+    })
   })
 })

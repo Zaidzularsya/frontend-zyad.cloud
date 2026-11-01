@@ -11,6 +11,7 @@ vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: {
     onboarding: { get: vi.fn() },
     tasks: { summary: vi.fn(), list: vi.fn() },
+    routers: { list: vi.fn().mockResolvedValue({ data: [], meta: {} }) },
   },
 }))
 
