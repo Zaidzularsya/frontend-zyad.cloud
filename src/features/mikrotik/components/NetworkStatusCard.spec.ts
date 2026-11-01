@@ -157,6 +157,9 @@ describe('NetworkStatusCard', () => {
       .find((b) => b.text() === 'Cabut Pengecualian')!
       .trigger('click')
     await flushPromises()
+    expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
+    bodyButton('Ya, cabut')!.click()
+    await flushPromises()
     expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', { exempt: false })
   })
 
@@ -181,6 +184,28 @@ describe('NetworkStatusCard', () => {
       .find((b) => b.text() === 'Cabut Pengecualian')!
       .trigger('click')
     await flushPromises()
+    expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
+    bodyButton('Ya, cabut')!.click()
+    await flushPromises()
     expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', { exempt: false })
+  })
+
+  it('warns about re-isolation and sends nothing when the confirmation is cancelled', async () => {
+    vi.mocked(mikrotikApi.onboarding.customerStatus).mockResolvedValue([status({ exempt: true })])
+    vi.mocked(receivableApi.invoices.list).mockResolvedValue({
+      data: [],
+      meta: { total: 0 },
+    } as never)
+    const w = await mountCard()
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Cabut Pengecualian')!
+      .trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).toContain('dalam sekitar 2 menit')
+    bodyButton('Batal')!.click()
+    await flushPromises()
+    expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
+    expect(bodyButton('Ya, cabut')).toBeUndefined()
   })
 })

@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import {
   useCustomerStatusQuery,
   usePolicyQuery,
@@ -48,6 +49,7 @@ const dialogOpen = ref(false)
 const reason = ref('')
 const reasonError = ref('')
 const error = ref('')
+const revokeOpen = ref(false)
 const mutation = useSetPolicyMutation()
 
 function openDialog() {
@@ -85,8 +87,10 @@ async function revoke() {
   error.value = ''
   try {
     await mutation.mutateAsync({ accountId: props.accountId, payload: { exempt: false } })
+    revokeOpen.value = false
   } catch (e) {
     error.value = routerActionError(e)
+    revokeOpen.value = false
   }
 }
 </script>
@@ -146,7 +150,7 @@ async function revoke() {
             v-else-if="exempt"
             variant="outline"
             :disabled="mutation.isPending.value"
-            @click="revoke"
+            @click="revokeOpen = true"
           >
             Cabut Pengecualian
           </BaseButton>
@@ -160,6 +164,16 @@ async function revoke() {
       </div>
     </template>
 
+    <ConfirmDialog
+      :open="revokeOpen"
+      title="Cabut pengecualian?"
+      message="Jika pelanggan punya tagihan jatuh tempo, secret-nya dapat diisolir otomatis dalam sekitar 2 menit."
+      confirm-label="Ya, cabut"
+      tone="danger"
+      :loading="mutation.isPending.value"
+      @confirm="revoke"
+      @cancel="revokeOpen = false"
+    />
     <BaseModal :open="dialogOpen" title="Beri Pengecualian" @close="dialogOpen = false">
       <div class="space-y-3 text-sm">
         <p>
