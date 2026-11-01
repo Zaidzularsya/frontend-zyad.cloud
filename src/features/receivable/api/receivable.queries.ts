@@ -1,11 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 
 import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
 import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 import {
   receivableApi,
+  type AccountListParams,
   type AccountPayload,
   type ContractListParams,
   type InvoiceListParams,
@@ -38,11 +39,32 @@ function useInvalidateReceivable() {
   return () => void queryClient.invalidateQueries({ queryKey: receivableKeys.all })
 }
 
-export function useAccountsQuery(params: Ref<{ page: number; per_page: number; search?: string }>) {
+export function useAccountsQuery(params: Ref<AccountListParams>) {
   return useQuery({
     queryKey: computed(() => receivableKeys.accounts(params.value)),
     queryFn: () => receivableApi.accounts.list(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+// Akun penagihan milik satu kontak CRM; null bila kontak belum menjadi pelanggan.
+export function useAccountByContactQuery(
+  contactId: Ref<string>,
+  enabled: Ref<boolean> = ref(true),
+) {
+  return useQuery({
+    queryKey: computed(
+      () => [...receivableKeys.all, 'account-by-contact', contactId.value] as const,
+    ),
+    queryFn: async () => {
+      const res = await receivableApi.accounts.list({
+        page: 1,
+        per_page: 1,
+        contact_id: contactId.value,
+      })
+      return res.data[0] ?? null
+    },
+    enabled: computed(() => enabled.value && Boolean(contactId.value)),
   })
 }
 
@@ -54,8 +76,12 @@ export function useCreateAccountMutation() {
   })
 }
 
-export function useInvoicesQuery(params: Ref<InvoiceListParams>) {
+export function useInvoicesQuery(
+  params: Ref<InvoiceListParams>,
+  enabled: Ref<boolean> = ref(true),
+) {
   return useQuery({
+    enabled,
     queryKey: computed(() => receivableKeys.list(params.value)),
     queryFn: () => receivableApi.invoices.list(params.value),
     placeholderData: keepPreviousData,

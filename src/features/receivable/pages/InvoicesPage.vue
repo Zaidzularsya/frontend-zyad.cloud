@@ -13,6 +13,9 @@ import type { InvoiceStatus } from '@/features/receivable/api/receivable.api'
 import { MANUAL_CREATION_ENABLED } from '@/features/receivable/config/manual-creation'
 import { useInvoicesQuery } from '@/features/receivable/api/receivable.queries'
 import { INVOICE_STATUS } from '@/features/receivable/utils/invoice-status'
+import CustomerIsolationBadge from '@/features/mikrotik/components/CustomerIsolationBadge.vue'
+import { useCustomerStatusQuery } from '@/features/mikrotik/api/mikrotik.queries'
+import { useMikrotikEnabled } from '@/features/mikrotik/composables/useMikrotikEnabled'
 import { useAuthStore } from '@/stores/auth.store'
 
 const route = useRoute()
@@ -50,6 +53,19 @@ const params = computed(() => ({
 const invoicesQuery = useInvoicesQuery(params)
 const invoices = computed(() => invoicesQuery.data.value?.data ?? [])
 const total = computed(() => invoicesQuery.data.value?.meta?.total ?? 0)
+
+// Satu permintaan status untuk seluruh baris halaman ini (bukan per baris), hanya bila fitur aktif.
+const mikrotikOn = useMikrotikEnabled()
+const showIsolation = computed(() => mikrotikOn.value && auth.can('mikrotik_policy.read'))
+const statusAccountIds = computed(() =>
+  showIsolation.value
+    ? [...new Set(invoices.value.map((inv) => inv.account.id))].slice(0, 100)
+    : [],
+)
+const statusQuery = useCustomerStatusQuery(statusAccountIds)
+const statusByAccount = computed(
+  () => new Map((statusQuery.data.value ?? []).map((s) => [s.account_id, s])),
+)
 
 const tabs: { value: InvoiceStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Semua' },
@@ -163,6 +179,11 @@ function formatDate(value?: string | null) {
               </td>
               <td class="px-5 py-3">
                 {{ inv.account.name }}
+                <CustomerIsolationBadge
+                  v-if="showIsolation"
+                  class="ml-1"
+                  :state="statusByAccount.get(inv.account.id)"
+                />
                 <span v-if="inv.account.company_name" class="block text-xs text-gray-500">{{
                   inv.account.company_name
                 }}</span>

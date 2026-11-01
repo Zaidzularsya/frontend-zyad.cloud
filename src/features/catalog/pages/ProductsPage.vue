@@ -16,11 +16,11 @@ import {
 } from '@/features/catalog/api/catalog.queries'
 import CategoryManagerDialog from '@/features/catalog/components/CategoryManagerDialog.vue'
 import ProductFormDrawer from '@/features/catalog/components/ProductFormDrawer.vue'
-import { useEntitlementSummaryQuery } from '@/features/entitlements/api/entitlements.queries'
 import {
   useTriggersQuery,
   useUnmarkedProductsQuery,
 } from '@/features/mikrotik/api/mikrotik.queries'
+import { useMikrotikEnabled } from '@/features/mikrotik/composables/useMikrotikEnabled'
 import ProductTriggerDialog from '@/features/mikrotik/components/ProductTriggerDialog.vue'
 import { catalogErrorMessage } from '@/features/catalog/utils/errors'
 import {
@@ -44,13 +44,7 @@ const canDelete = computed(() => auth.can('catalog_product.delete'))
 // Isolir PPPoE: tampil hanya bila fitur Jaringan aktif untuk tenant dan izin trigger ada.
 // Berbeda dari menu (fail-open), di sini fail-closed: aksi dan query Mikrotik baru muncul setelah
 // ringkasan entitlement dimuat dan fitur tidak tersembunyi.
-const entitlementSummary = useEntitlementSummaryQuery()
-const mikrotikOn = computed(() => {
-  const data = entitlementSummary.data.value
-  if (!Array.isArray(data)) return false
-  const entry = data.find((item) => item.feature_key === 'mikrotik.enabled')
-  return Boolean(entry) && entry?.state !== 'hidden'
-})
+const mikrotikOn = useMikrotikEnabled()
 const canTriggerUpdate = computed(
   () => mikrotikOn.value && auth.can('mikrotik_product_trigger.update'),
 )
