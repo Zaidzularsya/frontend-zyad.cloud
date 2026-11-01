@@ -17,6 +17,7 @@ const { products } = vi.hoisted(() => ({
         is_active: true,
         category_id: 'c1',
         category_name: 'Internet',
+        needs_update: true,
         created_at: '',
         updated_at: '',
       },
@@ -41,6 +42,10 @@ vi.mock('@/features/catalog/api/catalog.api', () => ({
     products,
     categories: vi.fn().mockResolvedValue([{ id: 'c1', name: 'Internet', position: 0 }]),
   },
+}))
+// Fitur Jaringan tidak aktif: ProductsPage tidak boleh memanggil API Mikrotik.
+vi.mock('@/features/entitlements/api/entitlements.api', () => ({
+  entitlementsApi: { summary: vi.fn().mockResolvedValue([]) },
 }))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => ({ can: () => true }) }))
 
@@ -80,5 +85,19 @@ describe('ProductsPage', () => {
     expect(products).toHaveBeenLastCalledWith(
       expect.objectContaining({ q: 'net', is_active: true }),
     )
+  })
+
+  it('shows the "Perlu diperbarui" badge only for products that need an update', async () => {
+    setActivePinia(createPinia())
+    const w = mount(ProductsPage, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]],
+        stubs: ['PageHeader'],
+      },
+    })
+    await flushPromises()
+    const badges = w.findAll('[data-testid="needs-update-badge"]')
+    expect(badges).toHaveLength(1)
+    expect(badges[0]!.text()).toBe('Perlu diperbarui')
   })
 })

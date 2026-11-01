@@ -21,6 +21,7 @@ function wrapperStub(find: (selector: string) => unknown[] = () => [], children:
 
 const editorStub = {
   getProjectData: vi.fn((): Record<string, unknown> => ({ pages: [] })),
+  getEditing: vi.fn((): unknown => undefined),
   getHtml: vi.fn(() => '<body></body>'),
   getCss: vi.fn(() => ''),
   loadProjectData: vi.fn(),
@@ -84,8 +85,12 @@ vi.mock('@/features/crm/leads/api/leads.api', () => ({
 }))
 
 const listListings = vi.fn()
+const listOwnListings = vi.fn()
 vi.mock('@/features/public/api/public-catalog.api', () => ({
-  publicCatalogApi: { listListings: (...a: unknown[]) => listListings(...a) },
+  publicCatalogApi: {
+    listListings: (...a: unknown[]) => listListings(...a),
+    listOwnListings: (...a: unknown[]) => listOwnListings(...a),
+  },
 }))
 
 const listAll = vi.fn()
@@ -156,6 +161,7 @@ describe('GrapesEditor', () => {
     getDefaultBranding.mockResolvedValue({ data: { company_name: 'Acme', colors: {} } })
     getMenuItems.mockResolvedValue({ data: [] })
     listListings.mockResolvedValue([])
+    listOwnListings.mockResolvedValue([])
     getForms.mockResolvedValue({ data: [] })
     listAll.mockResolvedValue([])
   })
@@ -665,19 +671,24 @@ describe('GrapesEditor', () => {
     })
   })
 
-  describe('blok Pricing Katalog (platform-only)', () => {
-    it('org non-platform: block zy-catalog-pricing tidak terdaftar dan listing tidak diambil', async () => {
+  describe('blok Pricing Katalog (platform dan tenant)', () => {
+    it('org tenant: block terdaftar dan listing diambil dari katalog milik org sendiri', async () => {
       useOrg('customer')
       mount(GrapesEditor, { props: { pageId: 'p1' } })
       await flush()
-      const ids = editorStub.Blocks.add.mock.calls.map((c) => c[0])
-      expect(ids).not.toContain('zy-catalog-pricing')
-      expect(listListings).not.toHaveBeenCalled()
+      const call = editorStub.Blocks.add.mock.calls.find((c) => c[0] === 'zy-catalog-pricing')
+      expect(call).toBeTruthy()
+      expect(call![1]).toMatchObject({
+        category: 'Conversion',
+        content: { type: 'zyad-catalog-pricing' },
+      })
       const types = editorStub.Components.addType.mock.calls.map((c) => c[0])
-      expect(types).not.toContain('zyad-catalog-pricing')
+      expect(types).toContain('zyad-catalog-pricing')
+      expect(listOwnListings).toHaveBeenCalledTimes(1)
+      expect(listListings).not.toHaveBeenCalled()
     })
 
-    it('org platform: block terdaftar dengan kategori Conversion dan listing diambil sekali', async () => {
+    it('org platform: block terdaftar dengan kategori Conversion dan listing publik diambil sekali', async () => {
       useOrg('platform')
       mount(GrapesEditor, { props: { pageId: 'p1' } })
       await flush()
@@ -688,6 +699,7 @@ describe('GrapesEditor', () => {
         content: { type: 'zyad-catalog-pricing' },
       })
       expect(listListings).toHaveBeenCalledTimes(1)
+      expect(listOwnListings).not.toHaveBeenCalled()
     })
 
     it('guard duplikat: blok catalog-pricing kedua dihapus dan penulis diberi tahu', async () => {

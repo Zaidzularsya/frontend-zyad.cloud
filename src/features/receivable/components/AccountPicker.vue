@@ -8,6 +8,7 @@ import {
   useAccountsQuery,
   useCreateAccountMutation,
 } from '@/features/receivable/api/receivable.queries'
+import { MANUAL_CREATION_ENABLED } from '@/features/receivable/config/manual-creation'
 import { receivableErrorMessage } from '@/features/receivable/utils/errors'
 import { isValidEmail } from '@/features/receivable/utils/send-invoice'
 
@@ -155,10 +156,18 @@ const inputClass =
         Belum ada pelanggan yang cocok.
       </p>
 
-      <BaseButton v-if="!creating" variant="outline" @click="startCreate">
+      <BaseButton
+        v-if="MANUAL_CREATION_ENABLED && !creating"
+        variant="outline"
+        @click="startCreate"
+      >
         <Plus class="size-4" /> Pelanggan baru
       </BaseButton>
-      <form v-else class="space-y-3 rounded-lg border p-3" @submit.prevent="create">
+      <form
+        v-else-if="MANUAL_CREATION_ENABLED"
+        class="space-y-3 rounded-lg border p-3"
+        @submit.prevent="create"
+      >
         <label class="block space-y-1"
           ><span class="font-medium">Nama</span
           ><input v-model="form.name" name="account-name" maxlength="200" :class="inputClass"

@@ -14,6 +14,8 @@ import {
 import { companyKeys } from '@/features/crm/companies/api/companies.queries'
 import { contactKeys } from '@/features/crm/contacts/api/contacts.queries'
 import { dealKeys } from '@/features/crm/deals/api/deals.queries'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const leadKeys = {
   all: ['crm', 'leads'] as const,
@@ -53,16 +55,22 @@ export function useLeadQuery(id: Ref<string>) {
 
 export function useCreateLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: LeadPayload) => leadsApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
 
 export function useUpdateLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({
       id,
@@ -73,26 +81,31 @@ export function useUpdateLeadMutation() {
     }) => leadsApi.update(id, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useDeleteLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => leadsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useRestoreLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => leadsApi.restore(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
+      invalidateEntitlements()
     },
   })
 }
@@ -110,6 +123,7 @@ export function useAssignLeadMutation() {
 
 export function useConvertLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ConvertLeadPayload }) =>
       leadsApi.convert(id, payload),
@@ -118,18 +132,27 @@ export function useConvertLeadMutation() {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all })
       void queryClient.invalidateQueries({ queryKey: companyKeys.all })
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
 
 export function useCreateLeadDealMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ConvertDealInput }) =>
       leadsApi.createDeal(id, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
@@ -175,12 +198,14 @@ export function useCrmMembersQuery() {
 
 export function useDisqualifyLeadMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, reason, note }: { id: string; reason: DisqualifyReason; note?: string }) =>
       leadsApi.disqualify(id, { reason, note }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadKeys.all })
       void queryClient.invalidateQueries({ queryKey: ['crm', 'activities'] })
+      invalidateEntitlements()
     },
   })
 }

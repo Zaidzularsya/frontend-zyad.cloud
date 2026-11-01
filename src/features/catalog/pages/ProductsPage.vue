@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { Package, Pencil, Plus, Tags, Trash2 } from 'lucide-vue-next'
+import { Package, Pencil, Plus, Power, Tags, Trash2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -16,6 +16,12 @@ import {
 } from '@/features/catalog/api/catalog.queries'
 import CategoryManagerDialog from '@/features/catalog/components/CategoryManagerDialog.vue'
 import ProductFormDrawer from '@/features/catalog/components/ProductFormDrawer.vue'
+import {
+  useTriggersQuery,
+  useUnmarkedProductsQuery,
+} from '@/features/mikrotik/api/mikrotik.queries'
+import { useMikrotikEnabled } from '@/features/mikrotik/composables/useMikrotikEnabled'
+import ProductTriggerDialog from '@/features/mikrotik/components/ProductTriggerDialog.vue'
 import { catalogErrorMessage } from '@/features/catalog/utils/errors'
 import {
   normalizePricing,
@@ -34,6 +40,26 @@ const auth = useAuthStore()
 const canCreate = computed(() => auth.can('catalog_product.create'))
 const canUpdate = computed(() => auth.can('catalog_product.update'))
 const canDelete = computed(() => auth.can('catalog_product.delete'))
+
+// Isolir PPPoE: tampil hanya bila fitur Jaringan aktif untuk tenant dan izin trigger ada.
+// Berbeda dari menu (fail-open), di sini fail-closed: aksi dan query Mikrotik baru muncul setelah
+// ringkasan entitlement dimuat dan fitur tidak tersembunyi.
+const mikrotikOn = useMikrotikEnabled()
+const canTriggerUpdate = computed(
+  () => mikrotikOn.value && auth.can('mikrotik_product_trigger.update'),
+)
+const canTriggerRead = computed(
+  () => mikrotikOn.value && (auth.can('mikrotik_product_trigger.read') || canTriggerUpdate.value),
+)
+const triggersQuery = useTriggersQuery(canTriggerRead)
+const unmarkedQuery = useUnmarkedProductsQuery(canTriggerRead)
+const enabledTriggerIds = computed(
+  () => new Set((triggersQuery.data.value ?? []).filter((t) => t.enabled).map((t) => t.product_id)),
+)
+const unmarkedCount = computed(() =>
+  canTriggerRead.value ? (unmarkedQuery.data.value ?? []).length : 0,
+)
+const triggerTarget = ref<CatalogProduct | null>(null)
 
 const searchInput = ref('')
 const search = ref('')
@@ -158,6 +184,16 @@ function formatTax(value: string) {
 
     <p v-if="actionError" class="text-sm text-red-600">{{ actionError }}</p>
 
+    <div
+      v-if="unmarkedCount > 0"
+      data-testid="unmarked-banner"
+      class="rounded-lg bg-amber-100 p-4 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+      role="status"
+    >
+      {{ unmarkedCount }} produk recurring dipakai contract aktif belum ditandai. Tandai lewat aksi
+      "Memicu isolir" agar invoice overdue-nya ikut memicu isolir.
+    </div>
+
     <BaseCard class="!p-0">
       <div v-if="productsQuery.isPending.value" class="p-12 text-center text-sm text-gray-500">
         Memuat data...
@@ -187,7 +223,9 @@ function formatTax(value: string) {
               <th class="px-5 py-3 text-right">Harga</th>
               <th class="px-5 py-3 text-right">Pajak</th>
               <th class="px-5 py-3">Status</th>
-              <th v-if="canUpdate || canDelete" class="px-5 py-3 text-right">Aksi</th>
+              <th v-if="canUpdate || canDelete || canTriggerUpdate" class="px-5 py-3 text-right">
+                Aksi
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -203,6 +241,20 @@ function formatTax(value: string) {
                     class="ml-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-950 dark:text-brand-300"
                   >
                     Publik
+                  </span>
+                  <span
+                    v-if="product.needs_update"
+                    data-testid="needs-update-badge"
+                    class="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                  >
+                    Perlu diperbarui
+                  </span>
+                  <span
+                    v-if="canTriggerRead && enabledTriggerIds.has(product.id)"
+                    data-testid="isolir-badge"
+                    class="ml-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300"
+                  >
+                    Memicu isolir
                   </span>
                 </p>
                 <p v-if="product.description" class="line-clamp-1 text-xs text-gray-500">
@@ -233,8 +285,17 @@ function formatTax(value: string) {
                   {{ product.is_active ? 'Aktif' : 'Nonaktif' }}
                 </span>
               </td>
-              <td v-if="canUpdate || canDelete" class="px-5 py-3">
+              <td v-if="canUpdate || canDelete || canTriggerUpdate" class="px-5 py-3">
                 <div class="flex justify-end gap-2">
+                  <BaseButton
+                    v-if="canTriggerUpdate"
+                    variant="outline"
+                    :aria-label="`Memicu isolir ${product.name}`"
+                    title="Memicu isolir"
+                    @click="triggerTarget = product"
+                  >
+                    <Power class="size-4" />
+                  </BaseButton>
                   <BaseButton
                     v-if="canUpdate"
                     variant="outline"
@@ -274,6 +335,12 @@ function formatTax(value: string) {
       :mode="props.mode"
       @close="formOpen = false"
       @saved="formOpen = false"
+    />
+    <ProductTriggerDialog
+      :open="triggerTarget !== null"
+      :product="triggerTarget"
+      @close="triggerTarget = null"
+      @saved="triggerTarget = null"
     />
     <CategoryManagerDialog
       :open="categoryDialogOpen"

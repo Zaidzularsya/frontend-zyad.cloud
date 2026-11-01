@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  isQuotaExceededError,
+  quotaExceededGenericMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { computed, ref, watch } from 'vue'
 import { AlertTriangle } from 'lucide-vue-next'
 
@@ -57,6 +61,7 @@ function useExisting(company: { id: string; name: string }) {
 }
 
 function extractError(e: unknown): string {
+  if (isQuotaExceededError(e)) return quotaExceededGenericMessage()
   const data = (e as { response?: { data?: { code?: string; message?: string } } })?.response?.data
   const byCode: Record<string, string> = {
     INVALID_PIPELINE_STAGE: 'Pipeline atau stage tidak valid. Muat ulang lalu pilih lagi.',

@@ -3,16 +3,19 @@ import { computed, ref, watch } from 'vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import { useAuthStore } from '@/stores/auth.store'
 
 import type { CatalogCategory, CatalogProduct } from '@/features/catalog/api/catalog.api'
 import {
   useCatalogFeaturesQuery,
   useSaveProductMutation,
 } from '@/features/catalog/api/catalog.queries'
+import ProductEntitlementTable from '@/features/catalog/components/ProductEntitlementTable.vue'
 import ProductPublishingSection from '@/features/catalog/components/ProductPublishingSection.vue'
 import { catalogErrorMessage, errorCode } from '@/features/catalog/utils/errors'
 import {
   buildProductPayload,
+  validateFeatures,
   emptyProductForm,
   productToForm,
   validateProductForm,
@@ -23,7 +26,8 @@ const props = defineProps<{
   open: boolean
   product: CatalogProduct | null
   categories: CatalogCategory[]
-  // 'platform' = katalog org platform: bagian Publikasi & Fitur ditampilkan.
+  // 'platform' = katalog org platform: Publikasi + tabel fitur penuh. 'workspace' = katalog
+  // tenant: Publikasi (katalog publik tenant) + fitur hanya lewat Advanced berizin.
   mode?: 'platform' | 'workspace'
 }>()
 
@@ -40,8 +44,27 @@ const form = ref<ProductForm>(emptyProductForm())
 const errorMessage = ref('')
 const saveMutation = useSaveProductMutation()
 const isPlatform = computed(() => props.mode === 'platform')
-const featuresQuery = useCatalogFeaturesQuery(isPlatform)
-const featureDefs = computed(() => featuresQuery.data.value ?? [])
+const canPublish = computed(() => isPlatform.value || props.mode === 'workspace')
+const auth = useAuthStore()
+// Org non-platform hanya boleh mengatur entitlement bila punya izin khusus (backend 403 tanpa izin).
+const canTenantEntitlements = computed(
+  () => props.mode === 'workspace' && auth.can('catalog_product.manage_entitlements'),
+)
+const entitlementsEnabled = computed(() => isPlatform.value || canTenantEntitlements.value)
+const featuresQuery = useCatalogFeaturesQuery(entitlementsEnabled)
+// Tabel tenant hanya mendukung boolean/integer; decimal/string tidak ditawarkan.
+const featureDefs = computed(() => {
+  const defs = featuresQuery.data.value ?? []
+  return canTenantEntitlements.value
+    ? defs.filter((d) => d.value_type === 'boolean' || d.value_type === 'integer')
+    : defs
+})
+const maxByKey = computed(() => {
+  const map: Record<string, number> = {}
+  for (const d of featureDefs.value) if (d.tenant_max !== undefined) map[d.key] = d.tenant_max
+  return map
+})
+const advancedOpen = ref(false)
 const listingError = ref('')
 
 watch(
@@ -53,19 +76,33 @@ watch(
       : emptyProductForm()
     errorMessage.value = ''
     listingError.value = ''
+    advancedOpen.value = Boolean(props.product?.needs_update) && canTenantEntitlements.value
   },
 )
 
 // Registry fitur bisa tiba setelah drawer dibuka; baris yang sudah dimuat perlu nilai bertipe.
 watch(featureDefs, (defs) => {
-  if (props.open && props.product && isPlatform.value)
+  if (props.open && props.product && entitlementsEnabled.value)
     form.value = productToForm(props.product, defs)
 })
 
 async function submit() {
-  const platformOpts = { platform: isPlatform.value, featureDefs: featureDefs.value }
+  const platformOpts = {
+    platform: isPlatform.value,
+    listing: props.mode === 'workspace',
+    // Tanpa defs yang berhasil dimuat, features tidak dikirim (data stale bisa menimpa/403).
+    entitlements: canTenantEntitlements.value && featuresQuery.isSuccess.value,
+    featureDefs: featureDefs.value,
+    maxByKey: maxByKey.value,
+  }
   const invalid = validateProductForm(form.value, platformOpts)
   if (invalid) {
+    // Jangan sembunyikan error fitur di balik collapse yang tertutup.
+    if (
+      platformOpts.entitlements &&
+      validateFeatures(form.value, featureDefs.value, maxByKey.value)
+    )
+      advancedOpen.value = true
     errorMessage.value = invalid
     return
   }
@@ -195,11 +232,49 @@ const inputClass =
       </fieldset>
 
       <ProductPublishingSection
-        v-if="isPlatform"
+        v-if="canPublish"
         v-model="form"
         :defs="featureDefs"
         :listing-error="listingError"
+        :show-features="false"
       />
+      <ProductEntitlementTable v-if="isPlatform" v-model="form" :defs="featureDefs" />
+      <section v-if="canTenantEntitlements" class="rounded-lg border">
+        <button
+          type="button"
+          data-testid="advanced-toggle"
+          class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium"
+          :aria-expanded="advancedOpen"
+          @click="advancedOpen = !advancedOpen"
+        >
+          Advanced
+          <span class="text-xs text-gray-500">{{ advancedOpen ? 'Tutup' : 'Buka' }}</span>
+        </button>
+        <div v-if="advancedOpen" class="border-t p-3">
+          <div
+            v-if="featuresQuery.isError.value"
+            data-testid="features-error"
+            class="flex items-center justify-between gap-2 text-sm text-red-600"
+            role="alert"
+          >
+            <span>Daftar fitur gagal dimuat. Pengaturan fitur tidak akan disimpan.</span>
+            <button
+              type="button"
+              data-testid="features-retry"
+              class="rounded-lg border px-2 py-1 text-xs"
+              @click="featuresQuery.refetch()"
+            >
+              Coba lagi
+            </button>
+          </div>
+          <ProductEntitlementTable
+            v-else
+            v-model="form"
+            :defs="featureDefs"
+            :max-by-key="maxByKey"
+          />
+        </div>
+      </section>
 
       <label class="block space-y-1 text-sm">
         <span class="font-medium">Deskripsi</span>

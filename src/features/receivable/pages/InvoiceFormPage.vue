@@ -23,6 +23,10 @@ import {
   useUpdateInvoiceMutation,
 } from '@/features/receivable/api/receivable.queries'
 import AccountPicker from '@/features/receivable/components/AccountPicker.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { receivableErrorCode, receivableErrorMessage } from '@/features/receivable/utils/errors'
 import {
   blankInvoiceForm,
@@ -119,8 +123,9 @@ async function save() {
     toast.success('Draft invoice disimpan.')
     await router.push(`${base.value}/invoices/${saved.id}`)
   } catch (error) {
-    errorMessage.value =
-      receivableErrorCode(error) === 'INVOICE_NOT_DRAFT'
+    errorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('invoice')
+      : receivableErrorCode(error) === 'INVOICE_NOT_DRAFT'
         ? 'Invoice sudah diterbitkan di tab lain dan tidak bisa diubah.'
         : receivableErrorMessage(error, 'Draft gagal disimpan. Coba lagi.')
   }
@@ -240,11 +245,16 @@ const inputClass =
             </p>
           </fieldset>
           <label v-if="canPickPic" class="block space-y-1 text-sm">
-            <span class="font-medium">PIC pengirim (opsional)</span>
+            <span class="font-medium">PIC pengirim (anggota tim, opsional)</span>
             <select v-model="form.picUserId" name="pic" :class="inputClass">
-              <option value="">Pakai pengirim default / yang menerbitkan</option>
+              <option value="">Otomatis: pengirim default di Pengaturan</option>
               <option v-for="s in senders" :key="s.user_id" :value="s.user_id">{{ s.name }}</option>
             </select>
+            <span class="block text-xs text-gray-500">
+              Invoice dikirim lewat email dan WhatsApp milik anggota tim ini, bukan email platform.
+              Bila dikosongkan, dipakai pengirim default di Pengaturan; pada pengiriman manual, akun
+              yang mengirim lebih dulu.
+            </span>
           </label>
         </div>
         <label class="mt-4 block space-y-1 text-sm">

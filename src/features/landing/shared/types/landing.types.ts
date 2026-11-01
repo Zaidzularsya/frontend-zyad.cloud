@@ -71,6 +71,16 @@ export interface LandingDocument {
   updated_at: string
 }
 
+export type ActivationState = 'none' | 'preview' | 'publish' | 'expired'
+
+export interface LandingPageOpenActivation {
+  id: string
+  buyer_name: string
+  price: string
+  invoice_due_at: string
+  preview_url_template?: string
+}
+
 export interface LandingPage {
   id: string
   name: string
@@ -99,6 +109,10 @@ export interface LandingPage {
   theme?: LandingTheme | Record<string, unknown>
   /** Preferensi page/brand/tenant. */
   preferences?: Record<string, unknown>
+  /** Status aktivasi reseller (hanya ada pada response admin; absen = 'none'). */
+  activation_state?: ActivationState
+  active_until?: string | null
+  open_activation?: LandingPageOpenActivation | null
 }
 
 // ─── Section ────────────────────────────────────────────────────────────────

@@ -214,6 +214,7 @@ function extractError(error: unknown) {
                 <th class="px-4 py-3 text-left font-semibold">Module</th>
                 <th class="px-4 py-3 text-left font-semibold">Tipe nilai</th>
                 <th class="px-4 py-3 text-left font-semibold">Reset</th>
+                <th class="px-4 py-3 text-left font-semibold">Tenant</th>
                 <th class="px-4 py-3 text-left font-semibold">Status</th>
                 <th class="px-4 py-3 text-right font-semibold">Aksi</th>
               </tr>
@@ -246,6 +247,18 @@ function extractError(error: unknown) {
                 </td>
                 <td class="px-4 py-4 align-top text-xs text-gray-600 dark:text-gray-300">
                   {{ feature.reset_strategy }}
+                </td>
+                <td class="px-4 py-4 align-top">
+                  <span
+                    v-if="feature.tenant_offerable"
+                    data-test="tenant-badge"
+                    class="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                  >
+                    Boleh ditawarkan<template v-if="feature.tenant_max != null"
+                      >, maks {{ feature.tenant_max }}</template
+                    >
+                  </span>
+                  <span v-else class="text-xs text-gray-400">-</span>
                 </td>
                 <td class="px-4 py-4 align-top">
                   <FeatureStatusBadge :active="feature.is_active" />

@@ -18,6 +18,13 @@ export interface Account {
   created_at: string
 }
 
+export interface AccountListParams {
+  page: number
+  per_page: number
+  search?: string
+  contact_id?: string
+}
+
 export interface AccountPayload {
   name: string
   company_name?: string
@@ -277,7 +284,7 @@ export const receivableApi = {
   },
 
   accounts: {
-    list: async (params: { page: number; per_page: number; search?: string }) => {
+    list: async (params: AccountListParams) => {
       const r = await http.get<Paged<Account>>('/app/receivable/accounts', { params })
       return { data: r.data.data, meta: r.data.meta }
     },

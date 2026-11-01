@@ -7,6 +7,7 @@ import {
   type PublicListing,
   type PublicListingCategory,
 } from '@/features/public/api/public-catalog.api'
+import { tenantCheckoutApi } from '@/features/public/api/tenant-checkout.api'
 import { useAuthStore } from '@/stores/auth.store'
 import {
   parseCatalogPricingConfig,
@@ -43,6 +44,10 @@ const config = computed<CatalogPricingConfig>(() =>
 const ANNUAL = 'annual'
 
 const isPlatform = computed(() => ctx.orgType.value === 'platform')
+// Tenant = tipe org terketahui selain platform. Tipe '' (belum diketahui) tidak memuat apa pun,
+// supaya halaman platform tidak sempat memanggil endpoint tenant dan sebaliknya.
+const isTenant = computed(() => ctx.orgType.value !== '' && !isPlatform.value)
+const canShow = computed(() => isPlatform.value || isTenant.value)
 const categories = ref<PublicListingCategory[]>([])
 const loading = ref(false)
 let loaded = false
@@ -54,14 +59,21 @@ async function loadCatalog() {
   loaded = true
   loading.value = true
   try {
-    const all = (await publicCatalogApi.listListings())
-      .filter((c) => c.listings.length > 0)
-      .sort((a, b) => a.position - b.position)
+    const raw = isTenant.value
+      ? await tenantCheckoutApi.listCatalog()
+      : await publicCatalogApi.listListings()
+    const all = raw.filter((c) => c.listings.length > 0).sort((a, b) => a.position - b.position)
     const wanted = config.value.categoryIds
     const picked = wanted.length ? all.filter((c) => wanted.includes(c.id)) : all
     categories.value = picked.length ? picked : all
     activeCategoryId.value = categories.value[0]?.id ?? ''
   } catch (err) {
+    // Host tanpa katalog tenant (mis. pratinjau admin/galeri template di host platform yang
+    // memberi orgType 'customer') menjawab 404: katalog kosong, blok disembunyikan.
+    if (isTenant.value && (err as { response?: { status?: number } })?.response?.status === 404) {
+      categories.value = []
+      return
+    }
     console.error('CatalogPricingSlot: failed to load public catalog listings', err)
     failed.value = true
   } finally {
@@ -71,15 +83,15 @@ async function loadCatalog() {
 
 // orgType can resolve after mount (admin preview before the tenant store hydrates).
 watch(
-  isPlatform,
-  (platform) => {
-    if (platform && !loaded) void loadCatalog()
+  canShow,
+  (show) => {
+    if (show && !loaded) void loadCatalog()
   },
   { immediate: true },
 )
 
 const visible = computed(
-  () => isPlatform.value && (loading.value || failed.value || categories.value.length > 0),
+  () => canShow.value && (loading.value || failed.value || categories.value.length > 0),
 )
 
 const activeCategory = computed(
@@ -144,9 +156,19 @@ function onCta(view: CardView) {
   const cta = view.card.cta
   switch (cta.kind) {
     case 'checkout':
-      void router.push(checkoutTarget(cta.productId, auth.isAuthenticated))
+      // Tenant: checkout publik di domain sendiri (login Google ada di halaman checkout).
+      void router.push(
+        isTenant.value
+          ? `/checkout/${cta.productId}`
+          : checkoutTarget(cta.productId, auth.isAuthenticated),
+      )
       return
     case 'free':
+      // Paket gratis hanya ada di platform; produk tenant tanpa harga ditangani penjual.
+      if (isTenant.value) {
+        goContact(view.card.name)
+        return
+      }
       void router.push(auth.isAuthenticated ? '/app/dashboard' : '/auth/register')
       return
     case 'contact': {

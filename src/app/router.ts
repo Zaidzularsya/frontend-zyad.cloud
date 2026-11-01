@@ -3,6 +3,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { env } from '@/config/env'
 import { buildCrmRoutes } from '@/features/crm/config/crm-routes'
 import { buildSalesOrderRoutes } from '@/features/crm/sales-orders/config/sales-order-routes'
+import { buildMikrotikRoutes } from '@/features/mikrotik/config/mikrotik-routes'
 import {
   buildContractRoutes,
   buildReceivableRoutes,
@@ -80,6 +81,22 @@ const routes: RouteRecordRaw[] = [
     name: 'public-invoice',
     component: () => import('@/features/public-documents/pages/PublicInvoicePage.vue'),
     meta: { title: 'Invoice', public: true },
+  },
+  {
+    // Checkout publik di domain tenant: tanpa login, tenant di-resolve backend dari Host.
+    // Dua segmen path, jadi tidak bertabrakan dengan `/:slug` landing page.
+    path: '/checkout/:productId',
+    name: 'tenant-checkout',
+    component: () => import('@/features/public/pages/TenantCheckoutPage.vue'),
+    meta: { title: 'Checkout', public: true },
+  },
+  {
+    // Pratinjau halaman berbayar untuk pembeli (preview_url aktivasi) di domain tenant.
+    // Dua segmen path, jadi tidak bertabrakan dengan `/:slug` landing page.
+    path: '/preview/:token',
+    name: 'landing-activation-preview',
+    component: () => import('@/features/landing/renderer/pages/ActivationPreviewPage.vue'),
+    meta: { title: 'Pratinjau', public: true },
   },
   {
     path: '/',
@@ -179,6 +196,13 @@ const routes: RouteRecordRaw[] = [
       ...buildSalesOrderRoutes('sales', 'sales'),
       ...buildContractRoutes('sales', 'contracts', 'contract-detail'),
       ...buildReceivableRoutes('billing'),
+      ...buildMikrotikRoutes('mikrotik'),
+      {
+        path: 'billing/settlement',
+        name: 'billing-settlement',
+        component: () => import('@/features/settlement/pages/MyBalancePage.vue'),
+        meta: { title: 'Saldo Pembayaran', permissions: ['settlement.read'] },
+      },
       {
         path: 'billing/credit-notes',
         name: 'billing-credit-notes',
@@ -257,6 +281,18 @@ const routes: RouteRecordRaw[] = [
         name: 'billing',
         component: () => import('@/features/customer/pages/SubscriptionPage.vue'),
         meta: { title: 'Langganan' },
+      },
+      {
+        path: 'billing/bills',
+        name: 'billing-bills',
+        component: () => import('@/features/customer/pages/BillsPage.vue'),
+        meta: { title: 'Tagihan', permissions: ['organization.billing.read'] },
+      },
+      {
+        path: 'billing/usage',
+        name: 'billing-usage',
+        component: () => import('@/features/entitlements/pages/UsagePage.vue'),
+        meta: { title: 'Pemakaian Paket' },
       },
       {
         path: 'checkout',
@@ -430,6 +466,12 @@ const routes: RouteRecordRaw[] = [
         name: 'platform-audit-logs',
         component: () => import('@/features/audit/pages/AuditLogsPage.vue'),
         meta: { title: 'Audit Logs', permissions: ['audit.read'] },
+      },
+      {
+        path: 'settlements',
+        name: 'platform-settlements',
+        component: () => import('@/features/settlement/pages/SettlementOverviewPage.vue'),
+        meta: { title: 'Saldo & Setoran', permissions: ['settlement.manage'] },
       },
       {
         path: 'storage',

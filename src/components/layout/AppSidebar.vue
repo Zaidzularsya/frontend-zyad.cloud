@@ -3,9 +3,11 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronDown, FileText, Landmark, ShieldQuestion, UserCircle2, X } from 'lucide-vue-next'
 
-import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
+import { platformMenuGroups, customerMenuGroups, customerAccountMenuItems } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
 import type { LandingMenuTone } from '@/features/landing/builder/config/landing-menu'
+import { useHiddenFeatures } from '@/features/entitlements/composables/useHiddenFeatures'
+import { filterMenuByEntitlement } from '@/features/entitlements/utils/menu-filter'
 import { hasPermission } from '@/lib/permission'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -18,6 +20,8 @@ const tenant = useTenantStore()
 const route = useRoute()
 const openMenus = ref(new Set<string>(['Landing Page']))
 
+const isFeatureHidden = useHiddenFeatures()
+
 const isPlatformMode = computed(() => route.path.startsWith('/platform'))
 
 function hasChildren(
@@ -27,7 +31,10 @@ function hasChildren(
 }
 
 const visibleGroups = computed(() => {
-  const groups = route.path.startsWith('/platform') ? platformMenuGroups : customerMenuGroups
+  const groups = filterMenuByEntitlement(
+    route.path.startsWith('/platform') ? platformMenuGroups : customerMenuGroups,
+    isFeatureHidden,
+  )
   return groups
     .map((group) => ({
       ...group,
@@ -52,6 +59,12 @@ const visibleGroups = computed(() => {
     }))
     .filter((group) => group.items.length)
 })
+
+const accountItems = computed(() =>
+  customerAccountMenuItems.filter(
+    (item) => !item.permission || hasPermission(auth.user?.permissions ?? [], item.permission),
+  ),
+)
 
 function itemKey(item: MenuItem | MenuChildItem, parentKey = '') {
   return parentKey ? `${parentKey}/${item.label}` : item.label
@@ -318,6 +331,17 @@ function closeMobileSidebar() {
           >
             <Landmark class="size-4 shrink-0" />
             Bank
+          </RouterLink>
+          <RouterLink
+            v-for="item in accountItems"
+            :key="item.label"
+            :to="{ name: item.route }"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+            active-class="!bg-brand-50 !text-brand-600 dark:!bg-brand-950"
+            @click="closeMobileSidebar"
+          >
+            <component :is="item.icon" class="size-4 shrink-0" />
+            {{ item.label }}
           </RouterLink>
         </div>
         <button

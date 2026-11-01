@@ -4,13 +4,18 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { AlertTriangle, Plus, Receipt, Search } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import DataPagination from '@/components/ui/DataPagination.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
 import { formatRupiah } from '@/features/crm/quotations/utils/quotation-editor'
 import type { InvoiceStatus } from '@/features/receivable/api/receivable.api'
+import { MANUAL_CREATION_ENABLED } from '@/features/receivable/config/manual-creation'
 import { useInvoicesQuery } from '@/features/receivable/api/receivable.queries'
 import { INVOICE_STATUS } from '@/features/receivable/utils/invoice-status'
+import CustomerIsolationBadge from '@/features/mikrotik/components/CustomerIsolationBadge.vue'
+import { useCustomerStatusQuery } from '@/features/mikrotik/api/mikrotik.queries'
+import { useMikrotikEnabled } from '@/features/mikrotik/composables/useMikrotikEnabled'
 import { useAuthStore } from '@/stores/auth.store'
 
 const route = useRoute()
@@ -49,6 +54,19 @@ const invoicesQuery = useInvoicesQuery(params)
 const invoices = computed(() => invoicesQuery.data.value?.data ?? [])
 const total = computed(() => invoicesQuery.data.value?.meta?.total ?? 0)
 
+// Satu permintaan status untuk seluruh baris halaman ini (bukan per baris), hanya bila fitur aktif.
+const mikrotikOn = useMikrotikEnabled()
+const showIsolation = computed(() => mikrotikOn.value && auth.can('mikrotik_policy.read'))
+const statusAccountIds = computed(() =>
+  showIsolation.value
+    ? [...new Set(invoices.value.map((inv) => inv.account.id))].slice(0, 100)
+    : [],
+)
+const statusQuery = useCustomerStatusQuery(statusAccountIds)
+const statusByAccount = computed(
+  () => new Map((statusQuery.data.value ?? []).map((s) => [s.account_id, s])),
+)
+
 const tabs: { value: InvoiceStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Semua' },
   ...(['draft', 'issued', 'overdue', 'paid', 'void'] as const).map((value) => ({
@@ -79,10 +97,17 @@ function formatDate(value?: string | null) {
       title="Invoice"
       description="Tagihan ke pelanggan: terbitkan, kirim, dan catat pembayaran."
     >
-      <BaseButton v-if="auth.can('invoice.create')" @click="router.push(`${base}/invoices/new`)">
-        <Plus class="size-4" /> Invoice baru
-      </BaseButton>
+      <QuotaActionButton
+        v-if="MANUAL_CREATION_ENABLED && auth.can('invoice.create')"
+        feature-key="receivable.max_invoices_per_month"
+        label="Invoice baru"
+        upgrade-label="Upgrade untuk tambah invoice"
+        @click="router.push(`${base}/invoices/new`)"
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
+    <QuotaLimitBanner feature-key="receivable.max_invoices_per_month" noun="invoice" />
 
     <div class="flex gap-2 overflow-x-auto border-b">
       <button
@@ -154,6 +179,11 @@ function formatDate(value?: string | null) {
               </td>
               <td class="px-5 py-3">
                 {{ inv.account.name }}
+                <CustomerIsolationBadge
+                  v-if="showIsolation"
+                  class="ml-1"
+                  :state="statusByAccount.get(inv.account.id)"
+                />
                 <span v-if="inv.account.company_name" class="block text-xs text-gray-500">{{
                   inv.account.company_name
                 }}</span>

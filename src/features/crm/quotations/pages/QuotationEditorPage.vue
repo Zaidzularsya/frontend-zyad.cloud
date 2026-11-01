@@ -6,6 +6,10 @@ import { ArrowLeft, Download, Eye, FileText, Link2, Send, Trash2 } from 'lucide-
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import { useToast } from '@/components/ui/toast'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import type { CatalogProduct } from '@/features/catalog/api/catalog.api'
 import { FREQUENCIES } from '@/features/catalog/utils/pricing'
 import { useContactQuery } from '@/features/crm/contacts/api/contacts.queries'
@@ -186,7 +190,9 @@ function handleError(error: unknown) {
     savedSnapshot.value = snapshot()
     void quotationQuery.refetch()
   }
-  errorMessage.value = quotationErrorMessage(error)
+  errorMessage.value = isQuotaExceededError(error)
+    ? quotaExceededMessage('quotation')
+    : quotationErrorMessage(error)
 }
 
 async function save(): Promise<string | null> {

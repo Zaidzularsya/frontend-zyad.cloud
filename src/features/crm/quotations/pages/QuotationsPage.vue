@@ -5,6 +5,7 @@ import { FileText } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
 
 import type { QuotationStatus } from '@/features/crm/quotations/api/quotations.api'
 import { useQuotationsQuery } from '@/features/crm/quotations/api/quotations.queries'
@@ -53,6 +54,7 @@ function formatDate(value?: string | null) {
         <RouterLink :to="`${base}deals`" class="font-medium text-brand-600">Deal</RouterLink>.
       </p>
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_quotations_per_month" noun="quotation" />
 
     <div class="flex gap-2 overflow-x-auto border-b">
       <button

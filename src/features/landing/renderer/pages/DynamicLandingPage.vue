@@ -34,6 +34,11 @@ const props = defineProps<{
   slug?: string
   /** Mode beranda platform: resolve halaman is_homepage (`?home=1`); mengalahkan slug. */
   home?: boolean
+  /**
+   * Token pratinjau aktivasi (`/preview/:token`): memuat GET /public/landing/preview/:token,
+   * bentuk respons sama dengan resolve. Mengalahkan home/slug. Token tidak pernah di-log.
+   */
+  previewToken?: string
 }>()
 
 const emit = defineEmits<{
@@ -104,11 +109,13 @@ async function fetchPage(slug: string) {
   loading.value = true
   error.value = null
   try {
-    const url = props.home
-      ? '/public/landing/resolve?home=1'
-      : slug
-        ? `/public/landing/resolve?slug=${slug}`
-        : '/public/landing/resolve'
+    const url = props.previewToken
+      ? `/public/landing/preview/${encodeURIComponent(props.previewToken)}`
+      : props.home
+        ? '/public/landing/resolve?home=1'
+        : slug
+          ? `/public/landing/resolve?slug=${slug}`
+          : '/public/landing/resolve'
     const res = await http.get<{ data: RawRecord } | RawRecord>(url)
     const result: RawRecord = (res.data as { data?: RawRecord }).data ?? (res.data as RawRecord)
     const rawPage = pickObject(result, 'Page', 'page')
@@ -166,8 +173,18 @@ async function fetchPage(slug: string) {
 
     footerContent.value = useFooterContent(result, pageData.value.title ?? '')
   } catch (err) {
-    console.error('DynamicLandingPage: failed to load page', err)
-    error.value = 'Halaman tidak dapat dimuat. Silakan coba beberapa saat lagi.'
+    if (props.previewToken) {
+      // Objek galat axios memuat URL bertoken; hanya status yang dicatat.
+      const status = (err as { response?: { status?: number } })?.response?.status
+      console.error('DynamicLandingPage: failed to load preview', status ?? 'network')
+      error.value =
+        status === 404
+          ? 'Pratinjau tidak tersedia atau sudah kedaluwarsa.'
+          : 'Pratinjau tidak dapat dimuat. Silakan coba beberapa saat lagi.'
+    } else {
+      console.error('DynamicLandingPage: failed to load page', err)
+      error.value = 'Halaman tidak dapat dimuat. Silakan coba beberapa saat lagi.'
+    }
   } finally {
     loading.value = false
   }
@@ -362,7 +379,9 @@ function pickArray(record: RawRecord, ...keys: string[]): RawRecord[] {
     <!-- Error state -->
     <div v-else-if="error" class="min-h-screen flex items-center justify-center">
       <div class="max-w-md text-center px-6">
-        <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">Halaman tidak tersedia</p>
+        <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {{ previewToken ? 'Pratinjau tidak tersedia' : 'Halaman tidak tersedia' }}
+        </p>
         <p class="mt-2 text-sm text-gray-500">{{ error }}</p>
       </div>
     </div>
