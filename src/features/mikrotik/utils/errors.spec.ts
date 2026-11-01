@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { taskErrorAction } from '@/features/mikrotik/utils/errors'
+import { secretActionError, taskErrorAction } from '@/features/mikrotik/utils/errors'
 
 const KNOWN_CODES = [
   'auth_failed',
@@ -31,5 +31,21 @@ describe('taskErrorAction', () => {
   it('tiap kode dikenal punya pesan berbeda', () => {
     const messages = new Set(KNOWN_CODES.map((c) => taskErrorAction(c).message))
     expect(messages.size).toBe(KNOWN_CODES.length)
+  })
+})
+
+describe('secretActionError', () => {
+  it('maps 409 codes to readable messages', () => {
+    expect(
+      secretActionError({ response: { data: { code: 'MIKROTIK_SECRET_HAS_ACTIVE_TASK' } } }),
+    ).toContain('tugas isolir')
+    expect(
+      secretActionError({ response: { data: { error: { code: 'MIKROTIK_SECRET_ISOLATED' } } } }),
+    ).toContain('terisolir')
+  })
+
+  it('falls back to backend message then generic', () => {
+    expect(secretActionError({ response: { data: { message: 'x salah' } } })).toBe('x salah')
+    expect(secretActionError(new Error('net'))).toBe('Terjadi kesalahan, silakan coba lagi.')
   })
 })

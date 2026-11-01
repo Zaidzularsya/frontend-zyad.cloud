@@ -1,0 +1,83 @@
+import { describe, expect, it } from 'vitest'
+
+import { usePairSelection } from '@/features/mikrotik/composables/usePairSelection'
+import { secret } from '@/features/mikrotik/testing/fixtures'
+
+const green = (id: string, account: string) =>
+  secret({
+    id,
+    suggestion: {
+      account_id: account,
+      account_name: 'Budi',
+      account_phone: '0812',
+      basis: 'phone',
+      candidates: 1,
+    },
+  })
+const yellow = (id: string) =>
+  secret({
+    id,
+    suggestion: {
+      account_id: '',
+      account_name: '',
+      account_phone: '',
+      basis: 'ambiguous',
+      candidates: 2,
+    },
+  })
+
+describe('usePairSelection', () => {
+  it('selects all green rows by default and ignores yellow, red and paired rows', () => {
+    const sel = usePairSelection()
+    sel.selectAllSuggested([
+      green('a', 'acc1'),
+      green('b', 'acc2'),
+      yellow('c'),
+      secret({ id: 'd', needs_original_profile: true }),
+      secret({ id: 'e', account_id: 'acc9' }),
+    ])
+    expect([...sel.selected.entries()]).toEqual([
+      ['a', 'acc1'],
+      ['b', 'acc2'],
+    ])
+    expect(sel.count.value).toBe(2)
+  })
+
+  it('clear releases one row and re-running selectAllSuggested does not bring it back', () => {
+    const sel = usePairSelection()
+    const rows = [green('a', 'acc1'), green('b', 'acc2')]
+    sel.selectAllSuggested(rows)
+    sel.clear('a')
+    expect(sel.count.value).toBe(1)
+    sel.selectAllSuggested(rows)
+    expect(sel.selected.has('a')).toBe(false)
+  })
+
+  it('toggle adds then removes and setAccount sets a manual pick', () => {
+    const sel = usePairSelection()
+    sel.toggle('x', 'acc1')
+    expect(sel.selected.get('x')).toBe('acc1')
+    sel.toggle('x', 'acc1')
+    expect(sel.selected.has('x')).toBe(false)
+    sel.setAccount('y', 'acc2')
+    expect(sel.selected.get('y')).toBe('acc2')
+    expect(sel.count.value).toBe(1)
+  })
+
+  it('allows the same account for two secrets, but a secret appears once', () => {
+    const sel = usePairSelection()
+    sel.setAccount('a', 'acc1')
+    sel.setAccount('b', 'acc1')
+    sel.setAccount('a', 'acc2')
+    expect(sel.count.value).toBe(2)
+    expect(sel.selected.get('a')).toBe('acc2')
+    expect(sel.selected.get('b')).toBe('acc1')
+  })
+
+  it('reset empties the selection', () => {
+    const sel = usePairSelection()
+    sel.setAccount('a', 'acc1')
+    sel.reset()
+    expect(sel.count.value).toBe(0)
+  })
+})

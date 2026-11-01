@@ -62,3 +62,27 @@ const TASK_ERRORS: Record<string, TaskErrorAction> = {
 export function taskErrorAction(code: string): TaskErrorAction {
   return (Object.hasOwn(TASK_ERRORS, code) ? TASK_ERRORS[code] : undefined) ?? UNKNOWN_ERROR
 }
+
+interface ApiErrorBody {
+  code?: string
+  message?: string
+  error?: { code?: string }
+}
+
+const SECRET_ACTION_ERRORS: Record<string, string> = {
+  MIKROTIK_SECRET_HAS_ACTIVE_TASK:
+    'Secret ini masih punya tugas isolir yang berjalan. Tunggu sampai selesai, lalu coba lagi.',
+  MIKROTIK_SECRET_ISOLATED:
+    'Secret ini sedang terisolir. Lepas pasangan setelah pelanggan lunas atau dikecualikan.',
+  MIKROTIK_SECRET_ALREADY_PAIRED: 'Secret ini sudah terpasang ke pelanggan.',
+  MIKROTIK_SECRET_NOT_FOUND: 'Secret tidak ditemukan. Impor ulang dari router.',
+}
+
+// Pesan yang bisa dibaca untuk galat aksi secret (pair/unpair/impor/analisis).
+export function secretActionError(error: unknown): string {
+  const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
+  const code = body?.code ?? body?.error?.code
+  if (code && Object.hasOwn(SECRET_ACTION_ERRORS, code))
+    return SECRET_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
+  return body?.message || 'Terjadi kesalahan, silakan coba lagi.'
+}
