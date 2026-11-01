@@ -77,6 +77,10 @@ const SECRET_ACTION_ERRORS: Record<string, string> = {
     'Secret ini sedang terisolir. Lepas pasangan setelah pelanggan lunas atau dikecualikan.',
   MIKROTIK_SECRET_ALREADY_PAIRED: 'Secret ini sudah terpasang ke pelanggan.',
   MIKROTIK_SECRET_NOT_FOUND: 'Secret tidak ditemukan. Impor ulang dari router.',
+  MIKROTIK_SECRET_NOT_PAIRABLE: 'Secret belum bisa dipasangkan saat ini.',
+  MIKROTIK_ACCOUNT_NOT_FOUND: 'Pelanggan tidak ditemukan atau sudah dihapus.',
+  MIKROTIK_ANALYZE_IN_PROGRESS:
+    'Analisis untuk router ini sedang berjalan. Coba lagi sebentar lagi.',
 }
 
 // Pesan yang bisa dibaca untuk galat aksi secret (pair/unpair/impor/analisis).
@@ -85,6 +89,9 @@ export function secretActionError(error: unknown): string {
   const code = body?.code ?? body?.error?.code
   if (code && Object.hasOwn(SECRET_ACTION_ERRORS, code))
     return SECRET_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
+  // Impor/analisis menyentuh router: kode router/probe punya padanan Indonesia di peta router.
+  if (code && Object.hasOwn(ROUTER_ACTION_ERRORS, code))
+    return ROUTER_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
   return body?.message || 'Terjadi kesalahan, silakan coba lagi.'
 }
 
@@ -140,4 +147,19 @@ export function tlsUntrustedFingerprint(
   const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
   if (apiErrorCode(error) !== 'MIKROTIK_TLS_UNTRUSTED' || !body?.data?.fingerprint) return null
   return { fingerprint: body.data.fingerprint, pinMismatch: Boolean(body.data.pin_mismatch) }
+}
+
+const CHECK_STATUS_LABELS: Record<string, string> = {
+  ok: 'Terhubung',
+  unreachable: 'Tidak terjangkau',
+  auth_failed: 'Kredensial ditolak',
+  tls_untrusted: 'Sertifikat tidak dipercaya',
+  host_not_allowed: 'Host ditolak',
+}
+
+// Nilai last_check_status dari backend; nilai tak dikenal ditampilkan apa adanya.
+export function checkStatusLabel(status: string): string {
+  return Object.hasOwn(CHECK_STATUS_LABELS, status)
+    ? (CHECK_STATUS_LABELS[status] ?? status)
+    : status
 }

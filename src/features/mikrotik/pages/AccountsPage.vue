@@ -334,7 +334,12 @@ function closeResult() {
       </div>
     </PageHeader>
 
-    <BaseCard v-if="!routersQuery.isPending.value && routers.length === 0">
+    <BaseCard v-if="routersQuery.isError.value" class="flex items-center gap-3 text-sm">
+      <p class="text-red-600" role="alert">Gagal memuat router. Coba lagi.</p>
+      <BaseButton variant="outline" @click="routersQuery.refetch()">Coba lagi</BaseButton>
+    </BaseCard>
+
+    <BaseCard v-else-if="!routersQuery.isPending.value && routers.length === 0">
       <p class="text-sm text-gray-600 dark:text-gray-300">
         Belum ada router terdaftar.
         <RouterLink :to="{ name: 'mikrotik-routers' }" class="font-medium text-brand-600"
@@ -394,6 +399,14 @@ function closeResult() {
           role="status"
         >
           {{ progressText(progress.processed, progress.total) }}
+        </div>
+        <div
+          v-else-if="listQuery.isError.value"
+          class="flex items-center justify-center gap-3 p-12 text-sm"
+          role="alert"
+        >
+          <p class="text-red-600">Gagal memuat data. Coba lagi.</p>
+          <BaseButton variant="outline" @click="listQuery.refetch()">Coba lagi</BaseButton>
         </div>
         <div v-else-if="listQuery.isPending.value" class="p-12 text-center text-sm text-gray-500">
           Memuat data...

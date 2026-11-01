@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  checkStatusLabel,
   routerActionError,
   secretActionError,
   taskErrorAction,
@@ -104,5 +105,26 @@ describe('tlsUntrustedFingerprint', () => {
       tlsUntrustedFingerprint(err('MIKROTIK_AUTH_FAILED', 'x', { fingerprint: 'AA' })),
     ).toBeNull()
     expect(tlsUntrustedFingerprint(err('MIKROTIK_TLS_UNTRUSTED'))).toBeNull()
+  })
+})
+
+describe('M2 secretActionError router/probe codes', () => {
+  it('maps router and analyze codes to Indonesian instead of the English message', () => {
+    const err = (code: string) => ({ response: { data: { code, message: 'router unreachable' } } })
+    expect(secretActionError(err('MIKROTIK_UNREACHABLE'))).toContain('tidak terjangkau')
+    expect(secretActionError(err('MIKROTIK_AUTH_FAILED'))).toContain('menolak')
+    expect(secretActionError(err('MIKROTIK_TLS_UNTRUSTED'))).toContain('TLS')
+    expect(secretActionError(err('MIKROTIK_ANALYZE_IN_PROGRESS'))).toContain('Analisis')
+    expect(secretActionError(err('MIKROTIK_SECRET_NOT_PAIRABLE'))).toContain('dipasangkan')
+  })
+})
+
+describe('checkStatusLabel', () => {
+  it('maps known last_check_status values and passes unknown ones through', () => {
+    expect(checkStatusLabel('unreachable')).toBe('Tidak terjangkau')
+    expect(checkStatusLabel('auth_failed')).toBe('Kredensial ditolak')
+    expect(checkStatusLabel('tls_untrusted')).toBe('Sertifikat tidak dipercaya')
+    expect(checkStatusLabel('host_not_allowed')).toBe('Host ditolak')
+    expect(checkStatusLabel('aneh')).toBe('aneh')
   })
 })

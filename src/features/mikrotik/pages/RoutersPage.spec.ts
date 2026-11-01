@@ -46,7 +46,14 @@ async function mountPage(permissions: Permission[], url = '/mikrotik/routers') {
   const w = mount(RoutersPage, {
     attachTo: document.body,
     global: {
-      plugins: [pinia, router, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      plugins: [
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
     },
   })
   await flushPromises()
@@ -184,5 +191,30 @@ describe('RoutersPage', () => {
     await flushPromises()
     expect(document.body.textContent).toContain('Setup isolir: Core-1')
     w.unmount()
+  })
+
+  it('M3: shows an error state with retry instead of the empty message when the list fails', async () => {
+    vi.mocked(mikrotikApi.routers.list).mockReset().mockRejectedValueOnce(new Error('boom'))
+    await mountPage(ALL)
+    expect(document.body.textContent).toContain('Gagal memuat router. Coba lagi.')
+    expect(document.body.textContent).not.toContain('Belum ada router terdaftar.')
+    vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+      data: [R1],
+      meta: { total: 1 },
+    } as never)
+    find('Coba lagi')?.click()
+    await flushPromises()
+    expect(document.body.textContent).toContain('Core-1')
+  })
+
+  it('M2: shows a readable label for a known last_check_status', async () => {
+    vi.mocked(mikrotikApi.routers.list)
+      .mockReset()
+      .mockResolvedValue({
+        data: [routerFixture({ id: 'r1', name: 'Core-1', last_check_status: 'auth_failed' })],
+        meta: { total: 1 },
+      } as never)
+    await mountPage(ALL)
+    expect(document.body.textContent).toContain('Kredensial ditolak')
   })
 })

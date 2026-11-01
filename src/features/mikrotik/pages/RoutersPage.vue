@@ -18,7 +18,7 @@ import RouterSecretCount from '@/features/mikrotik/components/RouterSecretCount.
 import RouterFormModal from '@/features/mikrotik/components/RouterFormModal.vue'
 import SetupPlanModal from '@/features/mikrotik/components/SetupPlanModal.vue'
 import type { Router } from '@/features/mikrotik/types'
-import { apiErrorCode, routerActionError } from '@/features/mikrotik/utils/errors'
+import { apiErrorCode, checkStatusLabel, routerActionError } from '@/features/mikrotik/utils/errors'
 import { useAuthStore } from '@/stores/auth.store'
 
 const auth = useAuthStore()
@@ -61,7 +61,7 @@ function statusLabel(r: Router) {
         cls: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200',
       }
     : {
-        text: r.last_check_status,
+        text: checkStatusLabel(r.last_check_status),
         cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200',
       }
 }
@@ -178,6 +178,10 @@ async function confirmDelete() {
 
     <BaseCard>
       <p v-if="listQuery.isLoading.value" class="text-sm text-gray-500">Memuat...</p>
+      <div v-else-if="listQuery.isError.value" class="flex items-center gap-3 text-sm" role="alert">
+        <p class="text-red-600">Gagal memuat router. Coba lagi.</p>
+        <BaseButton variant="outline" @click="listQuery.refetch()">Coba lagi</BaseButton>
+      </div>
       <p v-else-if="!routers.length" class="text-sm text-gray-500">Belum ada router terdaftar.</p>
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-sm">
