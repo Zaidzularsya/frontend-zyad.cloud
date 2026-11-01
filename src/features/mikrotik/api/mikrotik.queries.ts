@@ -35,8 +35,12 @@ function useInvalidateMikrotik() {
   return () => void queryClient.invalidateQueries({ queryKey: mikrotikKeys.all })
 }
 
-export function useRoutersQuery(params: Ref<{ page?: number; per_page?: number }> = ref({})) {
+export function useRoutersQuery(
+  params: Ref<{ page?: number; per_page?: number }> = ref({}),
+  enabled: Ref<boolean> = ref(true),
+) {
   return useQuery({
+    enabled,
     queryKey: computed(() => mikrotikKeys.routers(params.value)),
     queryFn: () => mikrotikApi.routers.list(params.value),
     placeholderData: keepPreviousData,

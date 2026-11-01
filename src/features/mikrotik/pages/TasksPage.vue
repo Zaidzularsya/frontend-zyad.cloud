@@ -46,7 +46,9 @@ const listQuery = useTasksQuery(params)
 const rows = computed(() => listQuery.data.value?.data ?? [])
 const total = computed(() => listQuery.data.value?.meta?.total ?? 0)
 
-const routersQuery = useRoutersQuery(ref({ per_page: 100 }))
+// Anggota hanya dengan mikrotik_task.read tidak boleh memanggil GET /routers (403 senyap).
+const canReadRouters = computed(() => auth.can('mikrotik_router.read'))
+const routersQuery = useRoutersQuery(ref({ per_page: 100 }), canReadRouters)
 const routers = computed(() => routersQuery.data.value?.data ?? [])
 
 const summaryQuery = useTaskSummaryQuery()
@@ -88,7 +90,7 @@ async function retry(task: IsolationTask) {
             <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
           </select>
         </label>
-        <label class="text-sm">
+        <label v-if="canReadRouters" class="text-sm">
           <span class="sr-only">Router</span>
           <select
             v-model="routerId"

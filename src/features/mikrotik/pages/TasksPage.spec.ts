@@ -33,7 +33,7 @@ async function mountPage(permissions: Permission[]) {
 }
 
 const READ = ['mikrotik_task.read'] as Permission[]
-const OWNER = ['mikrotik_task.read', 'mikrotik_task.retry'] as Permission[]
+const OWNER = ['mikrotik_task.read', 'mikrotik_task.retry', 'mikrotik_router.read'] as Permission[]
 
 describe('TasksPage', () => {
   beforeEach(() => {
@@ -98,5 +98,12 @@ describe('TasksPage', () => {
     expect(btn?.attributes('title')).toBe(
       'Hanya Pemilik Organisasi yang dapat mengubah pengaturan ini.',
     )
+  })
+
+  it('a member without router.read fires no routers request and hides the router filter', async () => {
+    const w = await mountPage(READ)
+    expect(mikrotikApi.routers.list).not.toHaveBeenCalled()
+    expect(w.find('select[name="router"]').exists()).toBe(false)
+    expect(mikrotikApi.tasks.list).toHaveBeenCalled()
   })
 })
