@@ -200,15 +200,17 @@ export function useSetPolicyMutation() {
   })
 }
 
-export function useUnmarkedProductsQuery() {
+export function useUnmarkedProductsQuery(enabled: Ref<boolean> = ref(true)) {
   return useQuery({
+    enabled,
     queryKey: mikrotikKeys.unmarkedProducts(),
     queryFn: () => mikrotikApi.products.unmarked(),
   })
 }
 
-export function useTriggersQuery() {
+export function useTriggersQuery(enabled: Ref<boolean> = ref(true)) {
   return useQuery({
+    enabled,
     queryKey: mikrotikKeys.triggers(),
     queryFn: () => mikrotikApi.products.triggers(),
   })
