@@ -209,11 +209,10 @@ watch(
 )
 
 function onToggle(row: PppSecret) {
-  const accountId = selection.selected.get(row.id) ?? row.suggestion?.account_id ?? ''
-  if (accountId) selection.toggle(row.id, accountId)
+  selection.toggleRow(row)
 }
 function onPick(row: PppSecret, account: AccountRef) {
-  accountNames.value[row.id] = account.name
+  accountNames.value[account.id] = account.name
   selection.setAccount(row.id, account.id)
 }
 

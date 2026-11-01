@@ -9,7 +9,7 @@ const props = defineProps<{
   mode: 'unpaired' | 'paired'
   /** secretId -> accountId untuk baris yang dipilih. */
   selected: Map<string, string>
-  /** secretId -> nama pelanggan yang dipilih manual lewat AccountPicker. */
+  /** accountId -> nama pelanggan yang dipilih manual lewat AccountPicker. */
   accountNames?: Record<string, string>
   /** secretId -> pesan galat dari pairing yang gagal. */
   failures: Record<string, string>
@@ -59,13 +59,19 @@ const ROW_CLASS: Record<Tone, string> = {
 function accountFor(row: PppSecret): string {
   return props.selected.get(row.id) ?? row.suggestion?.account_id ?? ''
 }
+// Label diturunkan dari akun yang benar-benar terpilih (yang akan dikirim), bukan dari baris.
 function customerLabel(row: PppSecret): string {
-  const picked = props.accountNames?.[row.id]
-  if (picked && props.selected.has(row.id)) return picked
   const s = row.suggestion
-  if (!s) return '-'
-  if (s.basis === 'ambiguous') return `${s.candidates} kandidat`
-  return `${s.account_name} (${s.account_phone})`
+  const suggestionLabel = () =>
+    !s
+      ? '-'
+      : s.basis === 'ambiguous'
+        ? `${s.candidates} kandidat`
+        : `${s.account_name} (${s.account_phone})`
+  const chosen = props.selected.get(row.id)
+  if (!chosen) return suggestionLabel()
+  if (s && s.basis !== 'ambiguous' && s.account_id === chosen) return suggestionLabel()
+  return props.accountNames?.[chosen] ?? 'Pelanggan dipilih'
 }
 
 function onPick(row: PppSecret, account: AccountRef) {

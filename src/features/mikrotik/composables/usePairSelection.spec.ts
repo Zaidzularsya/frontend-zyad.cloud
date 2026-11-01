@@ -122,4 +122,34 @@ describe('usePairSelection', () => {
       expect([...sel.selected.keys()]).toEqual(['b'])
     })
   })
+
+  describe('toggleRow (C1: shown account == sent account)', () => {
+    it('pick A -> untick -> re-tick follows the suggestion B, never the old pick', () => {
+      const sel = usePairSelection()
+      const row = green('a', 'accB')
+      sel.setAccount('a', 'accA')
+      sel.toggleRow(row) // untick
+      expect(sel.selected.has('a')).toBe(false)
+      sel.toggleRow(row) // re-tick
+      expect(sel.selected.get('a')).toBe('accB')
+      // not manual anymore: follows later suggestion changes
+      sel.syncRows([green('a', 'accC')])
+      expect(sel.selected.get('a')).toBe('accC')
+    })
+
+    it('pick A -> clear (X) -> tick follows the suggestion', () => {
+      const sel = usePairSelection()
+      const row = green('a', 'accB')
+      sel.setAccount('a', 'accA')
+      sel.clear('a')
+      sel.toggleRow(row)
+      expect(sel.selected.get('a')).toBe('accB')
+    })
+
+    it('does nothing for a row without a suggestion account', () => {
+      const sel = usePairSelection()
+      sel.toggleRow(yellow('y'))
+      expect(sel.count.value).toBe(0)
+    })
+  })
 })

@@ -33,6 +33,14 @@ export function usePairSelection() {
     selected.set(secretId, accountId)
   }
 
+  // Centang/lepas dari checkbox baris: centang selalu mengikuti usulan saat ini (bukan pilihan
+  // manual lama), supaya akun yang tampil == akun yang dikirim.
+  function toggleRow(row: PppSecret) {
+    if (selected.has(row.id)) return toggle(row.id, '')
+    const account = suggestedAccount(row)
+    if (account) toggle(row.id, account)
+  }
+
   function setAccount(secretId: string, accountId: string) {
     dismissed.delete(secretId)
     manual.add(secretId)
@@ -84,6 +92,7 @@ export function usePairSelection() {
     selected,
     count,
     toggle,
+    toggleRow,
     setAccount,
     clear,
     selectAllSuggested,

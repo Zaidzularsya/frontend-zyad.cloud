@@ -87,4 +87,18 @@ describe('SecretTable', () => {
     expect(cells[1]!.text()).toContain('Pelanggan tidak ditemukan')
     expect(cells[1]!.text()).not.toContain('uuid-2')
   })
+
+  it('C1: label follows the selected account id, not a stale picked name', async () => {
+    const row = secret({ id: 'r', name: 'r1', suggestion })
+    const w = mountTable({ mode: 'unpaired', rows: [row] })
+    await w.setProps({ selected: new Map([['r', 'accA']]), accountNames: { accA: 'Andi' } })
+    expect(w.text()).toContain('Andi')
+    expect(w.text()).not.toContain('Budi')
+    await w.setProps({ selected: new Map([['r', 'acc1']]) })
+    expect(w.text()).toContain('Budi')
+    expect(w.text()).not.toContain('Andi')
+    await w.setProps({ selected: new Map([['r', 'unknown']]) })
+    expect(w.text()).not.toContain('Budi')
+    expect(w.text()).toContain('Pelanggan dipilih')
+  })
 })
