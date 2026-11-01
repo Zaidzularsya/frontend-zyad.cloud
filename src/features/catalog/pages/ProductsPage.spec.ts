@@ -43,6 +43,10 @@ vi.mock('@/features/catalog/api/catalog.api', () => ({
     categories: vi.fn().mockResolvedValue([{ id: 'c1', name: 'Internet', position: 0 }]),
   },
 }))
+// Fitur Jaringan tidak aktif: ProductsPage tidak boleh memanggil API Mikrotik.
+vi.mock('@/features/entitlements/api/entitlements.api', () => ({
+  entitlementsApi: { summary: vi.fn().mockResolvedValue([]) },
+}))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => ({ can: () => true }) }))
 
 import ProductsPage from './ProductsPage.vue'

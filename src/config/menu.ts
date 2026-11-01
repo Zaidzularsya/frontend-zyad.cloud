@@ -13,15 +13,19 @@ import {
   HardDrive,
   Landmark,
   LayoutDashboard,
+  ListChecks,
   Magnet,
+  Network,
   Package,
   Plug,
   Receipt,
   RefreshCw,
   RotateCcw,
+  Router as RouterIcon,
   Settings,
   ShieldCheck,
   Users,
+  UsersRound,
   Wallet,
   Waypoints,
   Mail,
@@ -41,8 +45,9 @@ export interface MenuItem {
   description?: string
   children?: MenuChildItem[]
   permission?: Permission | Permission[]
-  // Entitlement feature key; the item is hidden when that feature is hidden for the tenant.
-  feature?: string
+  // Entitlement feature key (or keys, any one is enough); the item is hidden when the feature
+  // is hidden for the tenant.
+  feature?: string | string[]
 }
 
 export interface MenuChildItem {
@@ -53,7 +58,7 @@ export interface MenuChildItem {
   description?: string
   children?: MenuChildItem[]
   permission?: Permission | Permission[]
-  feature?: string
+  feature?: string | string[]
 }
 
 export interface MenuGroup {
@@ -260,13 +265,35 @@ export const platformMenuGroups: MenuGroup[] = [
 ]
 
 // Landing sub-pages follow landing.enabled, except Domains which is gated by domain.enabled
-// on the backend (organization domain service) and must stay reachable on its own.
+// on the backend (organization domain service) and must stay reachable on its own, and
+// Invoice Halaman which only workspaces allowed to sell pages (landing.page_activation) get.
+const LANDING_CHILD_FEATURE: Record<string, string> = {
+  'landing-pages-domains': 'domain.enabled',
+  'landing-pages-invoices': 'landing.page_activation',
+}
+
 function tagCustomerLandingChildren(children: MenuChildItem[]): MenuChildItem[] {
   return children.map((child) => ({
     ...child,
-    feature: child.route === 'landing-pages-domains' ? 'domain.enabled' : 'landing.enabled',
+    feature: LANDING_CHILD_FEATURE[child.route ?? ''] ?? 'landing.enabled',
   }))
 }
+
+// Submenu tombol Account (bawah sidebar workspace): tagihan platform ke tenant dan pemakaian paket
+// miliknya. Dipisah dari group Billing yang khusus piutang tenant ke pelanggannya.
+export const customerAccountMenuItems: MenuChildItem[] = [
+  {
+    label: 'Tagihan',
+    route: 'billing-bills',
+    icon: FileText,
+    permission: 'organization.billing.read',
+  },
+  {
+    label: 'Pemakaian Paket',
+    route: 'billing-usage',
+    icon: Gauge,
+  },
+]
 
 export const customerMenuGroups: MenuGroup[] = [
   {
@@ -345,6 +372,8 @@ export const customerMenuGroups: MenuGroup[] = [
       {
         label: 'Produk',
         route: 'crm-products',
+        // Backend: /app/catalog mewajibkan salah satu dari kedua fitur ini.
+        feature: ['crm.enabled', 'receivable.enabled'],
         icon: Package,
         permission: 'catalog_product.read',
       },
@@ -375,11 +404,6 @@ export const customerMenuGroups: MenuGroup[] = [
     label: 'Billing',
     items: [
       {
-        label: 'Pemakaian Paket',
-        route: 'billing-usage',
-        icon: Gauge,
-      },
-      {
         label: 'Invoices',
         route: 'billing-invoices',
         feature: 'receivable.enabled',
@@ -394,17 +418,10 @@ export const customerMenuGroups: MenuGroup[] = [
         permission: 'invoice.read',
       },
       {
-        label: 'Saldo Pembayaran',
+        label: 'Balance',
         route: 'billing-settlement',
         icon: Landmark,
         permission: 'settlement.read',
-      },
-      {
-        label: 'Pengaturan Penagihan',
-        route: 'billing-receivable-settings',
-        feature: 'receivable.enabled',
-        icon: Settings2,
-        permission: 'invoice.read',
       },
       {
         label: 'Recurring Billing',
@@ -426,6 +443,46 @@ export const customerMenuGroups: MenuGroup[] = [
         feature: 'receivable.enabled',
         icon: RotateCcw,
         description: 'Belum tersedia — placeholder sampai modul backend Refunds dibangun.',
+      },
+      {
+        label: 'Pengaturan',
+        route: 'billing-receivable-settings',
+        feature: 'receivable.enabled',
+        icon: Settings2,
+        permission: 'invoice.read',
+      },
+    ],
+  },
+  {
+    label: 'Jaringan',
+    items: [
+      {
+        label: 'Ringkasan',
+        route: 'mikrotik',
+        icon: Network,
+        permission: 'mikrotik_router.read',
+        feature: 'mikrotik.enabled',
+      },
+      {
+        label: 'Router',
+        route: 'mikrotik-routers',
+        icon: RouterIcon,
+        permission: 'mikrotik_router.read',
+        feature: 'mikrotik.enabled',
+      },
+      {
+        label: 'Akun PPPoE',
+        route: 'mikrotik-accounts',
+        icon: UsersRound,
+        permission: 'mikrotik_secret.read',
+        feature: 'mikrotik.enabled',
+      },
+      {
+        label: 'Tugas',
+        route: 'mikrotik-tasks',
+        icon: ListChecks,
+        permission: 'mikrotik_task.read',
+        feature: 'mikrotik.enabled',
       },
     ],
   },
@@ -456,6 +513,8 @@ export const customerMenuGroups: MenuGroup[] = [
       {
         label: 'Akun Email',
         route: 'email-accounts',
+        // Backend: /app/mailboxes mewajibkan salah satu dari kedua fitur ini.
+        feature: ['crm.enabled', 'receivable.enabled'],
         icon: Mail,
         permission: 'email.read',
       },

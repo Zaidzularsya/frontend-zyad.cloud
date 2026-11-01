@@ -14,9 +14,9 @@ import {
 } from '../../renderer/sections/pricing/pricing-view'
 
 /**
- * `zyad-catalog-pricing` — GrapesJS component for the platform's public
- * catalog pricing (Sales → Produk). Platform organization only: the block is
- * registered by GrapesEditor.vue only when `isPlatformOrganization`.
+ * `zyad-catalog-pricing` — GrapesJS component for the signed-in organization's public
+ * catalog pricing (Sales → Produk). Available to platform and tenant organizations; the
+ * data source differs (see GrapesEditor.vue) and the public renderer picks it by host.
  *
  * In the canvas it renders an inline-styled preview (the canvas is not a
  * shadow DOM and does not receive the public slot CSS). On export it is just

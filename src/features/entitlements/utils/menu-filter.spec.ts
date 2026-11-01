@@ -65,4 +65,37 @@ describe('filterMenuByEntitlement', () => {
     filterMenuByEntitlement(input, () => true)
     expect(JSON.stringify(input)).toBe(snapshot)
   })
+
+  describe('feature berupa beberapa key (salah satu cukup)', () => {
+    const any = (): MenuGroup[] => [
+      {
+        label: 'Sales',
+        items: [
+          {
+            label: 'Produk',
+            route: 'crm-products',
+            icon,
+            feature: ['crm.enabled', 'receivable.enabled'],
+          },
+        ],
+      },
+    ]
+
+    it('tampil bila salah satu fitur aktif', () => {
+      // isHidden true = fitur tersembunyi/tidak berhak
+      expect(filterMenuByEntitlement(any(), (k) => k !== 'receivable.enabled')).toHaveLength(1)
+      expect(filterMenuByEntitlement(any(), (k) => k !== 'crm.enabled')).toHaveLength(1)
+    })
+
+    it('tersembunyi bila semua fitur tersembunyi', () => {
+      expect(filterMenuByEntitlement(any(), () => true)).toEqual([])
+    })
+
+    it('array kosong dianggap tanpa gating', () => {
+      const groups: MenuGroup[] = [
+        { label: 'X', items: [{ label: 'Tanpa gate', route: 'x', icon, feature: [] }] },
+      ]
+      expect(filterMenuByEntitlement(groups, () => true)).toHaveLength(1)
+    })
+  })
 })

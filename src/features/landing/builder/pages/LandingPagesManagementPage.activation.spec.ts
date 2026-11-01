@@ -176,7 +176,7 @@ describe('LandingPagesManagementPage activation', () => {
     const w = await mountPage([page()])
     await buttonByText(w, 'Create invoice')!.trigger('click')
     await w.get('input[name="buyer_name"]').setValue('Budi')
-    await w.get('input[name="buyer_contact"]').setValue('0812')
+    await w.get('input[name="buyer_contact"]').setValue('081234567890')
     await w.get('input[name="price"]').setValue('150000')
     await w.get('form').trigger('submit')
     await flushPromises()

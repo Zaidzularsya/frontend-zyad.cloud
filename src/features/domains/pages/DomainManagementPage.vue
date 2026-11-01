@@ -24,6 +24,7 @@ import {
   type OrganizationDomainSslStatus,
   type OrganizationDomainType,
 } from '@/features/domains/api/domain.api'
+import { platformHost } from '@/config/env'
 import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
 import { useEntitlement } from '@/features/entitlements/composables/useEntitlement'
 import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
@@ -82,10 +83,11 @@ const effectiveDomainType = computed<OrganizationDomainType>(() =>
   customDomainHidden.value ? 'subdomain' : addDomainForm.type,
 )
 
-// Dashboard dilayani dari path (/app) pada domain platform yang sama
-// (mis. zyad.cloud/app), sehingga hostname saat ini adalah domain primer
-// tempat subdomain tenant baru didaftarkan.
-const platformApexDomain = computed(() => window.location.hostname)
+// Backend hanya menerima subdomain yang langsung di bawah domain primer platform.
+// Jangan pakai window.location.hostname: dashboard juga dibuka dari subdomain
+// tenant (mis. ethernet.zyad.cloud), yang menghasilkan host dua tingkat dan
+// ditolak backend.
+const platformApexDomain = computed(() => platformHost)
 
 // Landing page binding: which landing page (if any) a verified domain
 // serves. Only meaningful in workspace mode — a domain must first be

@@ -1,6 +1,9 @@
 import { nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { env } from '@/config/env'
+import { env, platformHost } from '@/config/env'
+import { resolvePostLoginRedirect } from '@/features/auth/utils/post-login-redirect'
+import { useAuthStore } from '@/stores/auth.store'
 
 const GOOGLE_AUTH_REDIRECT_KEY = 'zyad.google-auth.redirect'
 
@@ -43,6 +46,15 @@ export function loadGoogleScript() {
   return googleScriptPromise
 }
 
+/**
+ * Host selain host platform = subdomain/custom domain tenant. Di sana login Google memakai mode
+ * popup: Google hanya meminta origin halaman terdaftar (sudah dibutuhkan checkout), bukan
+ * redirect URI per tenant, dan pengunjung tetap berada di domain tenant.
+ */
+export function isTenantHost(hostname: string = window.location.hostname): boolean {
+  return hostname !== platformHost
+}
+
 function googleLoginUri() {
   // Wajib same-origin dengan halaman ini (bukan host VITE_API_BASE_URL):
   // cookie `g_csrf_token` yang di-set GIS discope ke origin saat ini, dan
@@ -54,18 +66,38 @@ function googleLoginUri() {
 
 /**
  * Google Identity Services sign-in yang dipakai bersama LoginPage dan
- * RegisterPage: memuat script GIS, merender tombol resmi Google dalam mode
- * ux_mode: 'redirect' (full-page navigation di tab yang sama, bukan popup),
- * lalu Google POST credential langsung ke backend (`/auth/google/callback`).
- * Backend redirect balik ke GoogleCallbackPage dengan one-time code yang
- * ditukar via authApi.googleExchange().
+ * RegisterPage: memuat script GIS dan merender tombol resmi Google.
+ *
+ * Host platform: ux_mode 'redirect' (full-page navigation di tab yang sama), lalu
+ * Google POST credential langsung ke backend (`/auth/google/callback`). Backend
+ * redirect balik ke GoogleCallbackPage dengan one-time code yang ditukar via
+ * authApi.googleExchange(). Butuh `login_uri` di Authorized redirect URIs.
+ *
+ * Host tenant: ux_mode 'popup'. Credential diterima di JS lalu dikirim ke
+ * `POST /auth/google` (store.loginWithGoogle); hanya butuh Authorized JavaScript origin.
  */
 export function useGoogleSignIn(options: UseGoogleSignInOptions) {
   const googleError = ref('')
   const isGoogleSubmitting = ref(false)
   const googleEnabled = Boolean(env.VITE_GOOGLE_CLIENT_ID)
+  const popupMode = isTenantHost()
+  const router = useRouter()
+  const auth = useAuthStore()
 
   let disposed = false
+
+  async function onPopupCredential(credential: string) {
+    isGoogleSubmitting.value = true
+    googleError.value = ''
+    try {
+      await auth.loginWithGoogle({ idToken: credential })
+      await router.replace(resolvePostLoginRedirect(auth, options.redirectPath?.()))
+    } catch {
+      googleError.value = 'Login Google belum berhasil. Pastikan akun Google Anda valid.'
+    } finally {
+      isGoogleSubmitting.value = false
+    }
+  }
 
   // GIS redirect-mode tidak meneruskan state kustom ke login_uri, jadi
   // tujuan redirect pasca-login disimpan di sessionStorage sebelum tab
@@ -74,6 +106,8 @@ export function useGoogleSignIn(options: UseGoogleSignInOptions) {
   watch(
     () => options.redirectPath?.(),
     (redirectPath) => {
+      // Mode popup tidak meninggalkan halaman, jadi tidak ada state yang perlu disimpan.
+      if (popupMode) return
       if (redirectPath) {
         sessionStorage.setItem(GOOGLE_AUTH_REDIRECT_KEY, redirectPath)
       } else {
@@ -112,13 +146,25 @@ export function useGoogleSignIn(options: UseGoogleSignInOptions) {
       lastRenderedWidth = width
 
       options.buttonRef.value.innerHTML = ''
-      window.google.accounts.id.initialize({
-        client_id: env.VITE_GOOGLE_CLIENT_ID,
-        ux_mode: 'redirect',
-        login_uri: googleLoginUri(),
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      })
+      window.google.accounts.id.initialize(
+        popupMode
+          ? {
+              client_id: env.VITE_GOOGLE_CLIENT_ID,
+              ux_mode: 'popup',
+              auto_select: false,
+              cancel_on_tap_outside: true,
+              callback: (response) => {
+                if (response.credential) void onPopupCredential(response.credential)
+              },
+            }
+          : {
+              client_id: env.VITE_GOOGLE_CLIENT_ID,
+              ux_mode: 'redirect',
+              login_uri: googleLoginUri(),
+              auto_select: false,
+              cancel_on_tap_outside: true,
+            },
+      )
       window.google.accounts.id.renderButton(options.buttonRef.value, {
         type: 'standard',
         theme: 'outline',

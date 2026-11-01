@@ -96,7 +96,7 @@ const prefersReducedMotion =
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 // Form halaman (dengan field) untuk pratinjau kanvas blok Form Konsultasi.
 const leadForms = shallowRef<LandingFormWithFields[]>([])
-// Listing publik (Sales → Produk) untuk pratinjau kanvas + panel; hanya diambil untuk org platform.
+// Listing publik (Sales → Produk) org yang sedang login, untuk pratinjau kanvas + panel.
 const catalogCategories = shallowRef<PublicListingCategory[]>([])
 const duplicateNotice = ref('')
 
@@ -499,23 +499,25 @@ onMounted(async () => {
   void pricing.load()
   void loadSourceTemplate()
 
-  // "Pricing Katalog" hanya untuk organisasi platform (spec K2): tipe komponen
-  // dan block tidak didaftarkan sama sekali untuk tenant biasa.
-  if (tenantStore.isPlatformOrganization) {
-    registerCatalogPricing(ed, () => catalogCategories.value)
-    ed.Blocks.add(CATALOG_PRICING_BLOCK_ID, {
-      label: 'Pricing Katalog',
-      category: 'Conversion',
-      content: { type: CATALOG_PRICING_TYPE },
+  // "Pricing Katalog" tersedia untuk platform dan tenant. Datanya selalu milik org yang sedang
+  // login: platform memakai listing publik, tenant memakai listing produknya sendiri (tenant
+  // tidak bisa memakai /public/tenant-catalog karena editor berjalan di host platform).
+  registerCatalogPricing(ed, () => catalogCategories.value)
+  ed.Blocks.add(CATALOG_PRICING_BLOCK_ID, {
+    label: 'Pricing Katalog',
+    category: 'Conversion',
+    content: { type: CATALOG_PRICING_TYPE },
+  })
+  void (
+    tenantStore.isPlatformOrganization
+      ? publicCatalogApi.listListings()
+      : publicCatalogApi.listOwnListings()
+  )
+    .then((categories) => {
+      catalogCategories.value = categories
+      rerenderTenantSlot('catalog-pricing')
     })
-    void publicCatalogApi
-      .listListings()
-      .then((categories) => {
-        catalogCategories.value = categories
-        rerenderTenantSlot('catalog-pricing')
-      })
-      .catch((err) => console.error('GrapesEditor: failed to load public catalog listings', err))
-  }
+    .catch((err) => console.error('GrapesEditor: failed to load catalog listings', err))
 
   // "Form Konsultasi" tersedia untuk semua organisasi (platform dan tenant).
   registerLeadForm(ed, () => leadForms.value)

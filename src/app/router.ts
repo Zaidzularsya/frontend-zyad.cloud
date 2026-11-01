@@ -3,6 +3,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { env } from '@/config/env'
 import { buildCrmRoutes } from '@/features/crm/config/crm-routes'
 import { buildSalesOrderRoutes } from '@/features/crm/sales-orders/config/sales-order-routes'
+import { buildMikrotikRoutes } from '@/features/mikrotik/config/mikrotik-routes'
 import {
   buildContractRoutes,
   buildReceivableRoutes,
@@ -195,6 +196,7 @@ const routes: RouteRecordRaw[] = [
       ...buildSalesOrderRoutes('sales', 'sales'),
       ...buildContractRoutes('sales', 'contracts', 'contract-detail'),
       ...buildReceivableRoutes('billing'),
+      ...buildMikrotikRoutes('mikrotik'),
       {
         path: 'billing/settlement',
         name: 'billing-settlement',
@@ -279,6 +281,12 @@ const routes: RouteRecordRaw[] = [
         name: 'billing',
         component: () => import('@/features/customer/pages/SubscriptionPage.vue'),
         meta: { title: 'Langganan' },
+      },
+      {
+        path: 'billing/bills',
+        name: 'billing-bills',
+        component: () => import('@/features/customer/pages/BillsPage.vue'),
+        meta: { title: 'Tagihan', permissions: ['organization.billing.read'] },
       },
       {
         path: 'billing/usage',

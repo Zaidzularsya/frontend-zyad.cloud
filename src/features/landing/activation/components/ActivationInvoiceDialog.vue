@@ -3,9 +3,9 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import { useToast } from '@/components/ui/toast'
 
 import { useCreateActivationInvoiceMutation } from '../api/activation.queries'
+import ActivationLinksPanel from './ActivationLinksPanel.vue'
 import {
   activationErrorMessage,
   buildActivationPayload,
@@ -30,7 +30,6 @@ const emit = defineEmits<{
   (e: 'created', result: ActivationResult): void
 }>()
 
-const toast = useToast()
 const mutation = useCreateActivationInvoiceMutation()
 
 function initialForm(): ActivationFormState {
@@ -90,15 +89,6 @@ async function submit() {
   }
 }
 
-async function copy(value: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(value)
-    toast.success(`${label} disalin.`)
-  } catch {
-    toast.error('Gagal menyalin. Salin manual dari kolom di atas.')
-  }
-}
-
 const inputClass =
   'w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:bg-gray-950'
 </script>
@@ -115,44 +105,21 @@ const inputClass =
       >
         Invoice berhasil dibuat.
       </p>
-      <label class="block space-y-1">
-        <span class="font-medium">Link preview untuk pembeli</span>
-        <div class="flex gap-2">
-          <input name="preview_url" readonly :value="result.preview_url" :class="inputClass" />
-          <BaseButton
-            type="button"
-            variant="outline"
-            @click="copy(result.preview_url, 'Link preview')"
-          >
-            Salin
-          </BaseButton>
-        </div>
-        <span class="block text-xs text-amber-700 dark:text-amber-300">
-          Link preview hanya ditampilkan sekali. Salin sekarang; setelah dialog ditutup link ini
-          tidak bisa dilihat lagi.
-        </span>
-      </label>
-      <label class="block space-y-1">
-        <span class="font-medium">Link pembayaran</span>
-        <div class="flex gap-2">
-          <input name="payment_url" readonly :value="result.payment_url" :class="inputClass" />
-          <BaseButton
-            type="button"
-            variant="outline"
-            @click="copy(result.payment_url, 'Link pembayaran')"
-          >
-            Salin
-          </BaseButton>
-        </div>
-      </label>
+      <ActivationLinksPanel
+        :buyer-name="form.buyer_name"
+        :buyer-contact="form.buyer_contact"
+        :page-title="pageTitle"
+        :preview-url="result.preview_url"
+        :payment-url="result.payment_url"
+      />
       <div class="flex justify-end pt-2">
-        <BaseButton type="button" @click="requestClose()">Selesai</BaseButton>
+        <BaseButton type="button" variant="secondary" @click="requestClose()">Selesai</BaseButton>
       </div>
     </div>
 
     <form v-else class="space-y-4 text-sm" novalidate @submit.prevent="submit()">
       <label class="block space-y-1">
-        <span class="font-medium">Nama penagih</span>
+        <span class="font-medium">Nama pelanggan</span>
         <input
           v-model="form.buyer_name"
           name="buyer_name"
@@ -166,13 +133,15 @@ const inputClass =
         }}</span>
       </label>
       <label class="block space-y-1">
-        <span class="font-medium">Kontak (WhatsApp/telepon)</span>
+        <span class="font-medium">Nomor WhatsApp pelanggan</span>
         <input
           v-model="form.buyer_contact"
           name="buyer_contact"
           :aria-invalid="!!errors.buyer_contact"
           :aria-describedby="errors.buyer_contact ? 'err-buyer_contact' : undefined"
           maxlength="50"
+          inputmode="tel"
+          placeholder="081234567890"
           :class="inputClass"
         />
         <span
