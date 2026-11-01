@@ -80,4 +80,46 @@ describe('usePairSelection', () => {
     sel.reset()
     expect(sel.count.value).toBe(0)
   })
+
+  describe('syncRows after a refetch', () => {
+    it('updates a non-manual entry to the new suggestion account', () => {
+      const sel = usePairSelection()
+      sel.selectAllSuggested([green('a', 'acc1')])
+      sel.syncRows([green('a', 'acc2')])
+      expect(sel.selected.get('a')).toBe('acc2')
+    })
+
+    it('drops a non-manual entry whose suggestion became ambiguous or disappeared', () => {
+      const sel = usePairSelection()
+      sel.selectAllSuggested([green('a', 'acc1'), green('b', 'acc2')])
+      sel.syncRows([yellow('a'), secret({ id: 'b' })])
+      expect(sel.count.value).toBe(0)
+    })
+
+    it('keeps a manual pick even when the suggestion differs', () => {
+      const sel = usePairSelection()
+      sel.setAccount('a', 'manual')
+      sel.syncRows([green('a', 'acc9')])
+      expect(sel.selected.get('a')).toBe('manual')
+    })
+
+    it('drops rows that became paired or need an original profile', () => {
+      const sel = usePairSelection()
+      sel.setAccount('a', 'x')
+      sel.setAccount('b', 'y')
+      sel.syncRows([
+        secret({ id: 'a', account_id: 'x' }),
+        secret({ id: 'b', needs_original_profile: true }),
+      ])
+      expect(sel.count.value).toBe(0)
+    })
+
+    it('prune removes given ids', () => {
+      const sel = usePairSelection()
+      sel.setAccount('a', 'x')
+      sel.setAccount('b', 'y')
+      sel.prune(['a'])
+      expect([...sel.selected.keys()]).toEqual(['b'])
+    })
+  })
 })

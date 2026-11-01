@@ -25,17 +25,20 @@ import SecretTable from '@/features/mikrotik/components/SecretTable.vue'
 import { usePairSelection } from '@/features/mikrotik/composables/usePairSelection'
 import type {
   AccountRef,
-  PairBulkItem,
   PairBulkItemResult,
   PppSecret,
   SecretListParams,
 } from '@/features/mikrotik/types'
 import { secretActionError } from '@/features/mikrotik/utils/errors'
+import {
+  NON_RETRYABLE_CODES,
+  pairInChunks,
+  shouldAutoAnalyze,
+  visibleItems,
+} from '@/features/mikrotik/utils/pairing'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'all' | 'suggested' | 'needs_decision' | 'needs_profile' | 'paired'
-
-const BULK_LIMIT = 200 // MaxPairBulkItems di backend.
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -96,7 +99,8 @@ const listParams = computed<SecretListParams>(() => {
   }
   return base
 })
-const listQuery = useSecretsQuery(listParams)
+const hasRouter = computed(() => Boolean(routerId.value))
+const listQuery = useSecretsQuery(listParams, hasRouter)
 const rawRows = computed(() => listQuery.data.value?.data ?? [])
 const rows = computed(() =>
   tab.value === 'needs_profile'
@@ -116,10 +120,16 @@ function countParams(extra: Partial<SecretListParams>) {
     ...extra,
   }))
 }
-const unpairedCount = useSecretsQuery(countParams({ paired: false }))
-const suggestedCount = useSecretsQuery(countParams({ paired: false, suggestion: 'suggested' }))
-const decisionCount = useSecretsQuery(countParams({ paired: false, suggestion: 'needs_decision' }))
-const pairedCount = useSecretsQuery(countParams({ paired: true }))
+const unpairedCount = useSecretsQuery(countParams({ paired: false }), hasRouter)
+const suggestedCount = useSecretsQuery(
+  countParams({ paired: false, suggestion: 'suggested' }),
+  hasRouter,
+)
+const decisionCount = useSecretsQuery(
+  countParams({ paired: false, suggestion: 'needs_decision' }),
+  hasRouter,
+)
+const pairedCount = useSecretsQuery(countParams({ paired: true }), hasRouter)
 const needsProfileQuery = useSecretsQuery(
   computed<SecretListParams>(() => ({
     router_id: routerId.value || undefined,
@@ -127,6 +137,7 @@ const needsProfileQuery = useSecretsQuery(
     page: 1,
     per_page: 200,
   })),
+  hasRouter,
 )
 const totalOf = (q: { data: { value?: { meta?: { total?: number } } } }) =>
   q.data.value?.meta?.total ?? 0
@@ -164,10 +175,17 @@ watch(
   () => {
     const id = routerId.value
     if (!id || !countsReady.value || autoAnalyzed.has(id) || analyzeMutation.isPending.value) return
+    const run = shouldAutoAnalyze({
+      routerId: id,
+      alreadyAnalyzed: autoAnalyzed,
+      unpairedTotal: summary.value.unpaired,
+      suggestedTotal: summary.value.suggested,
+      needsDecisionTotal: summary.value.decision,
+      isPending: analyzeMutation.isPending.value,
+      canAnalyze: canImport.value,
+    })
     autoAnalyzed.add(id)
-    if (summary.value.unpaired > 0 && summary.value.suggested + summary.value.decision === 0) {
-      void runAnalyze()
-    }
+    if (run) void runAnalyze()
   },
   { immediate: true },
 )
@@ -199,7 +217,11 @@ watch(
   rows,
   (list) => {
     for (const r of list) secretNames.value[r.id] = r.name
-    if (tab.value === 'all' || tab.value === 'suggested') selection.selectAllSuggested(list)
+    if (tab.value === 'paired') return
+    selection.syncRows(list)
+    if (canPair.value && (tab.value === 'all' || tab.value === 'suggested')) {
+      selection.selectAllSuggested(list)
+    }
   },
   { immediate: true },
 )
@@ -220,36 +242,29 @@ const progress = ref<number | null>(null)
 const results = ref<PairBulkItemResult[]>([])
 const resultOpen = ref(false)
 
+const visibleSelected = computed(() => visibleItems(selection.selected, rows.value))
+
 async function confirmPair() {
-  const items: PairBulkItem[] = [...selection.selected.entries()].map(
-    ([secret_id, account_id]) => ({
-      secret_id,
-      account_id,
-    }),
-  )
-  if (items.length === 0) return
+  const items = visibleSelected.value
+  if (items.length === 0 || !canPair.value) return
   progress.value = items.length
-  const all: PairBulkItemResult[] = []
-  for (let i = 0; i < items.length; i += BULK_LIMIT) {
-    const chunk = items.slice(i, i + BULK_LIMIT)
-    try {
-      const res = await pairMutation.mutateAsync(chunk)
-      all.push(...res.results)
-    } catch (error) {
-      const message = secretActionError(error)
-      all.push(
-        ...chunk.map((c) => ({ secret_id: c.secret_id, ok: false, code: 'request', message })),
-      )
-    }
-  }
+  const all = await pairInChunks(
+    items,
+    (chunk) => pairMutation.mutateAsync(chunk),
+    undefined,
+    secretActionError,
+  )
+  const dead: string[] = []
   for (const r of all) {
     if (r.ok) {
       delete failures.value[r.secret_id]
-      selection.selected.delete(r.secret_id)
+      dead.push(r.secret_id)
     } else {
       failures.value[r.secret_id] = r.message || 'Gagal dipasangkan'
+      if (NON_RETRYABLE_CODES.includes(r.code)) dead.push(r.secret_id)
     }
   }
+  selection.prune(dead)
   progress.value = null
   results.value = all
   resultOpen.value = true
@@ -277,7 +292,7 @@ async function runPending() {
       toast.success(`Pasangan ${p.row.name} dilepas.`)
     }
     delete failures.value[p.row.id]
-    selection.selected.delete(p.row.id)
+    selection.prune([p.row.id])
     pending.value = null
   } catch (error) {
     toast.error(secretActionError(error))
@@ -332,7 +347,7 @@ function closeResult() {
         </BaseButton>
         <BaseButton
           variant="outline"
-          :disabled="!routerId || !canPair || analyzeMutation.isPending.value"
+          :disabled="!routerId || !canImport || analyzeMutation.isPending.value"
           @click="runAnalyze"
         >
           Analisis ulang
@@ -426,8 +441,8 @@ function closeResult() {
           />
         </div>
         <PairConfirmFooter
-          v-if="tab !== 'paired' && tab !== 'needs_profile'"
-          :count="selection.count.value"
+          v-if="canPair && tab !== 'paired' && tab !== 'needs_profile'"
+          :count="visibleSelected.length"
           :total="total"
           :loading="progress !== null"
           @confirm="confirmPair"

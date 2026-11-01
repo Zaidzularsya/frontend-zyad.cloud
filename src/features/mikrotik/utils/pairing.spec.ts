@@ -1,0 +1,80 @@
+import { describe, expect, it, vi } from 'vitest'
+
+import { secret } from '@/features/mikrotik/testing/fixtures'
+import type { PairBulkItem } from '@/features/mikrotik/types'
+import {
+  chunkItems,
+  pairInChunks,
+  shouldAutoAnalyze,
+  visibleItems,
+} from '@/features/mikrotik/utils/pairing'
+
+const items = (n: number): PairBulkItem[] =>
+  Array.from({ length: n }, (_, i) => ({ secret_id: `s${i}`, account_id: 'a' }))
+const okSend = (chunk: PairBulkItem[]) =>
+  Promise.resolve({
+    results: chunk.map((c) => ({ secret_id: c.secret_id, ok: true, code: '', message: '' })),
+  })
+
+describe('chunkItems', () => {
+  it('splits 250 into 200 + 50', () => {
+    expect(chunkItems(items(250)).map((c) => c.length)).toEqual([200, 50])
+  })
+})
+
+describe('pairInChunks', () => {
+  it('sends 250 items in 2 sequential calls and reports progress', async () => {
+    const send = vi.fn(okSend)
+    const progress = vi.fn()
+    const res = await pairInChunks(items(250), send, progress)
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(res).toHaveLength(250)
+    expect(progress.mock.calls).toEqual([
+      [200, 250],
+      [250, 250],
+    ])
+  })
+
+  it('keeps chunk 1 results and fails every row of a thrown chunk 2', async () => {
+    const send = vi.fn(okSend).mockImplementationOnce(okSend).mockRejectedValueOnce(new Error('x'))
+    const res = await pairInChunks(items(250), send, undefined, () => 'jaringan putus')
+    expect(res.filter((r) => r.ok)).toHaveLength(200)
+    const failed = res.filter((r) => !r.ok)
+    expect(failed).toHaveLength(50)
+    expect(failed[0]).toMatchObject({ code: 'MIKROTIK_INTERNAL', message: 'jaringan putus' })
+  })
+})
+
+describe('shouldAutoAnalyze', () => {
+  const base = {
+    routerId: 'r1',
+    alreadyAnalyzed: new Set<string>(),
+    unpairedTotal: 5,
+    suggestedTotal: 0,
+    needsDecisionTotal: 0,
+    isPending: false,
+    canAnalyze: true,
+  }
+  it('is true for a fresh router with unpaired secrets and no suggestions', () => {
+    expect(shouldAutoAnalyze(base)).toBe(true)
+  })
+  it('is false after the first run for the same router, when pending, or without permission', () => {
+    expect(shouldAutoAnalyze({ ...base, alreadyAnalyzed: new Set(['r1']) })).toBe(false)
+    expect(shouldAutoAnalyze({ ...base, isPending: true })).toBe(false)
+    expect(shouldAutoAnalyze({ ...base, canAnalyze: false })).toBe(false)
+    expect(shouldAutoAnalyze({ ...base, suggestedTotal: 1 })).toBe(false)
+    expect(shouldAutoAnalyze({ ...base, unpairedTotal: 0 })).toBe(false)
+  })
+})
+
+describe('visibleItems', () => {
+  it('only sends selected rows that are loaded in the current view', () => {
+    const selected = new Map([
+      ['a', 'acc1'],
+      ['hidden', 'acc2'],
+    ])
+    expect(visibleItems(selected, [secret({ id: 'a' }), secret({ id: 'b' })])).toEqual([
+      { secret_id: 'a', account_id: 'acc1' },
+    ])
+  })
+})

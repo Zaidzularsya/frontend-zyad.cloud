@@ -93,8 +93,9 @@ export function useSetupApplyMutation() {
   })
 }
 
-export function useSecretsQuery(params: Ref<SecretListParams>) {
+export function useSecretsQuery(params: Ref<SecretListParams>, enabled: Ref<boolean> = ref(true)) {
   return useQuery({
+    enabled,
     queryKey: computed(() => mikrotikKeys.secrets(params.value)),
     queryFn: () => mikrotikApi.secrets.list(params.value),
     placeholderData: keepPreviousData,
