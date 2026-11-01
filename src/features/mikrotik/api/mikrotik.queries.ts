@@ -253,3 +253,11 @@ export function useRetryTaskMutation() {
     onSuccess: invalidate,
   })
 }
+
+export function useSetupCleanupMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (routerId: string) => mikrotikApi.setup.cleanup(routerId),
+    onSuccess: invalidate,
+  })
+}

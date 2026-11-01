@@ -86,3 +86,29 @@ export function secretActionError(error: unknown): string {
     return SECRET_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
   return body?.message || 'Terjadi kesalahan, silakan coba lagi.'
 }
+
+export function apiErrorCode(error: unknown): string | undefined {
+  const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
+  return body?.code ?? body?.error?.code
+}
+
+const ROUTER_ACTION_ERRORS: Record<string, string> = {
+  MIKROTIK_ROUTER_HAS_ISOLATED_SECRETS:
+    'Router ini masih punya secret terisolir atau tugas isolir/pemulihan yang belum selesai. Selesaikan atau pulihkan dulu, lalu hapus lagi.',
+  MIKROTIK_ROUTER_NAME_TAKEN: 'Nama router sudah dipakai. Gunakan nama lain.',
+  MIKROTIK_SETUP_PLAN_CHANGED:
+    'Rencana berubah sejak pratinjau (state router atau input berubah). Periksa pratinjau terbaru sebelum menerapkan.',
+  MIKROTIK_SETUP_IN_PROGRESS:
+    'Setup atau pembersihan lain sedang berjalan untuk router ini. Coba lagi setelah selesai.',
+  MIKROTIK_SETUP_CONFLICT:
+    'Ada objek di router yang bentrok dengan setup. Jalankan Bersihkan lalu terapkan ulang, atau periksa urutan rule firewall.',
+}
+
+// Pesan yang bisa dibaca untuk galat aksi router (simpan/hapus/cek/setup).
+export function routerActionError(error: unknown): string {
+  const code = apiErrorCode(error)
+  if (code && Object.hasOwn(ROUTER_ACTION_ERRORS, code))
+    return ROUTER_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
+  const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
+  return body?.message || 'Terjadi kesalahan, silakan coba lagi.'
+}
