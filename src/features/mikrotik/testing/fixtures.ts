@@ -1,4 +1,4 @@
-import type { PppSecret } from '@/features/mikrotik/types'
+import type { IsolationTask, PppSecret } from '@/features/mikrotik/types'
 
 export function secret(over: Partial<PppSecret> = {}): PppSecret {
   return {
@@ -73,5 +73,24 @@ export function planFixture(): SetupPlan {
         optional: true,
       },
     ],
+  }
+}
+
+export function taskFixture(over: Partial<IsolationTask> = {}): IsolationTask {
+  return {
+    id: 't1',
+    action: 'isolate',
+    status: 'pending',
+    priority: 0,
+    attempts: 0,
+    next_attempt_at: '2026-11-01T01:00:00Z',
+    last_error_code: '',
+    last_error: '',
+    router: { id: 'r1', name: 'Core-1' },
+    secret: { id: 's1', name: 'budi' },
+    account: { id: 'a1', name: 'Budi Santoso' },
+    created_at: '2026-11-01T00:00:00Z',
+    finished_at: null,
+    ...over,
   }
 }
