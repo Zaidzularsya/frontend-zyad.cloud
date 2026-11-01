@@ -101,3 +101,19 @@ export function progressText(processed: number, total: number): string {
     ? `Memasangkan ${processed} dari ${total} data…`
     : `Memasangkan ${total} data…`
 }
+
+const PAIR_FAILURE_LABELS: Record<string, string> = {
+  MIKROTIK_ACCOUNT_NOT_FOUND: 'Pelanggan tidak ditemukan atau sudah dihapus.',
+  MIKROTIK_ROUTER_NOT_FOUND: 'Router tidak ditemukan.',
+  MIKROTIK_SECRET_NOT_FOUND: 'Secret tidak ditemukan. Impor ulang dari router.',
+  MIKROTIK_SECRET_ALREADY_PAIRED: 'Secret sudah terpasang ke pelanggan.',
+  MIKROTIK_SECRET_NOT_PAIRABLE: 'Secret belum bisa dipasangkan.',
+  MIKROTIK_INTERNAL: 'Terjadi kesalahan di server. Coba lagi.',
+}
+
+// Backend mengirim message berbahasa Inggris: pakai code dulu, message hanya cadangan terakhir.
+export function pairFailureReason(code: string, message: string): string {
+  if (Object.hasOwn(PAIR_FAILURE_LABELS, code))
+    return PAIR_FAILURE_LABELS[code] ?? 'Gagal dipasangkan.'
+  return message || 'Gagal dipasangkan.'
+}

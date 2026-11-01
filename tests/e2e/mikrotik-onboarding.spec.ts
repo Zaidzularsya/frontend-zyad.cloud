@@ -322,7 +322,7 @@ test.describe('Mikrotik onboarding', () => {
               secret_id: item.secret_id,
               ok: false,
               code: 'MIKROTIK_ACCOUNT_NOT_FOUND',
-              message: 'Pelanggan sudah dihapus.',
+              message: 'customer account not found',
             }
           : { secret_id: item.secret_id, ok: true, code: '', message: '' },
       )
@@ -365,7 +365,7 @@ test.describe('Mikrotik onboarding', () => {
     const result = page.getByRole('dialog', { name: 'Hasil Pairing' })
     await expect(result.getByText('1 Pasangan Berhasil')).toBeVisible()
     await expect(result.getByText('1 Pasangan Gagal')).toBeVisible()
-    await expect(result.getByText('Pelanggan sudah dihapus.')).toBeVisible()
+    await expect(result.getByText('Pelanggan tidak ditemukan atau sudah dihapus.')).toBeVisible()
     expect(pairCalls).toBe(1)
     expect(pairBody).toEqual({
       items: [
@@ -380,7 +380,9 @@ test.describe('Mikrotik onboarding', () => {
     await expect(page.getByRole('row', { name: /budi/ })).toHaveCount(0)
     const siti = page.getByRole('row', { name: /siti/ })
     await expect(siti).toBeVisible()
-    await expect(siti.getByText('Gagal: Pelanggan sudah dihapus.')).toBeVisible()
+    await expect(
+      siti.getByText('Gagal: Pelanggan tidak ditemukan atau sudah dihapus.'),
+    ).toBeVisible()
     expect(unmocked).toEqual([])
   })
 

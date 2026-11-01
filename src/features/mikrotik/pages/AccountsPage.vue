@@ -35,6 +35,7 @@ import {
   NON_RETRYABLE_CODES,
   progressText,
   type PairingTab,
+  pairFailureReason,
   pairInChunks,
   shouldAutoAnalyze,
   visibleItems,
@@ -241,7 +242,7 @@ async function confirmPair() {
       delete failures.value[r.secret_id]
       dead.push(r.secret_id)
     } else {
-      failures.value[r.secret_id] = r.message || 'Gagal dipasangkan'
+      failures.value[r.secret_id] = pairFailureReason(r.code, r.message)
       if (NON_RETRYABLE_CODES.includes(r.code)) dead.push(r.secret_id)
     }
   }

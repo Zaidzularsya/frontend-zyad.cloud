@@ -5,6 +5,7 @@ import type { PairBulkItem } from '@/features/mikrotik/types'
 import {
   buildListParams,
   chunkItems,
+  pairFailureReason,
   pairInChunks,
   progressText,
   shouldAutoAnalyze,
@@ -105,5 +106,19 @@ describe('progressText', () => {
     expect(progressText(0, 250)).toBe('Memasangkan 250 data…')
     expect(progressText(200, 250)).toBe('Memasangkan 200 dari 250 data…')
     expect(progressText(250, 250)).toBe('Memasangkan 250 data…')
+  })
+})
+
+describe('pairFailureReason', () => {
+  it('maps backend codes to Indonesian, ignoring the English message', () => {
+    expect(pairFailureReason('MIKROTIK_ACCOUNT_NOT_FOUND', 'customer account not found')).toBe(
+      'Pelanggan tidak ditemukan atau sudah dihapus.',
+    )
+    expect(pairFailureReason('MIKROTIK_ROUTER_NOT_FOUND', 'router not found')).toContain('Router')
+    expect(pairFailureReason('MIKROTIK_INTERNAL', 'internal error')).toContain('kesalahan')
+  })
+  it('falls back to the message, then a generic label', () => {
+    expect(pairFailureReason('WEIRD', 'pesan')).toBe('pesan')
+    expect(pairFailureReason('WEIRD', '')).toBe('Gagal dipasangkan.')
   })
 })

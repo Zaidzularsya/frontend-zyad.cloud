@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import type { PairBulkItemResult } from '@/features/mikrotik/types'
+import { pairFailureReason } from '@/features/mikrotik/utils/pairing'
 
 const props = defineProps<{
   open: boolean
@@ -12,17 +13,11 @@ const props = defineProps<{
 }>()
 defineEmits<{ (e: 'close'): void }>()
 
-const CODE_LABELS: Record<string, string> = {
-  MIKROTIK_SECRET_ALREADY_PAIRED: 'Secret sudah terpasang ke pelanggan.',
-  MIKROTIK_SECRET_NOT_FOUND: 'Secret tidak ditemukan.',
-  MIKROTIK_SECRET_NOT_PAIRABLE: 'Secret belum bisa dipasangkan.',
-}
-
 const successCount = computed(() => props.results.filter((r) => r.ok).length)
 const failed = computed(() => props.results.filter((r) => !r.ok))
 
 function reason(r: PairBulkItemResult) {
-  return r.message || CODE_LABELS[r.code] || 'Gagal dipasangkan.'
+  return pairFailureReason(r.code, r.message)
 }
 </script>
 
