@@ -63,6 +63,12 @@ async function grant() {
     reasonError.value = 'Alasan wajib diisi.'
     return
   }
+  // Batas sama dengan validasi backend (max=500).
+  if (text.length > 500) {
+    reasonError.value = 'Maksimal 500 karakter'
+    return
+  }
+  reasonError.value = ''
   error.value = ''
   try {
     await mutation.mutateAsync({
@@ -127,11 +133,21 @@ async function revoke() {
       <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
 
       <div class="flex flex-wrap items-center gap-2">
-        <template v-if="canUpdate && status.isolation_state !== 'none'">
-          <BaseButton v-if="!exempt" variant="outline" @click="openDialog">
+        <template v-if="canUpdate">
+          <BaseButton
+            v-if="!exempt && status.isolation_state !== 'none'"
+            variant="outline"
+            @click="openDialog"
+          >
             Beri Pengecualian
           </BaseButton>
-          <BaseButton v-else variant="outline" :disabled="mutation.isPending.value" @click="revoke">
+          <!-- Tetap tersedia tanpa secret agar pengecualian lama selalu bisa dicabut. -->
+          <BaseButton
+            v-else-if="exempt"
+            variant="outline"
+            :disabled="mutation.isPending.value"
+            @click="revoke"
+          >
             Cabut Pengecualian
           </BaseButton>
         </template>
@@ -155,6 +171,7 @@ async function revoke() {
           <textarea
             v-model="reason"
             name="reason"
+            maxlength="500"
             rows="3"
             class="mt-1 w-full rounded-lg border bg-white p-2 outline-none focus:border-brand-500 dark:bg-gray-950"
           ></textarea>

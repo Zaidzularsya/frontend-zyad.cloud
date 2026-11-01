@@ -15,6 +15,8 @@ const visible = computed(() => mikrotikOn.value && auth.can('mikrotik_policy.rea
 
 const contactIdRef = computed(() => props.contactId)
 const accountQuery = useAccountByContactQuery(contactIdRef, visible)
+// Bila kontak punya beberapa akun penagihan, akun pertama yang dikembalikan dipakai (disengaja);
+// akun lain diabaikan.
 const account = computed(() => accountQuery.data.value)
 </script>
 

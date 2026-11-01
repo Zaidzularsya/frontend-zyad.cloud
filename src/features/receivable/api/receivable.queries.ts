@@ -48,6 +48,7 @@ export function useAccountsQuery(params: Ref<AccountListParams>) {
 }
 
 // Akun penagihan milik satu kontak CRM; null bila kontak belum menjadi pelanggan.
+// Bila ada beberapa akun, hanya yang pertama dikembalikan (disengaja), sisanya diabaikan.
 export function useAccountByContactQuery(
   contactId: Ref<string>,
   enabled: Ref<boolean> = ref(true),

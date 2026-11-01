@@ -71,6 +71,7 @@ describe('NetworkStatusCard', () => {
   it('shows Aktif with secret count', async () => {
     setStatus(status())
     const w = await mountCard()
+    expect(w.text().toLowerCase()).not.toContain('pulihkan')
     expect(mikrotikApi.onboarding.customerStatus).toHaveBeenCalledWith(['a1'])
     expect(w.text()).toContain('Aktif')
     expect(w.text()).toContain('2 secret')
@@ -116,6 +117,47 @@ describe('NetworkStatusCard', () => {
       exempt: true,
       reason: 'Menunggu transfer',
     })
+  })
+
+  async function submitReason(text: string) {
+    setStatus(status())
+    const w = await mountCard()
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Beri Pengecualian')!
+      .trigger('click')
+    await flushPromises()
+    const input = document.body.querySelector('textarea[name="reason"]') as HTMLTextAreaElement
+    expect(input.getAttribute('maxlength')).toBe('500')
+    input.value = text
+    input.dispatchEvent(new Event('input'))
+    await flushPromises()
+    bodyButton('Simpan')!.click()
+    await flushPromises()
+  }
+
+  it('rejects a reason longer than 500 characters without calling the API', async () => {
+    await submitReason('a'.repeat(501))
+    expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Maksimal 500 karakter')
+  })
+
+  it('accepts a reason of exactly 500 characters', async () => {
+    const reason = 'a'.repeat(500)
+    await submitReason(reason)
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', { exempt: true, reason })
+  })
+
+  it('allows lifting an exemption even when no secret is installed', async () => {
+    setStatus(status({ isolation_state: 'none', secrets: 0, exempt: true }))
+    const w = await mountCard()
+    expect(w.text()).not.toContain('Beri Pengecualian')
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Cabut Pengecualian')!
+      .trigger('click')
+    await flushPromises()
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', { exempt: false })
   })
 
   it('hides the exemption action without update permission and never offers restore', async () => {
