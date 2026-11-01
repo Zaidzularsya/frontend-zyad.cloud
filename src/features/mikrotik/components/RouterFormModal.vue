@@ -29,12 +29,14 @@ const form = reactive({
 })
 const errorMessage = ref('')
 const untrusted = ref<{ fingerprint: string; pinMismatch: boolean } | null>(null)
+const verified = ref(false)
 
 function pinFingerprint() {
   if (!untrusted.value) return
   form.use_tls = true
   form.tls_fingerprint = untrusted.value.fingerprint
   untrusted.value = null
+  verified.value = false
   errorMessage.value = ''
 }
 
@@ -44,6 +46,7 @@ watch(
     if (!open) return
     errorMessage.value = ''
     untrusted.value = null
+    verified.value = false
     form.name = props.router?.name ?? ''
     form.host = props.router?.host ?? ''
     form.port = String(props.router?.port ?? 8728)
@@ -61,6 +64,7 @@ async function submit() {
   if (pending.value) return
   errorMessage.value = ''
   untrusted.value = null
+  verified.value = false
   const base = {
     name: form.name.trim(),
     host: form.host.trim(),
@@ -81,9 +85,11 @@ async function submit() {
     }
   } catch (error) {
     untrusted.value = tlsUntrustedFingerprint(error)
-    errorMessage.value = untrusted.value
-      ? `Sertifikat router tidak dipercaya. Sidik jari: ${untrusted.value.fingerprint}. Salin ke kolom Fingerprint jika Anda mempercayainya.`
-      : routerActionError(error)
+    errorMessage.value = !untrusted.value
+      ? routerActionError(error)
+      : untrusted.value.pinMismatch
+        ? `Sidik jari sertifikat berbeda dari yang tersimpan. Ini bisa berarti sertifikat router diganti atau ada pihak lain di jaringan. Verifikasi fingerprint di router (/certificate print) sebelum menggantinya. Sidik jari baru: ${untrusted.value.fingerprint}.`
+        : `Sertifikat router tidak dipercaya. Sidik jari: ${untrusted.value.fingerprint}. Isi ke kolom Fingerprint jika Anda mempercayainya.`
   }
 }
 </script>
@@ -149,8 +155,22 @@ async function submit() {
       <p v-if="errorMessage" class="text-sm text-red-600 dark:text-red-400" role="alert">
         {{ errorMessage }}
       </p>
-      <BaseButton v-if="untrusted" variant="secondary" @click="pinFingerprint">
-        Pakai fingerprint ini
+      <label v-if="untrusted?.pinMismatch" class="flex items-center gap-2 text-sm">
+        <input
+          v-model="verified"
+          type="checkbox"
+          name="verified_fingerprint"
+          class="size-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+        />
+        Saya sudah memverifikasi fingerprint di router
+      </label>
+      <BaseButton
+        v-if="untrusted"
+        variant="secondary"
+        :disabled="untrusted.pinMismatch && !verified"
+        @click="pinFingerprint"
+      >
+        {{ untrusted.pinMismatch ? 'Ganti fingerprint' : 'Pakai fingerprint ini' }}
       </BaseButton>
       <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
         <BaseButton variant="outline" @click="$emit('close')">Batal</BaseButton>

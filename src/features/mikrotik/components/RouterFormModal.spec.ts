@@ -108,4 +108,56 @@ describe('RouterFormModal', () => {
     const fp = document.body.querySelector('input[name="tls_fingerprint"]') as HTMLInputElement
     expect(fp.value).toBe('AA:BB:CC')
   })
+
+  it('pin mismatch shows a distinct warning and needs verification before replacing', async () => {
+    vi.mocked(mikrotikApi.routers.update).mockRejectedValueOnce({
+      response: {
+        data: {
+          code: 'MIKROTIK_TLS_UNTRUSTED',
+          message: 'x',
+          data: { fingerprint: 'NEW:FP', pin_mismatch: true },
+        },
+      },
+    })
+    mountForm(routerFixture({ use_tls: true, tls_fingerprint: 'OLD:FP' }))
+    await flushPromises()
+    document.body.querySelector('form')?.dispatchEvent(new Event('submit'))
+    await flushPromises()
+    expect(document.body.textContent).toContain('Sidik jari sertifikat berbeda dari yang tersimpan')
+    expect(document.body.textContent).toContain('/certificate print')
+    const findBtn = () =>
+      Array.from(document.body.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Ganti fingerprint'),
+      )
+    expect(findBtn()?.disabled).toBe(true)
+    const check = document.body.querySelector(
+      'input[name="verified_fingerprint"]',
+    ) as HTMLInputElement
+    check.click()
+    await flushPromises()
+    expect(findBtn()?.disabled).toBe(false)
+    findBtn()?.click()
+    await flushPromises()
+    const fp = document.body.querySelector('input[name="tls_fingerprint"]') as HTMLInputElement
+    expect(fp.value).toBe('NEW:FP')
+  })
+
+  it('first-time pin keeps the simple flow without a verification checkbox', async () => {
+    vi.mocked(mikrotikApi.routers.create).mockRejectedValueOnce({
+      response: {
+        data: {
+          code: 'MIKROTIK_TLS_UNTRUSTED',
+          message: 'x',
+          data: { fingerprint: 'AA:BB', pin_mismatch: false },
+        },
+      },
+    })
+    mountForm()
+    await flushPromises()
+    document.body.querySelector('form')?.dispatchEvent(new Event('submit'))
+    await flushPromises()
+    expect(document.body.querySelector('input[name="verified_fingerprint"]')).toBeNull()
+    expect(document.body.textContent).not.toContain('Sidik jari sertifikat berbeda')
+    expect(document.body.textContent).toContain('Isi ke kolom Fingerprint')
+  })
 })
