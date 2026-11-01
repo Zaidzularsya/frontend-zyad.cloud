@@ -72,4 +72,19 @@ describe('SecretTable', () => {
     )
     expect(buttons[1]!.attributes('disabled')).toBeUndefined()
   })
+
+  it('shows account_name on the paired tab and a muted fallback when the account is gone', () => {
+    const w = mountTable({
+      mode: 'paired',
+      rows: [
+        secret({ id: 'a', account_id: 'uuid-1', account_name: 'Budi Santoso' }),
+        secret({ id: 'b', account_id: 'uuid-2', account_name: '' }),
+      ],
+    })
+    const cells = w.findAll('tbody tr')
+    expect(cells[0]!.text()).toContain('Budi Santoso')
+    expect(cells[0]!.text()).not.toContain('uuid-1')
+    expect(cells[1]!.text()).toContain('Pelanggan tidak ditemukan')
+    expect(cells[1]!.text()).not.toContain('uuid-2')
+  })
 })

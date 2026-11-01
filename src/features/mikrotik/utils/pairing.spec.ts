@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { secret } from '@/features/mikrotik/testing/fixtures'
 import type { PairBulkItem } from '@/features/mikrotik/types'
 import {
+  buildListParams,
   chunkItems,
   pairInChunks,
+  progressText,
   shouldAutoAnalyze,
   visibleItems,
 } from '@/features/mikrotik/utils/pairing'
@@ -76,5 +78,32 @@ describe('visibleItems', () => {
     expect(visibleItems(selected, [secret({ id: 'a' }), secret({ id: 'b' })])).toEqual([
       { secret_id: 'a', account_id: 'acc1' },
     ])
+  })
+})
+
+describe('buildListParams', () => {
+  const base = { routerId: 'r1', search: '', page: 2, perPage: 20 }
+  it('uses the server filter for the needs-profile tab with normal pagination', () => {
+    expect(buildListParams({ ...base, tab: 'needs_profile' })).toEqual({
+      router_id: 'r1',
+      q: undefined,
+      paired: false,
+      page: 2,
+      per_page: 20,
+      needs_original_profile: true,
+    })
+  })
+  it('maps other tabs', () => {
+    expect(buildListParams({ ...base, tab: 'paired' }).paired).toBe(true)
+    expect(buildListParams({ ...base, tab: 'suggested' }).suggestion).toBe('suggested')
+    expect(buildListParams({ ...base, tab: 'all' }).needs_original_profile).toBeUndefined()
+  })
+})
+
+describe('progressText', () => {
+  it('advances per chunk', () => {
+    expect(progressText(0, 250)).toBe('Memasangkan 250 data…')
+    expect(progressText(200, 250)).toBe('Memasangkan 200 dari 250 data…')
+    expect(progressText(250, 250)).toBe('Memasangkan 250 data…')
   })
 })

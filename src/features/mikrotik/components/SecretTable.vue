@@ -141,7 +141,12 @@ function saveProfile(row: PppSecret) {
             {{ row.suggestion ? (BASIS_LABEL[row.suggestion.basis] ?? row.suggestion.basis) : '-' }}
           </td>
         </template>
-        <td v-else class="px-4 py-3">{{ row.account_id }}</td>
+        <td v-else class="px-4 py-3">
+          <span v-if="row.account_name">{{ row.account_name }}</span>
+          <span v-else class="text-gray-400" :title="row.account_id ?? undefined"
+            >Pelanggan tidak ditemukan</span
+          >
+        </td>
         <td class="relative px-4 py-3">
           <div class="flex flex-wrap items-center gap-2">
             <template v-if="mode === 'paired'">

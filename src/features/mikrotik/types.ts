@@ -89,6 +89,8 @@ export interface PppSecret {
   present: boolean
   isolation_state: IsolationState
   account_id: string | null
+  /** Hanya terisi oleh endpoint list; kosong bila belum terpasang atau akun sudah dihapus. */
+  account_name: string
   paired_at: string | null
   last_seen_at: string | null
   comment: string
@@ -100,6 +102,7 @@ export interface SecretListParams {
   paired?: boolean
   q?: string
   suggestion?: SuggestionFilter
+  needs_original_profile?: boolean
   page?: number
   per_page?: number
 }

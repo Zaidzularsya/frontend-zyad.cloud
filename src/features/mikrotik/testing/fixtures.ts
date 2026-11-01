@@ -12,6 +12,7 @@ export function secret(over: Partial<PppSecret> = {}): PppSecret {
     present: true,
     isolation_state: 'normal',
     account_id: null,
+    account_name: '',
     paired_at: null,
     last_seen_at: null,
     comment: '',

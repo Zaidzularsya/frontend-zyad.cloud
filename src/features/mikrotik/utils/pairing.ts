@@ -1,4 +1,9 @@
-import type { PairBulkItem, PairBulkItemResult, PppSecret } from '@/features/mikrotik/types'
+import type {
+  PairBulkItem,
+  PairBulkItemResult,
+  PppSecret,
+  SecretListParams,
+} from '@/features/mikrotik/types'
 
 export const BULK_LIMIT = 200 // MaxPairBulkItems di backend.
 
@@ -67,4 +72,32 @@ export function visibleItems(selected: Map<string, string>, rows: PppSecret[]): 
     if (accountId) out.push({ secret_id: r.id, account_id: accountId })
   }
   return out
+}
+
+export type PairingTab = 'all' | 'suggested' | 'needs_decision' | 'needs_profile' | 'paired'
+
+export function buildListParams(p: {
+  routerId: string
+  search: string
+  tab: PairingTab
+  page: number
+  perPage: number
+}): SecretListParams {
+  const params: SecretListParams = {
+    router_id: p.routerId || undefined,
+    q: p.search || undefined,
+    paired: p.tab === 'paired',
+    page: p.page,
+    per_page: p.perPage,
+  }
+  if (p.tab === 'suggested') params.suggestion = 'suggested'
+  if (p.tab === 'needs_decision') params.suggestion = 'needs_decision'
+  if (p.tab === 'needs_profile') params.needs_original_profile = true
+  return params
+}
+
+export function progressText(processed: number, total: number): string {
+  return processed > 0 && processed < total
+    ? `Memasangkan ${processed} dari ${total} data…`
+    : `Memasangkan ${total} data…`
 }

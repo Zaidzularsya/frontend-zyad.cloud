@@ -31,14 +31,17 @@ import type {
 } from '@/features/mikrotik/types'
 import { secretActionError } from '@/features/mikrotik/utils/errors'
 import {
+  buildListParams,
   NON_RETRYABLE_CODES,
+  progressText,
+  type PairingTab,
   pairInChunks,
   shouldAutoAnalyze,
   visibleItems,
 } from '@/features/mikrotik/utils/pairing'
 import { useAuthStore } from '@/stores/auth.store'
 
-type Tab = 'all' | 'suggested' | 'needs_decision' | 'needs_profile' | 'paired'
+type Tab = PairingTab
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -82,34 +85,19 @@ const tabs: { value: Tab; label: string }[] = [
   { value: 'paired', label: 'Terpasang' },
 ]
 
-const listParams = computed<SecretListParams>(() => {
-  const base: SecretListParams = {
-    router_id: routerId.value || undefined,
-    q: search.value || undefined,
-    paired: tab.value === 'paired',
+const listParams = computed<SecretListParams>(() =>
+  buildListParams({
+    routerId: routerId.value,
+    search: search.value,
+    tab: tab.value,
     page: page.value,
-    per_page: perPage.value,
-  }
-  if (tab.value === 'suggested') base.suggestion = 'suggested'
-  if (tab.value === 'needs_decision') base.suggestion = 'needs_decision'
-  // Backend tidak punya filter needs_original_profile: ambil satu halaman besar lalu saring di sini.
-  if (tab.value === 'needs_profile') {
-    base.page = 1
-    base.per_page = 200
-  }
-  return base
-})
+    perPage: perPage.value,
+  }),
+)
 const hasRouter = computed(() => Boolean(routerId.value))
 const listQuery = useSecretsQuery(listParams, hasRouter)
-const rawRows = computed(() => listQuery.data.value?.data ?? [])
-const rows = computed(() =>
-  tab.value === 'needs_profile'
-    ? rawRows.value.filter((r) => r.needs_original_profile)
-    : rawRows.value,
-)
-const total = computed(() =>
-  tab.value === 'needs_profile' ? rows.value.length : (listQuery.data.value?.meta?.total ?? 0),
-)
+const rows = computed(() => listQuery.data.value?.data ?? [])
+const total = computed(() => listQuery.data.value?.meta?.total ?? 0)
 
 // --- ringkasan: query per_page=1 hanya untuk meta.total ---
 function countParams(extra: Partial<SecretListParams>) {
@@ -130,13 +118,8 @@ const decisionCount = useSecretsQuery(
   hasRouter,
 )
 const pairedCount = useSecretsQuery(countParams({ paired: true }), hasRouter)
-const needsProfileQuery = useSecretsQuery(
-  computed<SecretListParams>(() => ({
-    router_id: routerId.value || undefined,
-    paired: false,
-    page: 1,
-    per_page: 200,
-  })),
+const needsProfileCount = useSecretsQuery(
+  countParams({ paired: false, needs_original_profile: true }),
   hasRouter,
 )
 const totalOf = (q: { data: { value?: { meta?: { total?: number } } } }) =>
@@ -146,8 +129,7 @@ const summary = computed(() => ({
   suggested: totalOf(suggestedCount),
   decision: totalOf(decisionCount),
   paired: totalOf(pairedCount),
-  needsProfile: (needsProfileQuery.data.value?.data ?? []).filter((r) => r.needs_original_profile)
-    .length,
+  needsProfile: totalOf(needsProfileCount),
 }))
 const countsReady = computed(() =>
   [unpairedCount, suggestedCount, decisionCount].every(
@@ -238,7 +220,7 @@ function onPick(row: PppSecret, account: AccountRef) {
 // --- konfirmasi pairing (bertahap ≤200) ---
 const failures = ref<Record<string, string>>({})
 const pairMutation = usePairBulkMutation()
-const progress = ref<number | null>(null)
+const progress = ref<{ processed: number; total: number } | null>(null)
 const results = ref<PairBulkItemResult[]>([])
 const resultOpen = ref(false)
 
@@ -247,11 +229,11 @@ const visibleSelected = computed(() => visibleItems(selection.selected, rows.val
 async function confirmPair() {
   const items = visibleSelected.value
   if (items.length === 0 || !canPair.value) return
-  progress.value = items.length
+  progress.value = { processed: 0, total: items.length }
   const all = await pairInChunks(
     items,
     (chunk) => pairMutation.mutateAsync(chunk),
-    undefined,
+    (processed, total) => (progress.value = { processed, total }),
     secretActionError,
   )
   const dead: string[] = []
@@ -414,7 +396,7 @@ function closeResult() {
           class="p-12 text-center text-sm text-gray-500"
           role="status"
         >
-          Memasangkan {{ progress }} data…
+          {{ progressText(progress.processed, progress.total) }}
         </div>
         <div v-else-if="listQuery.isPending.value" class="p-12 text-center text-sm text-gray-500">
           Memuat data...
@@ -448,7 +430,6 @@ function closeResult() {
           @confirm="confirmPair"
         />
         <DataPagination
-          v-if="tab !== 'needs_profile'"
           v-model:page="page"
           v-model:per-page="perPage"
           :total="total"
