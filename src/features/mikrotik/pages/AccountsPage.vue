@@ -119,10 +119,7 @@ const decisionCount = useSecretsQuery(
   hasRouter,
 )
 const pairedCount = useSecretsQuery(countParams({ paired: true }), hasRouter)
-const needsProfileCount = useSecretsQuery(
-  countParams({ paired: false, needs_original_profile: true }),
-  hasRouter,
-)
+const needsProfileCount = useSecretsQuery(countParams({ needs_original_profile: true }), hasRouter)
 const totalOf = (q: { data: { value?: { meta?: { total?: number } } } }) =>
   q.data.value?.meta?.total ?? 0
 const summary = computed(() => ({

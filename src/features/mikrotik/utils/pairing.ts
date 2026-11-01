@@ -86,7 +86,7 @@ export function buildListParams(p: {
   const params: SecretListParams = {
     router_id: p.routerId || undefined,
     q: p.search || undefined,
-    paired: p.tab === 'paired',
+    ...(p.tab === 'needs_profile' ? {} : { paired: p.tab === 'paired' }),
     page: p.page,
     per_page: p.perPage,
   }

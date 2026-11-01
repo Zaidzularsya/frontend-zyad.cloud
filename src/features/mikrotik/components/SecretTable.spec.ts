@@ -101,4 +101,24 @@ describe('SecretTable', () => {
     expect(w.text()).not.toContain('Budi')
     expect(w.text()).toContain('Pelanggan dipilih')
   })
+
+  it('M1: a paired secret needing an original profile offers only the profile action', () => {
+    const w = mountTable({
+      mode: 'unpaired',
+      rows: [
+        secret({
+          id: 'p',
+          name: 'paired1',
+          account_id: 'a1',
+          account_name: 'Budi',
+          needs_original_profile: true,
+        }),
+      ],
+    })
+    const row = w.get('tbody tr')
+    expect(row.get('input[type=checkbox]').attributes('disabled')).toBeDefined()
+    const labels = row.findAll('button').map((b) => b.text())
+    expect(labels).toEqual(['Pilih profile asli'])
+    expect(row.text()).toContain('Budi')
+  })
 })

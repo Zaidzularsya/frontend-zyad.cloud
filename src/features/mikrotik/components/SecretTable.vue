@@ -61,6 +61,8 @@ function accountFor(row: PppSecret): string {
 }
 // Label diturunkan dari akun yang benar-benar terpilih (yang akan dikirim), bukan dari baris.
 function customerLabel(row: PppSecret): string {
+  // Secret yang sudah terpasang (tab "Perlu profile asli") menampilkan pelanggannya.
+  if (row.account_id) return row.account_name || 'Pelanggan tidak ditemukan'
   const s = row.suggestion
   const suggestionLabel = () =>
     !s

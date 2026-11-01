@@ -88,11 +88,12 @@ describe('buildListParams', () => {
     expect(buildListParams({ ...base, tab: 'needs_profile' })).toEqual({
       router_id: 'r1',
       q: undefined,
-      paired: false,
       page: 2,
       per_page: 20,
       needs_original_profile: true,
     })
+    // Paired secrets also need an original profile (onboarding counts them), so no paired filter.
+    expect(buildListParams({ ...base, tab: 'needs_profile' })).not.toHaveProperty('paired')
   })
   it('maps other tabs', () => {
     expect(buildListParams({ ...base, tab: 'paired' }).paired).toBe(true)
