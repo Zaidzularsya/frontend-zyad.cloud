@@ -46,6 +46,12 @@ async function mountCard() {
   return w
 }
 
+function setDate(value: string) {
+  const el = document.body.querySelector('input[name="exempted_until"]') as HTMLInputElement
+  el.value = value
+  el.dispatchEvent(new Event('input'))
+}
+
 const bodyButton = (label: string) =>
   Array.from(document.body.querySelectorAll('button')).find((b) => b.textContent?.trim() === label)
 
@@ -113,9 +119,16 @@ describe('NetworkStatusCard', () => {
     await flushPromises()
     bodyButton('Simpan')!.click()
     await flushPromises()
+    expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Tanggal wajib diisi.')
+    setDate('2099-12-31')
+    await flushPromises()
+    bodyButton('Simpan')!.click()
+    await flushPromises()
     expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
       exempt: true,
       reason: 'Menunggu transfer',
+      exempted_until: '2099-12-31',
     })
   })
 
@@ -131,6 +144,7 @@ describe('NetworkStatusCard', () => {
     expect(input.getAttribute('maxlength')).toBe('500')
     input.value = text
     input.dispatchEvent(new Event('input'))
+    setDate('2099-12-31')
     await flushPromises()
     bodyButton('Simpan')!.click()
     await flushPromises()
@@ -145,7 +159,11 @@ describe('NetworkStatusCard', () => {
   it('accepts a reason of exactly 500 characters', async () => {
     const reason = 'a'.repeat(500)
     await submitReason(reason)
-    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', { exempt: true, reason })
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
+      exempt: true,
+      reason,
+      exempted_until: '2099-12-31',
+    })
   })
 
   it('allows lifting an exemption even when no secret is installed', async () => {

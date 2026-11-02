@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { mikrotikApi, previewExportUrl } from '@/features/mikrotik/api/mikrotik.api'
+import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
 
 const mocked = vi.hoisted(() => ({
   get: vi.fn(),
@@ -13,17 +13,22 @@ vi.mock('@/lib/http', () => ({ http: mocked }))
 
 beforeEach(() => vi.resetAllMocks())
 
-describe('previewExportUrl', () => {
-  it('menuju endpoint ekspor dan hanya membawa status dan q', () => {
-    const url = previewExportUrl({ status: 'will_isolate', q: 'budi santoso' })
-    expect(url).toContain('/app/mikrotik/control/preview/export?')
-    const qs = new URLSearchParams(url.split('?')[1])
-    expect(qs.get('status')).toBe('will_isolate')
-    expect(qs.get('q')).toBe('budi santoso')
+describe('mikrotikApi.control.exportPreview', () => {
+  it('meminta blob lewat klien http dengan filter status dan q', async () => {
+    const blob = new Blob(['a,b'])
+    mocked.get.mockResolvedValue({ data: blob })
+    await expect(
+      mikrotikApi.control.exportPreview({ status: 'will_isolate', q: 'budi' }),
+    ).resolves.toBe(blob)
+    expect(mocked.get).toHaveBeenCalledWith('/app/mikrotik/control/preview/export', {
+      params: { status: 'will_isolate', q: 'budi' },
+      responseType: 'blob',
+    })
   })
 
-  it('tanpa filter tidak memakai query string', () => {
-    expect(previewExportUrl()).toMatch(/\/app\/mikrotik\/control\/preview\/export$/)
+  it('meneruskan galat agar bisa dipetakan pemanggil', async () => {
+    mocked.get.mockRejectedValue(new Error('403'))
+    await expect(mikrotikApi.control.exportPreview()).rejects.toThrow('403')
   })
 })
 

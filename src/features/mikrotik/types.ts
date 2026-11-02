@@ -171,6 +171,8 @@ export interface CustomerPolicy {
 export interface SetPolicyPayload {
   exempt: boolean
   reason?: string
+  // YYYY-MM-DD, inklusif (hari bisnis WIB); kosong = tanpa batas waktu.
+  exempted_until?: string | null
 }
 
 export interface Product {

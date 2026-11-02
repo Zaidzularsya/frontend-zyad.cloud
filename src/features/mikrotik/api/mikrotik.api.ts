@@ -1,4 +1,3 @@
-import { env } from '@/config/env'
 import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
@@ -44,15 +43,6 @@ type Envelope<T> = { success: boolean; data: T }
 type Paged<T> = { success: boolean; data: T[]; meta: PaginatedResponse<T>['meta'] }
 
 const BASE = '/app/mikrotik'
-
-// Tautan unduhan CSV kandidat. Hanya filter status/q yang berlaku; paginasi diabaikan backend.
-export function previewExportUrl(params: Pick<PreviewParams, 'status' | 'q'> = {}): string {
-  const search = new URLSearchParams()
-  if (params.status) search.set('status', params.status)
-  if (params.q) search.set('q', params.q)
-  const qs = search.toString()
-  return `${env.VITE_API_BASE_URL}${BASE}/control/preview/export${qs ? `?${qs}` : ''}`
-}
 
 // Satu fungsi tipis per endpoint /api/v1/app/mikrotik; tanpa logika bisnis.
 export const mikrotikApi = {
@@ -189,6 +179,12 @@ export const mikrotikApi = {
       const r = await http.get<Paged<PreviewItem>>(`${BASE}/control/preview`, { params })
       return { data: r.data.data, meta: r.data.meta }
     },
+    // Ekspor CSV lewat klien http agar Authorization dan header organisasi ikut terkirim.
+    // Hanya filter status/q yang berlaku; paginasi diabaikan backend.
+    exportPreview: (params: Pick<PreviewParams, 'status' | 'q'> = {}) =>
+      http
+        .get<Blob>(`${BASE}/control/preview/export`, { params, responseType: 'blob' })
+        .then((r) => r.data),
     activity: async (params: ActivityParams = {}) => {
       const r = await http.get<{ success: boolean; data: ActivityItem[]; meta: ActivityMeta }>(
         `${BASE}/control/activity`,
