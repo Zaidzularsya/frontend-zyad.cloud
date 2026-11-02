@@ -163,3 +163,25 @@ export function checkStatusLabel(status: string): string {
     ? (CHECK_STATUS_LABELS[status] ?? status)
     : status
 }
+
+const CONTROL_ACTION_ERRORS: Record<string, string> = {
+  MIKROTIK_PILOT_REQUIRED:
+    'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.',
+  MIKROTIK_NOT_PAUSED: 'Pulihkan Semua hanya bisa dipakai saat mode dijeda. Jeda isolir dulu.',
+  MIKROTIK_PILOT_MODE_REQUIRED: 'Uji isolir hanya bisa dijalankan saat mode Pilot.',
+  MIKROTIK_ENGINE_OFF:
+    'Mesin isolir dinonaktifkan operator platform, sehingga aksi ini belum bisa dijalankan.',
+  MIKROTIK_MODE_INVALID:
+    'Mode atau pengecualian yang dikirim tidak valid. Muat ulang halaman lalu coba lagi.',
+  MIKROTIK_PILOT_TEST_NOT_RUNNABLE:
+    'Akun ini tidak bisa diuji: dikecualikan, tidak punya secret yang dapat diisolir, atau diblokir mode saat ini.',
+}
+
+// Pesan yang bisa dibaca untuk galat pusat kendali (mode, pilot, Pulihkan Semua).
+export function controlActionError(error: unknown): string {
+  const code = apiErrorCode(error)
+  if (code && Object.hasOwn(CONTROL_ACTION_ERRORS, code))
+    return CONTROL_ACTION_ERRORS[code] ?? 'Terjadi kesalahan, silakan coba lagi.'
+  const body = (error as { response?: { data?: ApiErrorBody } } | undefined)?.response?.data
+  return body?.message || 'Terjadi kesalahan, silakan coba lagi.'
+}
