@@ -1,5 +1,7 @@
 import type {
+  ControlState,
   IsolationTask,
+  PilotAccount,
   PppSecret,
   PreviewItem,
   PreviewSummary,
@@ -128,6 +130,32 @@ export function previewSummary(over: Partial<PreviewSummary> = {}): PreviewSumma
     safe: 15,
     grace_days: 0,
     cutoff: '2026-11-02',
+    ...over,
+  }
+}
+
+export function controlState(over: Partial<ControlState> = {}): ControlState {
+  return {
+    mode: 'simulation',
+    grace_days: 0,
+    pilot_verified_at: null,
+    engine: 'on',
+    effective_mode: 'simulation',
+    pilot_count: 0,
+    test_active_count: 0,
+    isolated_secrets: 0,
+    ...over,
+  }
+}
+
+export function pilotAccount(over: Partial<PilotAccount> = {}): PilotAccount {
+  return {
+    account_id: 'a1',
+    account_name: 'Budi Santoso',
+    added_at: '2026-11-02T00:00:00Z',
+    test_active: false,
+    test_until: null,
+    verified: false,
     ...over,
   }
 }
