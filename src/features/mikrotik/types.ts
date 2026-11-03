@@ -158,6 +158,10 @@ export interface CustomerStatus {
   account_id: string
   isolation_state: CustomerIsolationState
   exempt: boolean
+  // YYYY-MM-DD (WIB); hanya bermakna selagi exempt=true, bisa sudah lewat.
+  exempted_until?: string | null
+  // Diprediksi diisolir begitu isolir aktif (belum terisolir sekarang).
+  pending_isolation?: boolean
   secrets: number
 }
 
@@ -171,6 +175,8 @@ export interface CustomerPolicy {
 export interface SetPolicyPayload {
   exempt: boolean
   reason?: string
+  // YYYY-MM-DD, inklusif (hari bisnis WIB); kosong = tanpa batas waktu.
+  exempted_until?: string | null
 }
 
 export interface Product {
@@ -233,4 +239,118 @@ export interface TaskListParams {
 export interface TaskSummary {
   counts: Record<string, number>
   oldest_pending_restore_at: string | null
+}
+
+// ---- Pusat kendali isolir (Gelombang 2). Sumber: schema Mikrotik* di api/openapi.yaml backend.
+
+export type IsolationMode = 'simulation' | 'pilot' | 'active' | 'paused'
+export type IsolationEngine = 'off' | 'dry_run' | 'on'
+
+export interface ControlState {
+  mode: IsolationMode
+  grace_days: number
+  pilot_verified_at: string | null
+  engine: IsolationEngine
+  effective_mode: string
+  pilot_count: number
+  test_active_count: number
+  isolated_secrets: number
+}
+
+export interface SetModeExemptions {
+  account_ids: string[]
+  reason: string
+  // YYYY-MM-DD, inklusif; kosong = tanpa batas waktu.
+  until?: string
+}
+
+export interface SetModePayload {
+  mode: IsolationMode
+  // Hanya diterima bersama mode 'active'.
+  exemptions?: SetModeExemptions
+}
+
+export type PreviewStatus =
+  | 'exempt'
+  | 'no_secret'
+  | 'already_isolated'
+  | 'needs_profile'
+  | 'secret_missing'
+  | 'router_not_ready'
+  | 'will_isolate'
+
+export interface PreviewItem {
+  account_id: string
+  account_name: string
+  phone: string
+  status: PreviewStatus
+  overdue_days: number
+  invoice_count: number
+  oldest_invoice_number: string
+  // Desimal sebagai string.
+  balance: string
+  router_name: string
+  products: string
+  pilot: boolean
+  exempted_until: string | null
+}
+
+export interface PreviewSummary {
+  target: number
+  exempt: number
+  blocked: number
+  already_isolated: number
+  paired_accounts: number
+  safe: number
+  grace_days: number
+  cutoff: string
+}
+
+export interface PreviewParams {
+  status?: PreviewStatus
+  q?: string
+  page?: number
+  per_page?: number
+}
+
+export interface PilotAccount {
+  account_id: string
+  account_name: string
+  added_at: string
+  test_active: boolean
+  test_until: string | null
+  verified: boolean
+}
+
+export interface PilotTest {
+  test_until: string
+}
+
+export interface RestoreAllResult {
+  enqueued: number
+  skipped: number
+  failed: number
+  aborted: boolean
+}
+
+export interface ActivityItem {
+  id: string
+  at: string
+  event: string
+  actor_user_id: string
+  account_id: string
+  account_name: string
+  secret_name: string
+  message: string
+}
+
+export interface ActivityParams {
+  limit?: number
+  offset?: number
+}
+
+export interface ActivityMeta {
+  limit: number
+  offset: number
+  total: number
 }

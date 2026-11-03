@@ -119,6 +119,31 @@ describe('NetworkStatusCard', () => {
     })
   })
 
+  it('grants an exemption with a WIB end date when one is picked', async () => {
+    setStatus(status())
+    const w = await mountCard()
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Beri Pengecualian')!
+      .trigger('click')
+    await flushPromises()
+    const date = document.body.querySelector('input[name="exempted_until"]') as HTMLInputElement
+    expect(document.body.textContent).toContain('Kosongkan untuk tanpa batas waktu')
+    date.value = '2099-12-31'
+    date.dispatchEvent(new Event('input'))
+    const input = document.body.querySelector('textarea[name="reason"]') as HTMLTextAreaElement
+    input.value = 'Menunggu transfer'
+    input.dispatchEvent(new Event('input'))
+    await flushPromises()
+    bodyButton('Simpan')!.click()
+    await flushPromises()
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
+      exempt: true,
+      reason: 'Menunggu transfer',
+      exempted_until: '2099-12-31',
+    })
+  })
+
   async function submitReason(text: string) {
     setStatus(status())
     const w = await mountCard()
@@ -207,5 +232,24 @@ describe('NetworkStatusCard', () => {
     await flushPromises()
     expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
     expect(bodyButton('Ya, cabut')).toBeUndefined()
+  })
+
+  it('shows the exemption end date for an active exemption', async () => {
+    setStatus(status({ exempt: true, exempted_until: '2999-11-12' }))
+    const w = await mountCard()
+    expect(w.text()).toContain('Dikecualikan sampai 12 Nov 2999')
+  })
+
+  it('labels an expired exemption as ended, not active', async () => {
+    setStatus(status({ exempt: true, exempted_until: '2020-11-12' }))
+    const w = await mountCard()
+    expect(w.text()).toContain('Pengecualian berakhir 12 Nov 2020')
+    expect(w.text()).not.toContain('Dikecualikan sampai')
+  })
+
+  it('shows Menunggu Isolir when pending and not isolated', async () => {
+    setStatus(status({ pending_isolation: true }))
+    const w = await mountCard()
+    expect(w.text()).toContain('Menunggu Isolir')
   })
 })
