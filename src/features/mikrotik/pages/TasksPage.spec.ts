@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import TasksPage from '@/features/mikrotik/pages/TasksPage.vue'
@@ -105,5 +106,31 @@ describe('TasksPage', () => {
     expect(mikrotikApi.routers.list).not.toHaveBeenCalled()
     expect(w.find('select[name="router"]').exists()).toBe(false)
     expect(mikrotikApi.tasks.list).toHaveBeenCalled()
+  })
+
+  it('preselects the status filter from the ?status query', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().$patch((state) => {
+      ;(state as { user: unknown }).user = {
+        id: 'u',
+        name: 'A',
+        email: 'a@x.test',
+        permissions: READ,
+      }
+    })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/t', component: { template: '<i/>' } }],
+    })
+    await router.push('/t?status=failed')
+    mount(TasksPage, {
+      attachTo: document.body,
+      global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    })
+    await flushPromises()
+    expect(mikrotikApi.tasks.list).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed' }),
+    )
   })
 })

@@ -173,6 +173,12 @@ function openReactivate() {
           >
             {{ failedTasks }}
           </dd>
+          <RouterLink
+            :to="{ name: 'mikrotik-tasks', query: { status: 'failed' } }"
+            class="mt-1 inline-block text-sm font-medium underline"
+            data-testid="link-failed"
+            >Lihat tugas gagal</RouterLink
+          >
         </div>
       </dl>
 

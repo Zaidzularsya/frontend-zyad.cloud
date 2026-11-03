@@ -46,7 +46,16 @@ async function mountPage(permissions: Permission[] = ['mikrotik_control.read']) 
   })
   await router.push('/mikrotik')
   const w = mount(OverviewPage, {
-    global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    global: {
+      plugins: [
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
+    },
   })
   await flushPromises()
   await flushPromises()
@@ -134,10 +143,11 @@ describe('OverviewPage', () => {
       expect(cta).toBeDefined()
     })
 
-    it('keeps the summary without the CTA while the control query is loading', async () => {
+    it('shows the loading state, not the old summary, while the control query is loading', async () => {
       vi.mocked(mikrotikApi.control.get).mockReturnValue(new Promise(() => {}))
       const w = await mountPage()
-      expect(w.text()).toContain('Tugas gagal terbaru')
+      expect(w.text()).toContain('Memuat...')
+      expect(w.text()).not.toContain('Tugas gagal terbaru')
       expect(w.text()).not.toContain('Buka Peluncuran Isolir')
     })
 

@@ -55,7 +55,9 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
           { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
         ],
       ],
-      stubs: { RouterLink: { template: '<a><slot /></a>' } },
+      stubs: {
+        RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' },
+      },
     },
   })
   await flushPromises()
@@ -108,6 +110,16 @@ describe('ControlPage', () => {
       counts: { failed: 2 },
       oldest_pending_restore_at: null,
     } as never)
+  })
+
+  it('links the failed-task count to the filtered task list', async () => {
+    const w = await mountPage({ mode: 'active' })
+    const link = w.get('[data-testid="link-failed"]')
+    expect(link.text()).toBe('Lihat tugas gagal')
+    expect(JSON.parse(link.attributes('data-to') as string)).toEqual({
+      name: 'mikrotik-tasks',
+      query: { status: 'failed' },
+    })
   })
 
   it('Pulihkan Semua nonaktif saat mode active, dengan alasan yang terbaca', async () => {

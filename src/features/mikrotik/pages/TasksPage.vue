@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -28,7 +29,10 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
   { value: 'cancelled', label: 'Dibatalkan' },
 ]
 
-const status = ref<TaskStatus | ''>('')
+// Tautan dari Ringkasan membawa ?status=failed; nilai di luar daftar diabaikan.
+// useRoute() bisa undefined bila halaman dipasang tanpa router (unit test).
+const queryStatus = useRoute()?.query.status
+const status = ref<TaskStatus | ''>(STATUSES.find((s) => s.value === queryStatus)?.value ?? '')
 const routerId = ref('')
 const page = ref(1)
 const perPage = ref(20)

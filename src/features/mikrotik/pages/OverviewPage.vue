@@ -87,7 +87,12 @@ const pendingAgeMinutes = computed(() => {
       description="Status isolir PPPoE dan kesiapan setup."
     />
 
-    <p v-if="onboardingQuery.isLoading.value" class="text-sm text-gray-500">Memuat...</p>
+    <p
+      v-if="onboardingQuery.isLoading.value || (controlEnabled && controlQuery.isLoading.value)"
+      class="text-sm text-gray-500"
+    >
+      Memuat...
+    </p>
     <p v-else-if="onboardingQuery.isError.value" class="text-sm text-red-600" role="alert">
       Gagal memuat status setup.
     </p>
