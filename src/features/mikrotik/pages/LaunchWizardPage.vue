@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast'
 import {
   useControlQuery,
@@ -61,9 +62,26 @@ function goPilot() {
   if (pilotReason.value) return
   void changeMode('pilot')
 }
+// Aktivasi mengubah banyak pelanggan sekaligus, jadi selalu lewat konfirmasi dengan jumlahnya.
+const confirmOpen = ref(false)
 function goActive() {
   if (activateReason.value) return
-  void changeMode('active')
+  confirmOpen.value = true
+}
+const confirmMessage = computed(() => {
+  if (summaryQuery.isError.value)
+    return 'Gagal memuat jumlah pelanggan yang terdampak. Tekan Aktifkan untuk mencoba memuat ulang.'
+  const summary = summaryQuery.data.value
+  if (!summary) return 'Memuat jumlah pelanggan yang terdampak...'
+  return `${summary.target} pelanggan akan diisolir dalam 2 menit. Setelah ini isolir berjalan otomatis tiap hari.`
+})
+async function confirmActivate() {
+  if (!summaryQuery.data.value) {
+    void summaryQuery.refetch()
+    return
+  }
+  confirmOpen.value = false
+  await changeMode('active')
 }
 </script>
 
@@ -148,6 +166,15 @@ function goActive() {
           Kelola jeda, pemulihan, dan log aktivitas di halaman Kendali Isolir.
         </p>
       </section>
+      <ConfirmDialog
+        :open="confirmOpen"
+        title="Aktifkan Isolir Otomatis?"
+        :message="confirmMessage"
+        confirm-label="Aktifkan"
+        :loading="setMode.isPending.value"
+        @confirm="confirmActivate"
+        @cancel="confirmOpen = false"
+      />
     </template>
   </div>
 </template>

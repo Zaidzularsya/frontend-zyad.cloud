@@ -211,6 +211,54 @@ describe('ControlPage', () => {
     })
   })
 
+  it('ON saat ringkasan gagal dimuat: pesan terbaca dan muat ulang, bukan diam', async () => {
+    api.control.previewSummary.mockRejectedValue(new Error('boom'))
+    await mountPage({ mode: 'paused' })
+    const calls = api.control.previewSummary.mock.calls.length
+    await click(document.body.querySelector('[role=switch]')!)
+    expect(document.body.textContent).toContain('Gagal memuat jumlah pelanggan')
+    expect(api.control.previewSummary.mock.calls.length).toBeGreaterThan(calls)
+    expect(document.body.querySelector('[data-testid=reactivate-summary]')).toBeNull()
+  })
+
+  it('ON saat ringkasan masih dimuat: pesan terbaca', async () => {
+    api.control.previewSummary.mockReturnValue(new Promise(() => {}) as never)
+    await mountPage({ mode: 'paused' })
+    await click(document.body.querySelector('[role=switch]')!)
+    expect(document.body.textContent).toContain('masih dimuat')
+  })
+
+  it('angka ringkasan dikurangi pilihan pengecualian', async () => {
+    await mountPage({ mode: 'paused' })
+    await click(document.body.querySelector('[role=switch]')!)
+    await click(document.body.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[0])
+    expect(document.body.querySelector('[data-testid=reactivate-summary]')!.textContent).toContain(
+      '3 pelanggan akan diisolir ulang dalam 2 menit (1 dikecualikan)',
+    )
+  })
+
+  it('engine bukan on: ringkasan tidak menjanjikan 2 menit', async () => {
+    await mountPage({ mode: 'paused', engine: 'dry_run' })
+    await click(document.body.querySelector('[role=switch]')!)
+    const text = document.body.querySelector('[data-testid=reactivate-summary]')!.textContent!
+    expect(text).not.toContain('2 menit')
+    expect(text).toContain('setelah mesin isolir operator aktif')
+  })
+
+  it('kartu angka menyebut satuan secret dan akun', async () => {
+    await mountPage({ mode: 'active' })
+    expect(document.body.textContent).toContain('Terisolir (secret)')
+    expect(document.body.textContent).toContain('Akan Terisolir (akun)')
+  })
+
+  it('teks bantuan toleransi tidak mengklaim pemulihan tak terpengaruh', async () => {
+    await mountPage({ mode: 'active' })
+    const help = document.body.querySelector('#grace-days-help')!.textContent!
+    expect(help).not.toContain('tidak terpengaruh')
+    expect(help).toContain('Isolir otomatis dijalankan N hari setelah tanggal jatuh tempo terlewat')
+    expect(help).toContain('memulihkan pelanggan yang sedang terisolir')
+  })
+
   it('tanpa pilihan, aktifkan tanpa pengecualian', async () => {
     await mountPage({ mode: 'paused' })
     await click(document.body.querySelector('[role=switch]')!)

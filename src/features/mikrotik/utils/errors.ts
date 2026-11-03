@@ -173,6 +173,8 @@ const CONTROL_ACTION_ERRORS: Record<string, string> = {
     'Mesin isolir dinonaktifkan operator platform, sehingga aksi ini belum bisa dijalankan.',
   MIKROTIK_MODE_INVALID:
     'Mode atau pengecualian yang dikirim tidak valid. Muat ulang halaman lalu coba lagi.',
+  MIKROTIK_ACCOUNT_NOT_FOUND: 'Pelanggan tidak ditemukan atau sudah dihapus. Muat ulang halaman.',
+  VALIDATION_ERROR: 'Data tidak valid. Periksa isian lalu coba lagi.',
   MIKROTIK_PILOT_TEST_NOT_RUNNABLE:
     'Akun ini tidak bisa diuji: dikecualikan, tidak punya secret yang dapat diisolir, atau diblokir mode saat ini.',
 }

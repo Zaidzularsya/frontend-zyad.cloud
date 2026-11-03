@@ -138,6 +138,8 @@ describe('controlActionError', () => {
     'MIKROTIK_ENGINE_OFF',
     'MIKROTIK_MODE_INVALID',
     'MIKROTIK_PILOT_TEST_NOT_RUNNABLE',
+    'MIKROTIK_ACCOUNT_NOT_FOUND',
+    'VALIDATION_ERROR',
   ]
 
   it.each(CODES)('memberi pesan non-kosong untuk %s', (code) => {

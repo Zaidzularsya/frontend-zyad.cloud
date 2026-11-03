@@ -43,7 +43,8 @@ async function save() {
     <label class="block text-sm font-medium" for="grace-days">Toleransi Keterlambatan (Hari)</label>
     <p id="grace-days-help" class="text-xs text-gray-600 dark:text-gray-400">
       Isolir otomatis dijalankan N hari setelah tanggal jatuh tempo terlewat. Berlaku untuk seluruh
-      pelanggan organisasi ini; pemulihan setelah bayar tidak terpengaruh.
+      pelanggan organisasi ini. Menaikkan toleransi dapat memulihkan pelanggan yang sedang terisolir
+      bila keterlambatannya belum melewati batas baru.
     </p>
     <div class="flex flex-wrap items-start gap-2">
       <input

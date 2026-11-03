@@ -22,6 +22,8 @@ import { controlActionError, taskErrorAction } from '@/features/mikrotik/utils/e
 const props = defineProps<{ control: ControlState; canUpdate: boolean }>()
 
 const POLL_MS = 3000
+// Batas atas: jendela uji 10 menit + reconcile berikutnya; setelah itu pengguna memuat ulang.
+const MAX_POLL_MS = 15 * 60 * 1000
 
 const toast = useToast()
 const queryClient = useQueryClient()
@@ -55,27 +57,55 @@ function a11y(id: string, reason: string | null) {
     : {}
 }
 
-// Status tugas isolir diambil dari daftar tugas; polling hanya selama ada uji berjalan.
+// Status tugas isolir diambil dari daftar tugas.
 const tasksQuery = useTasksQuery(ref({ limit: 50 }))
 const hasActiveTest = computed(() => accounts.value.some((a) => a.test_active))
-let timer: ReturnType<typeof setInterval> | undefined
 
-// Jendela uji berakhir di server: test_active dan pilot_verified_at hanya berubah bila kedua
-// query itu ikut dimuat ulang, jadi tiap tick menyegarkan tugas, daftar pilot, dan status kendali.
+// pilot_verified_at baru terisi setelah tugas RESTORE selesai, yaitu setelah jendela uji berakhir
+// atau "Hentikan Uji" (reconcile berikutnya, bisa ~2 menit). Polling karenanya tidak boleh berhenti
+// saat test_active turun ke false; ia berhenti saat sudah terverifikasi atau tidak ada yang menunggu.
+const testedThisSession = ref(false)
+const hasPendingPilotTask = computed(() => {
+  const ids = new Set(accounts.value.map((a) => a.account_id))
+  return (tasksQuery.data.value?.data ?? []).some(
+    (t) => ids.has(t.account.id) && (t.status === 'pending' || t.status === 'running'),
+  )
+})
+const hasTestedAccount = computed(() => accounts.value.some((a) => a.test_until && !a.verified))
+const shouldPoll = computed(
+  () =>
+    isPilotMode.value &&
+    !props.control.pilot_verified_at &&
+    (hasActiveTest.value ||
+      hasPendingPilotTask.value ||
+      testedThisSession.value ||
+      hasTestedAccount.value),
+)
+
+let timer: ReturnType<typeof setInterval> | undefined
+let pollStartedAt = 0
+
+// Tiap tick menyegarkan tugas, daftar pilot, dan status kendali.
 function tick() {
+  if (hasActiveTest.value) pollStartedAt = Date.now()
+  else if (Date.now() - pollStartedAt > MAX_POLL_MS) {
+    stopPolling()
+    return
+  }
   void tasksQuery.refetch()
   void queryClient.invalidateQueries({ queryKey: mikrotikKeys.pilot() })
   void queryClient.invalidateQueries({ queryKey: mikrotikKeys.control() })
 }
-watch(
-  hasActiveTest,
-  (active) => {
-    clearInterval(timer)
-    timer = active ? setInterval(tick, POLL_MS) : undefined
-  },
-  { immediate: true },
-)
-onBeforeUnmount(() => clearInterval(timer))
+function startPolling() {
+  pollStartedAt = Date.now()
+  if (!timer) timer = setInterval(tick, POLL_MS)
+}
+function stopPolling() {
+  clearInterval(timer)
+  timer = undefined
+}
+watch(shouldPoll, (on) => (on ? startPolling() : stopPolling()), { immediate: true })
+onBeforeUnmount(stopPolling)
 
 const STATUS_TEXT: Record<string, string> = {
   pending: 'Menunggu',
@@ -129,14 +159,22 @@ async function onPick(account: AccountRef) {
 }
 const startTest = (id: string) => {
   if (engineActionReason.value || busy.value) return
-  return run(() => startMutation.mutateAsync(id), 'Uji isolir dimulai. Berlaku 10 menit.')
+  return run(async () => {
+    await startMutation.mutateAsync(id)
+    testedThisSession.value = true
+    if (shouldPoll.value) startPolling()
+  }, 'Uji isolir dimulai. Berlaku 10 menit.')
 }
 const stopTest = (id: string) => {
   if (permReason.value || busy.value) return
   return run(() => stopMutation.mutateAsync(id), 'Uji isolir dihentikan.')
 }
-const remove = (id: string) => {
-  if (engineActionReason.value || busy.value) return
+function removeReason(testActive: boolean): string | null {
+  return permReason.value ?? (testActive ? 'Hentikan uji lebih dulu.' : null)
+}
+// Melepas akun tidak butuh mesin `on` di backend, jadi hanya izin yang menahan.
+const remove = (id: string, testActive: boolean) => {
+  if (removeReason(testActive) || busy.value) return
   return run(() => removeMutation.mutateAsync(id))
 }
 function togglePicker() {
@@ -246,22 +284,17 @@ function fmtTime(iso: string | null): string {
           </template>
           <BaseButton
             variant="outline"
-            v-bind="
-              a11y(
-                `hint-remove-${a.account_id}`,
-                a.test_active ? 'Hentikan uji lebih dulu.' : engineActionReason,
-              )
-            "
+            v-bind="a11y(`hint-remove-${a.account_id}`, removeReason(a.test_active))"
             :aria-label="`Lepas ${a.account_name} dari daftar pilot`"
-            @click="a.test_active || remove(a.account_id)"
+            @click="remove(a.account_id, a.test_active)"
           >
             Lepas
           </BaseButton>
           <span
-            v-if="a.test_active || engineActionReason"
+            v-if="removeReason(a.test_active)"
             :id="`hint-remove-${a.account_id}`"
             class="sr-only"
-            >{{ a.test_active ? 'Hentikan uji lebih dulu.' : engineActionReason }}</span
+            >{{ removeReason(a.test_active) }}</span
           >
         </div>
       </li>

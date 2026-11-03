@@ -100,6 +100,17 @@ async function doRestore() {
 function openReactivate() {
   if (!perms.value.canUpdate) return
   errorText.value = ''
+  // Dialog butuh ringkasan; jangan diam bila belum siap.
+  if (!summary.value) {
+    if (summaryQuery.isError.value) {
+      void summaryQuery.refetch()
+      errorText.value =
+        'Gagal memuat jumlah pelanggan. Memuat ulang; tekan ON lagi setelah selesai.'
+    } else {
+      errorText.value = 'Jumlah pelanggan masih dimuat. Tekan ON lagi sebentar lagi.'
+    }
+    return
+  }
   reactivateOpen.value = true
 }
 </script>
@@ -153,13 +164,13 @@ function openReactivate() {
 
       <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-xl border p-4">
-          <dt class="text-sm text-gray-600 dark:text-gray-400">Terisolir</dt>
+          <dt class="text-sm text-gray-600 dark:text-gray-400">Terisolir (secret)</dt>
           <dd class="text-3xl font-semibold tabular-nums" data-testid="count-isolated">
             {{ control.isolated_secrets }}
           </dd>
         </div>
         <div class="rounded-xl border p-4">
-          <dt class="text-sm text-gray-600 dark:text-gray-400">Akan Terisolir</dt>
+          <dt class="text-sm text-gray-600 dark:text-gray-400">Akan Terisolir (akun)</dt>
           <dd class="text-3xl font-semibold tabular-nums" data-testid="count-target">
             {{ summary?.target ?? '-' }}
           </dd>
@@ -251,6 +262,7 @@ function openReactivate() {
         :open="reactivateOpen"
         :summary="summary"
         :can-update="perms.canUpdate"
+        :engine="control.engine"
         @close="reactivateOpen = false"
       />
     </template>

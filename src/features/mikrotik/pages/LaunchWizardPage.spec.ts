@@ -58,6 +58,14 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
 const btn = (w: ReturnType<typeof mount>, text: string) =>
   w.findAll('button').find((b) => b.text() === text)
 
+const confirm = async (label: string) => {
+  const b = [...document.body.querySelectorAll('button')].find(
+    (x) => x.textContent?.trim() === label,
+  )
+  b?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await flushPromises()
+}
+
 describe('LaunchWizardPage', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
@@ -87,9 +95,12 @@ describe('LaunchWizardPage', () => {
   it('Aktif aktif setelah terverifikasi dan mengirim SetMode active', async () => {
     const w = await mountPage({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:00:00Z' })
     const b = btn(w, 'Aktifkan Isolir Otomatis')!
-    expect(b.attributes('disabled')).toBeUndefined()
+    expect(b.attributes('aria-disabled')).toBeUndefined()
     await b.trigger('click')
     await flushPromises()
+    expect(api.control.setMode).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('12 pelanggan akan diisolir dalam 2 menit')
+    await confirm('Aktifkan')
     expect(api.control.setMode).toHaveBeenCalledWith({ mode: 'active' })
   })
 
@@ -100,6 +111,7 @@ describe('LaunchWizardPage', () => {
     const w = await mountPage({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:00:00Z' })
     await btn(w, 'Aktifkan Isolir Otomatis')!.trigger('click')
     await flushPromises()
+    await confirm('Aktifkan')
     expect(w.find('[role="alert"]').text()).toBe(PILOT_MSG)
   })
 
@@ -130,20 +142,46 @@ describe('LaunchWizardPage', () => {
     expect(btn(w, 'Uji Isolir')!.attributes('aria-disabled')).toBe('true')
   })
 
-  it('setelah jendela uji berakhir, pilot_verified_at baru mengaktifkan tombol Aktif', async () => {
+  it('verifikasi baru muncul SETELAH test_active false: polling tidak boleh berhenti lebih awal', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
+    const iso = '2026-11-02T00:10:00Z'
     api.pilot.list
-      .mockResolvedValueOnce([pilotAccount({ test_active: true })])
-      .mockResolvedValue([pilotAccount({ verified: true })])
+      .mockResolvedValueOnce([pilotAccount({ test_active: true, test_until: iso })])
+      .mockResolvedValue([pilotAccount({ test_active: false, test_until: iso })])
     const w = await mountPage({ mode: 'pilot' })
-    api.control.get.mockResolvedValue(
-      controlState({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:10:00Z' }),
-    )
     expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('aria-disabled')).toBe('true')
+    // Tick 1: uji berakhir (test_active false), tugas restore belum selesai.
+    await vi.advanceTimersByTimeAsync(3100)
+    await flushPromises()
+    expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('aria-disabled')).toBe('true')
+    // Backend menyelesaikan restore dan mengisi pilot_verified_at.
+    api.control.get.mockResolvedValue(controlState({ mode: 'pilot', pilot_verified_at: iso }))
+    api.pilot.list.mockResolvedValue([pilotAccount({ verified: true, test_until: iso })])
     await vi.advanceTimersByTimeAsync(3100)
     await flushPromises()
     expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('aria-disabled')).toBeUndefined()
+    expect(w.text()).toContain('Terverifikasi')
     vi.useRealTimers()
+  })
+
+  it('batal pada konfirmasi tidak mengirim apa pun', async () => {
+    const w = await mountPage({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:00:00Z' })
+    await btn(w, 'Aktifkan Isolir Otomatis')!.trigger('click')
+    await flushPromises()
+    await confirm('Batal')
+    expect(api.control.setMode).not.toHaveBeenCalled()
+  })
+
+  it('ringkasan gagal dimuat: konfirmasi tidak diam, mencoba lagi, dan tidak mengaktifkan', async () => {
+    api.control.previewSummary.mockRejectedValue(new Error('boom'))
+    const w = await mountPage({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:00:00Z' })
+    await btn(w, 'Aktifkan Isolir Otomatis')!.trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).toContain('Gagal memuat jumlah pelanggan')
+    const calls = api.control.previewSummary.mock.calls.length
+    await confirm('Aktifkan')
+    expect(api.control.setMode).not.toHaveBeenCalled()
+    expect(api.control.previewSummary.mock.calls.length).toBeGreaterThan(calls)
   })
 
   it('mode active: langkah Aktif tanpa tombol aktivasi', async () => {

@@ -296,11 +296,18 @@ test.describe('Mikrotik control center', () => {
     // The server still refuses once (e.g. verification revoked meanwhile): verbatim message.
     server.rejectActiveOnce = true
     await activate.click()
+    const confirmDialog = page.getByRole('dialog', { name: 'Aktifkan Isolir Otomatis?' })
+    await expect(confirmDialog).toContainText('37 pelanggan akan diisolir dalam 2 menit')
+    await confirmDialog.getByRole('button', { name: 'Aktifkan', exact: true }).click()
     await expect(page.getByRole('alert').filter({ hasText: PILOT_REQUIRED_MESSAGE })).toBeVisible()
     expect(server.state.mode).toBe('pilot')
 
     // Second attempt succeeds.
     await activate.click()
+    await page
+      .getByRole('dialog', { name: 'Aktifkan Isolir Otomatis?' })
+      .getByRole('button', { name: 'Aktifkan', exact: true })
+      .click()
     await expect(page.getByText('Isolir otomatis aktif.')).toBeVisible()
     expect(server.modeBodies).toEqual([{ mode: 'pilot' }, { mode: 'active' }, { mode: 'active' }])
     expect(unmocked).toEqual([])

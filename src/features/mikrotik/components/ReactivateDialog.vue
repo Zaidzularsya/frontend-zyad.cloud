@@ -5,14 +5,22 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { useSetModeMutation } from '@/features/mikrotik/api/mikrotik.queries'
 import CandidateTable from '@/features/mikrotik/components/CandidateTable.vue'
-import type { PreviewSummary, SetModePayload } from '@/features/mikrotik/types'
+import type { IsolationEngine, PreviewSummary, SetModePayload } from '@/features/mikrotik/types'
 import { controlActionError } from '@/features/mikrotik/utils/errors'
 import { formatDateId, wibToday } from '@/features/mikrotik/utils/preview'
 
 // Batas backend untuk exemptions.account_ids.
 const MAX_ACCOUNTS = 500
 
-const props = defineProps<{ open: boolean; summary: PreviewSummary; canUpdate: boolean }>()
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    summary: PreviewSummary
+    canUpdate: boolean
+    engine?: IsolationEngine
+  }>(),
+  { engine: 'on' },
+)
 const emit = defineEmits<{ (e: 'close'): void; (e: 'activated'): void }>()
 
 const selected = ref<string[]>([])
@@ -39,6 +47,16 @@ watch(until, () => (untilError.value = ''))
 watch(reason, () => (reasonError.value = ''))
 
 const count = computed(() => selected.value.length)
+// Pelanggan yang dicentang tidak diisolir, jadi angka yang ditampilkan dikurangi pilihan.
+const remaining = computed(() => Math.max(0, props.summary.target - count.value))
+const summaryText = computed(() => {
+  const excluded = count.value > 0 ? ` (${count.value} dikecualikan)` : ''
+  const when =
+    props.engine === 'on'
+      ? 'akan diisolir ulang dalam 2 menit'
+      : 'akan diisolir ulang setelah mesin isolir operator aktif'
+  return `${remaining.value} pelanggan ${when}${excluded}`
+})
 const buttonLabel = computed(() =>
   count.value > 0
     ? `Aktifkan & Beri Pengecualian pada ${count.value} Pelanggan Terpilih`
@@ -92,7 +110,7 @@ async function submit() {
     <!-- Bukan <form>: Enter pada kolom cari tabel tidak boleh mengaktifkan mode. -->
     <div class="space-y-4 text-sm">
       <p class="rounded-lg border p-3 font-medium" role="status" data-testid="reactivate-summary">
-        {{ summary.target }} pelanggan akan diisolir ulang dalam 2 menit
+        {{ summaryText }}
       </p>
       <p>
         Centang pelanggan yang perlu diberi kelonggaran sebelum isolir otomatis kembali berjalan.
