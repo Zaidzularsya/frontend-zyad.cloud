@@ -27,8 +27,31 @@ import {
   type StatusTone,
 } from '@/features/mikrotik/utils/preview'
 
-const props = defineProps<{ summary: PreviewSummary; canUpdate: boolean }>()
-const emit = defineEmits<{ (e: 'exempted', accountId: string): void }>()
+// Mode pilih (`selectable`): kolom aksi diganti kotak centang, kartu angka dan ekspor disembunyikan.
+// Pemilihan dipegang pemanggil lewat `selected` (id akun) agar bertahan antar halaman.
+const props = defineProps<{
+  summary: PreviewSummary
+  canUpdate: boolean
+  selectable?: boolean
+  selected?: readonly string[]
+}>()
+const emit = defineEmits<{
+  (e: 'exempted', accountId: string): void
+  (e: 'update:selected', ids: string[]): void
+}>()
+
+function isSelected(row: PreviewItem): boolean {
+  return (props.selected ?? []).includes(row.account_id)
+}
+function toggle(row: PreviewItem) {
+  // aria-disabled tidak memblokir klik/Space, jadi dijaga di sini.
+  if (isDisabled(row)) return
+  const current = props.selected ?? []
+  emit(
+    'update:selected',
+    isSelected(row) ? current.filter((id) => id !== row.account_id) : [...current, row.account_id],
+  )
+}
 
 const toast = useToast()
 
@@ -138,7 +161,7 @@ async function exportCsv() {
 
 <template>
   <section class="space-y-4" aria-label="Daftar eksekusi isolir">
-    <dl class="grid grid-cols-2 gap-3 sm:max-w-xl">
+    <dl v-if="!selectable" class="grid grid-cols-2 gap-3 sm:max-w-xl">
       <div class="rounded-xl border p-4">
         <dt class="text-sm text-gray-600 dark:text-gray-400">Target Isolir</dt>
         <dd class="text-3xl font-semibold tabular-nums" data-testid="count-target">
@@ -175,7 +198,7 @@ async function exportCsv() {
           class="w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 dark:bg-gray-950 dark:focus:ring-brand-900"
         />
       </label>
-      <BaseButton variant="outline" :disabled="exporting" @click="exportCsv">
+      <BaseButton v-if="!selectable" variant="outline" :disabled="exporting" @click="exportCsv">
         {{ exporting ? 'Menyiapkan...' : 'Ekspor CSV' }}
       </BaseButton>
     </div>
@@ -201,7 +224,11 @@ async function exportCsv() {
               <th scope="col" class="px-4 py-3">Alasan Isolir</th>
               <th scope="col" class="px-4 py-3">Status Secret di Router</th>
               <th scope="col" class="px-4 py-3">Status Pengecualian</th>
-              <th scope="col" class="px-4 py-3"><span class="sr-only">Aksi</span></th>
+              <th scope="col" class="px-4 py-3">
+                <span :class="selectable ? '' : 'sr-only'">{{
+                  selectable ? 'Pilih' : 'Aksi'
+                }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -247,7 +274,19 @@ async function exportCsv() {
                 }}{{ !row.exempted_until && row.status === 'exempt' ? 'Dikecualikan' : '' }}
               </td>
               <td class="block px-4 py-2 md:table-cell md:py-3 md:text-right">
+                <input
+                  v-if="selectable"
+                  type="checkbox"
+                  class="size-5"
+                  :checked="isSelected(row)"
+                  :aria-disabled="isDisabled(row) ? 'true' : undefined"
+                  :aria-describedby="actionHint(row) ? `hint-${row.account_id}` : undefined"
+                  :aria-label="`Pilih ${row.account_name}`"
+                  @click="isDisabled(row) && $event.preventDefault()"
+                  @change="toggle(row)"
+                />
                 <button
+                  v-else
                   type="button"
                   class="min-h-11 rounded-lg border px-3 py-1 text-xs font-medium hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-brand-100 md:min-h-0 dark:hover:bg-gray-800"
                   :class="isDisabled(row) ? 'cursor-not-allowed opacity-60' : ''"
@@ -278,6 +317,7 @@ async function exportCsv() {
     </div>
 
     <ExemptUntilDialog
+      v-if="!selectable"
       :open="dialogOpen"
       require-date
       :account-id="target?.account_id ?? ''"
