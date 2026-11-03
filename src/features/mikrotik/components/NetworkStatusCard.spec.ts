@@ -233,4 +233,23 @@ describe('NetworkStatusCard', () => {
     expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
     expect(bodyButton('Ya, cabut')).toBeUndefined()
   })
+
+  it('shows the exemption end date for an active exemption', async () => {
+    setStatus(status({ exempt: true, exempted_until: '2999-11-12' }))
+    const w = await mountCard()
+    expect(w.text()).toContain('Dikecualikan sampai 12 Nov 2999')
+  })
+
+  it('labels an expired exemption as ended, not active', async () => {
+    setStatus(status({ exempt: true, exempted_until: '2020-11-12' }))
+    const w = await mountCard()
+    expect(w.text()).toContain('Pengecualian berakhir 12 Nov 2020')
+    expect(w.text()).not.toContain('Dikecualikan sampai')
+  })
+
+  it('shows Menunggu Isolir when pending and not isolated', async () => {
+    setStatus(status({ pending_isolation: true }))
+    const w = await mountCard()
+    expect(w.text()).toContain('Menunggu Isolir')
+  })
 })

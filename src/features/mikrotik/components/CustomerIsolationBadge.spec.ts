@@ -33,4 +33,31 @@ describe('CustomerIsolationBadge', () => {
     ).toBe('')
     expect(mount(CustomerIsolationBadge).text()).toBe('')
   })
+
+  it('shows a yellow Menunggu Isolir badge with text when pending and not isolated', () => {
+    const w = mount(CustomerIsolationBadge, { props: { state: st({ pending_isolation: true }) } })
+    expect(w.text()).toBe('Menunggu Isolir')
+    expect(w.classes().join(' ')).toContain('amber')
+  })
+
+  it('prefers Terisolir over pending', () => {
+    const w = mount(CustomerIsolationBadge, {
+      props: { state: st({ pending_isolation: true, isolation_state: 'isolated' }) },
+    })
+    expect(w.text()).toBe('Terisolir')
+  })
+
+  it('does not show Dikecualikan for an expired exemption', () => {
+    const w = mount(CustomerIsolationBadge, {
+      props: { state: st({ exempt: true, exempted_until: '2020-01-01' }) },
+    })
+    expect(w.text()).toBe('')
+  })
+
+  it('keeps Dikecualikan for a future exemption', () => {
+    const w = mount(CustomerIsolationBadge, {
+      props: { state: st({ exempt: true, exempted_until: '2999-01-01' }) },
+    })
+    expect(w.text()).toBe('Dikecualikan')
+  })
 })

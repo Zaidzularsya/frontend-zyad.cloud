@@ -276,10 +276,11 @@ export function useSetupCleanupMutation() {
   })
 }
 
-export function useControlQuery() {
+export function useControlQuery(enabled: Ref<boolean> = ref(true)) {
   return useQuery({
     queryKey: mikrotikKeys.control(),
     queryFn: () => mikrotikApi.control.get(),
+    enabled,
   })
 }
 

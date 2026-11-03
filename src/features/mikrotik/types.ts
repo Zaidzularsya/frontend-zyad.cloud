@@ -158,6 +158,10 @@ export interface CustomerStatus {
   account_id: string
   isolation_state: CustomerIsolationState
   exempt: boolean
+  // YYYY-MM-DD (WIB); hanya bermakna selagi exempt=true, bisa sudah lewat.
+  exempted_until?: string | null
+  // Diprediksi diisolir begitu isolir aktif (belum terisolir sekarang).
+  pending_isolation?: boolean
   secrets: number
 }
 

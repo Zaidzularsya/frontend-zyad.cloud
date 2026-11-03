@@ -12,6 +12,7 @@ import {
 } from '@/features/mikrotik/api/mikrotik.queries'
 import ExemptUntilDialog from '@/features/mikrotik/components/ExemptUntilDialog.vue'
 import { routerActionError } from '@/features/mikrotik/utils/errors'
+import { exemptionLabel } from '@/features/mikrotik/utils/preview'
 import { useInvoicesQuery } from '@/features/receivable/api/receivable.queries'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -25,6 +26,9 @@ const statusQuery = useCustomerStatusQuery(accountIds)
 const status = computed(() => statusQuery.data.value?.find((s) => s.account_id === props.accountId))
 const isolated = computed(() => status.value?.isolation_state === 'isolated')
 const exempt = computed(() => Boolean(status.value?.exempt))
+const pending = computed(() => Boolean(status.value?.pending_isolation) && !isolated.value)
+// Tanggal lewat tetap berlabel "berakhir", jadi tidak terbaca sebagai pengecualian aktif.
+const untilText = computed(() => exemptionLabel(status.value?.exempted_until ?? null))
 
 // Alasan pengecualian hanya diminta saat pelanggan memang dikecualikan.
 const policyAccountId = computed(() => (exempt.value ? props.accountId : undefined))
@@ -93,6 +97,11 @@ async function revoke() {
             "
             >{{ isolated ? 'Terisolir' : 'Aktif' }}</span
           >
+          <span
+            v-if="pending"
+            class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            >Menunggu Isolir</span
+          >
         </p>
         <p class="text-gray-500">{{ status.secrets }} secret terpasang</p>
         <p v-if="isolated" class="text-xs text-gray-500">
@@ -102,8 +111,8 @@ async function revoke() {
       </div>
 
       <p v-if="exempt" class="text-sm">
-        <span class="font-medium">Dikecualikan</span>
-        <span v-if="reasonText" class="text-gray-500"> — {{ reasonText }}</span>
+        <span class="font-medium">{{ untilText || 'Dikecualikan' }}</span>
+        <span v-if="reasonText" class="text-gray-500">. Alasan: {{ reasonText }}</span>
       </p>
 
       <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
