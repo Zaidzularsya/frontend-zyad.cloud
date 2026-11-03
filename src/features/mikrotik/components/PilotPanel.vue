@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useQueryClient } from '@tanstack/vue-query'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { useToast } from '@/components/ui/toast'
 import {
+  mikrotikKeys,
   useAddPilotMutation,
   usePilotQuery,
   useRemovePilotMutation,
@@ -14,14 +16,15 @@ import {
 import AccountPicker from '@/features/mikrotik/components/AccountPicker.vue'
 import type { AccountRef, ControlState, IsolationTask } from '@/features/mikrotik/types'
 import { CONTROL_OWNER_ONLY_TOOLTIP } from '@/features/mikrotik/utils/control-permissions'
+import { engineBlockReason } from '@/features/mikrotik/utils/engine'
 import { controlActionError, taskErrorAction } from '@/features/mikrotik/utils/errors'
 
 const props = defineProps<{ control: ControlState; canUpdate: boolean }>()
 
-const ENGINE_OFF_TOOLTIP = 'Mesin isolir dinonaktifkan operator'
 const POLL_MS = 3000
 
 const toast = useToast()
+const queryClient = useQueryClient()
 const pilotQuery = usePilotQuery()
 const accounts = computed(() => pilotQuery.data.value ?? [])
 
@@ -33,24 +36,42 @@ const stopMutation = useStopPilotTestMutation()
 const picking = ref(false)
 const errorText = ref('')
 
-const canTest = computed(() => props.control.mode === 'pilot' && props.control.engine === 'on')
+const isPilotMode = computed(() => props.control.mode === 'pilot')
+const engineReason = computed(() => engineBlockReason(props.control.engine))
 
-// Tooltip kontrol nonaktif: izin dulu, lalu mesin.
-const testHint = computed(() => {
-  if (!props.canUpdate) return CONTROL_OWNER_ONLY_TOOLTIP
-  if (props.control.engine !== 'on') return ENGINE_OFF_TOOLTIP
-  return undefined
-})
+// Alasan kontrol nonaktif: izin dulu, lalu mesin. aria-disabled tidak memblokir klik/Enter,
+// jadi setiap handler memeriksa alasan lebih dulu.
+const permReason = computed(() => (props.canUpdate ? null : CONTROL_OWNER_ONLY_TOOLTIP))
+const engineActionReason = computed(() => permReason.value ?? engineReason.value)
+
+function a11y(id: string, reason: string | null) {
+  return reason
+    ? {
+        'aria-disabled': 'true',
+        'aria-describedby': id,
+        title: reason,
+        class: 'cursor-not-allowed opacity-60',
+      }
+    : {}
+}
 
 // Status tugas isolir diambil dari daftar tugas; polling hanya selama ada uji berjalan.
 const tasksQuery = useTasksQuery(ref({ limit: 50 }))
 const hasActiveTest = computed(() => accounts.value.some((a) => a.test_active))
 let timer: ReturnType<typeof setInterval> | undefined
+
+// Jendela uji berakhir di server: test_active dan pilot_verified_at hanya berubah bila kedua
+// query itu ikut dimuat ulang, jadi tiap tick menyegarkan tugas, daftar pilot, dan status kendali.
+function tick() {
+  void tasksQuery.refetch()
+  void queryClient.invalidateQueries({ queryKey: mikrotikKeys.pilot() })
+  void queryClient.invalidateQueries({ queryKey: mikrotikKeys.control() })
+}
 watch(
   hasActiveTest,
   (active) => {
     clearInterval(timer)
-    timer = active ? setInterval(() => void tasksQuery.refetch(), POLL_MS) : undefined
+    timer = active ? setInterval(tick, POLL_MS) : undefined
   },
   { immediate: true },
 )
@@ -90,18 +111,6 @@ async function run(action: () => Promise<unknown>, success?: string) {
   }
 }
 
-async function onPick(account: AccountRef) {
-  picking.value = false
-  await run(
-    () => addMutation.mutateAsync(account.id),
-    `${account.name} ditambahkan ke daftar pilot.`,
-  )
-}
-const startTest = (id: string) =>
-  run(() => startMutation.mutateAsync(id), 'Uji isolir dimulai. Berlaku 10 menit.')
-const stopTest = (id: string) => run(() => stopMutation.mutateAsync(id), 'Uji isolir dihentikan.')
-const remove = (id: string) => run(() => removeMutation.mutateAsync(id))
-
 const busy = computed(
   () =>
     addMutation.isPending.value ||
@@ -109,6 +118,31 @@ const busy = computed(
     startMutation.isPending.value ||
     stopMutation.isPending.value,
 )
+
+async function onPick(account: AccountRef) {
+  picking.value = false
+  if (engineActionReason.value) return
+  await run(
+    () => addMutation.mutateAsync(account.id),
+    `${account.name} ditambahkan ke daftar pilot.`,
+  )
+}
+const startTest = (id: string) => {
+  if (engineActionReason.value || busy.value) return
+  return run(() => startMutation.mutateAsync(id), 'Uji isolir dimulai. Berlaku 10 menit.')
+}
+const stopTest = (id: string) => {
+  if (permReason.value || busy.value) return
+  return run(() => stopMutation.mutateAsync(id), 'Uji isolir dihentikan.')
+}
+const remove = (id: string) => {
+  if (engineActionReason.value || busy.value) return
+  return run(() => removeMutation.mutateAsync(id))
+}
+function togglePicker() {
+  if (engineActionReason.value || busy.value) return
+  picking.value = !picking.value
+}
 
 function fmtTime(iso: string | null): string {
   if (!iso) return ''
@@ -135,12 +169,12 @@ function fmtTime(iso: string | null): string {
     <div class="relative">
       <BaseButton
         variant="outline"
-        :disabled="!canUpdate || busy"
-        :title="canUpdate ? undefined : CONTROL_OWNER_ONLY_TOOLTIP"
-        @click="picking = !picking"
+        v-bind="a11y('hint-add', engineActionReason)"
+        @click="togglePicker"
       >
         Tambah akun pilot
       </BaseButton>
+      <span v-if="engineActionReason" id="hint-add" class="sr-only">{{ engineActionReason }}</span>
       <div v-if="picking" class="absolute z-20 mt-1">
         <AccountPicker
           label="Cari pelanggan untuk pilot"
@@ -186,38 +220,51 @@ function fmtTime(iso: string | null): string {
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <BaseButton
-            v-if="canTest && !a.test_active"
-            variant="secondary"
-            :disabled="!canUpdate || busy"
-            :title="testHint"
-            @click="startTest(a.account_id)"
-          >
-            Uji Isolir
-          </BaseButton>
-          <BaseButton
-            v-if="a.test_active"
-            variant="danger"
-            :disabled="!canUpdate || busy"
-            :title="canUpdate ? undefined : CONTROL_OWNER_ONLY_TOOLTIP"
-            @click="stopTest(a.account_id)"
-          >
-            Hentikan Uji
-          </BaseButton>
+          <template v-if="isPilotMode && !a.test_active">
+            <BaseButton
+              variant="secondary"
+              v-bind="a11y(`hint-test-${a.account_id}`, engineActionReason)"
+              @click="startTest(a.account_id)"
+            >
+              Uji Isolir
+            </BaseButton>
+            <span v-if="engineActionReason" :id="`hint-test-${a.account_id}`" class="sr-only">{{
+              engineActionReason
+            }}</span>
+          </template>
+          <template v-if="a.test_active">
+            <BaseButton
+              variant="danger"
+              v-bind="a11y(`hint-stop-${a.account_id}`, permReason)"
+              @click="stopTest(a.account_id)"
+            >
+              Hentikan Uji
+            </BaseButton>
+            <span v-if="permReason" :id="`hint-stop-${a.account_id}`" class="sr-only">{{
+              permReason
+            }}</span>
+          </template>
           <BaseButton
             variant="outline"
-            :disabled="!canUpdate || busy || a.test_active"
-            :title="canUpdate ? undefined : CONTROL_OWNER_ONLY_TOOLTIP"
+            v-bind="
+              a11y(
+                `hint-remove-${a.account_id}`,
+                a.test_active ? 'Hentikan uji lebih dulu.' : engineActionReason,
+              )
+            "
             :aria-label="`Lepas ${a.account_name} dari daftar pilot`"
-            @click="remove(a.account_id)"
+            @click="a.test_active || remove(a.account_id)"
           >
             Lepas
           </BaseButton>
+          <span
+            v-if="a.test_active || engineActionReason"
+            :id="`hint-remove-${a.account_id}`"
+            class="sr-only"
+            >{{ a.test_active ? 'Hentikan uji lebih dulu.' : engineActionReason }}</span
+          >
         </div>
       </li>
     </ul>
-    <p v-if="control.engine !== 'on'" class="text-xs text-gray-600 dark:text-gray-400">
-      Uji Isolir tersedia bila mesin isolir aktif.
-    </p>
   </section>
 </template>

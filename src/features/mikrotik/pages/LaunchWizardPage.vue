@@ -12,11 +12,10 @@ import {
 import CandidateTable from '@/features/mikrotik/components/CandidateTable.vue'
 import LaunchStepper from '@/features/mikrotik/components/LaunchStepper.vue'
 import PilotPanel from '@/features/mikrotik/components/PilotPanel.vue'
+import { engineBlockReason } from '@/features/mikrotik/utils/engine'
 import { controlPermissions } from '@/features/mikrotik/utils/control-permissions'
 import { controlActionError } from '@/features/mikrotik/utils/errors'
 import { useAuthStore } from '@/stores/auth.store'
-
-const ENGINE_OFF_TOOLTIP = 'Mesin isolir dinonaktifkan operator'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -27,15 +26,12 @@ const summaryQuery = usePreviewSummaryQuery()
 const setMode = useSetModeMutation()
 
 const control = computed(() => controlQuery.data.value)
-const engineOff = computed(() => !!control.value && control.value.engine !== 'on')
+const engineReason = computed(() =>
+  control.value ? engineBlockReason(control.value.engine) : null,
+)
 const errorText = ref('')
-
-// Tooltip kontrol nonaktif: izin dulu, lalu mesin (hanya untuk aksi pilot/aktif).
-function hint(needsEngine: boolean): string | undefined {
-  if (!perms.value.canUpdate) return perms.value.disabledReason ?? undefined
-  if (needsEngine && engineOff.value) return ENGINE_OFF_TOOLTIP
-  return undefined
-}
+const PILOT_REQUIRED_HINT =
+  'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.'
 
 async function changeMode(mode: 'pilot' | 'active') {
   errorText.value = ''
@@ -47,21 +43,28 @@ async function changeMode(mode: 'pilot' | 'active') {
   }
 }
 
-const toPilotDisabled = computed(() => !perms.value.canUpdate || setMode.isPending.value)
-const activateDisabled = computed(
-  () =>
-    !perms.value.canUpdate ||
-    engineOff.value ||
-    !control.value?.pilot_verified_at ||
-    setMode.isPending.value,
+// Alasan tombol nonaktif: izin, lalu mesin, lalu verifikasi pilot. null = boleh.
+const permReason = computed(() => perms.value.disabledReason)
+const pilotReason = computed(() =>
+  setMode.isPending.value ? 'Sedang memproses...' : permReason.value,
 )
-const activateHint = computed(() => {
-  const base = hint(true)
-  if (base) return base
-  if (!control.value?.pilot_verified_at)
-    return 'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.'
-  return undefined
+const activateReason = computed(() => {
+  if (permReason.value) return permReason.value
+  if (engineReason.value) return engineReason.value
+  if (!control.value?.pilot_verified_at) return PILOT_REQUIRED_HINT
+  if (setMode.isPending.value) return 'Sedang memproses...'
+  return null
 })
+
+// aria-disabled tidak memblokir klik/Enter, jadi dijaga di handler.
+function goPilot() {
+  if (pilotReason.value) return
+  void changeMode('pilot')
+}
+function goActive() {
+  if (activateReason.value) return
+  void changeMode('active')
+}
 </script>
 
 <template>
@@ -79,11 +82,11 @@ const activateHint = computed(() => {
       <LaunchStepper :mode="control.mode" />
 
       <p
-        v-if="engineOff"
+        v-if="engineReason"
         class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
         role="status"
       >
-        Mesin isolir dinonaktifkan operator. Aksi pilot dan aktivasi belum bisa dijalankan.
+        {{ engineReason }} Aksi pilot dan aktivasi belum bisa dijalankan.
       </p>
       <p v-if="!perms.canUpdate" class="text-sm text-gray-600 dark:text-gray-400">
         {{ perms.disabledReason }}
@@ -104,21 +107,31 @@ const activateHint = computed(() => {
           :summary="summaryQuery.data.value"
           :can-update="perms.canUpdate"
         />
-        <BaseButton :disabled="toPilotDisabled" :title="hint(false)" @click="changeMode('pilot')">
+        <BaseButton
+          :aria-disabled="pilotReason ? 'true' : undefined"
+          :aria-describedby="pilotReason ? 'hint-pilot' : undefined"
+          :title="pilotReason ?? undefined"
+          :class="pilotReason ? 'cursor-not-allowed opacity-60' : ''"
+          @click="goPilot"
+        >
           Lanjut ke Pilot
         </BaseButton>
+        <span v-if="pilotReason" id="hint-pilot" class="sr-only">{{ pilotReason }}</span>
       </section>
 
       <section v-else-if="control.mode === 'pilot'" class="space-y-4" aria-label="Langkah Pilot">
         <PilotPanel :control="control" :can-update="perms.canUpdate" />
         <div class="space-y-1">
           <BaseButton
-            :disabled="activateDisabled"
-            :title="activateHint"
-            @click="changeMode('active')"
+            :aria-disabled="activateReason ? 'true' : undefined"
+            :aria-describedby="activateReason ? 'hint-active' : undefined"
+            :title="activateReason ?? undefined"
+            :class="activateReason ? 'cursor-not-allowed opacity-60' : ''"
+            @click="goActive"
           >
             Aktifkan Isolir Otomatis
           </BaseButton>
+          <span v-if="activateReason" id="hint-active" class="sr-only">{{ activateReason }}</span>
           <p v-if="!control.pilot_verified_at" class="text-xs text-gray-600 dark:text-gray-400">
             Tombol ini aktif setelah minimal satu uji pilot berhasil.
           </p>

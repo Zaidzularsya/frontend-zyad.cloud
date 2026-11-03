@@ -35,6 +35,14 @@ async function mountPanel(control: Partial<ControlState> = {}, canUpdate = true)
 const buttonByText = (w: ReturnType<typeof mount>, text: string) =>
   w.findAll('button').find((b) => b.text() === text)
 
+function describedText(
+  w: ReturnType<typeof mount>,
+  btn: { attributes: (n: string) => string | undefined },
+) {
+  const id = btn.attributes('aria-describedby')
+  return id ? w.find(`#${id}`).text() : undefined
+}
+
 describe('PilotPanel', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
@@ -53,11 +61,61 @@ describe('PilotPanel', () => {
     )
   })
 
-  it('menampilkan Uji Isolir hanya pada mode pilot dengan engine on', async () => {
-    expect(buttonByText(await mountPanel(), 'Uji Isolir')).toBeTruthy()
-    expect(buttonByText(await mountPanel({ engine: 'off' }), 'Uji Isolir')).toBeUndefined()
-    expect(buttonByText(await mountPanel({ engine: 'dry_run' }), 'Uji Isolir')).toBeUndefined()
+  it('Uji Isolir aktif hanya pada mode pilot dengan engine on; engine lain tampil nonaktif', async () => {
+    const on = buttonByText(await mountPanel(), 'Uji Isolir')!
+    expect(on.attributes('aria-disabled')).toBeUndefined()
+
+    const off = await mountPanel({ engine: 'off' })
+    const offBtn = buttonByText(off, 'Uji Isolir')!
+    expect(offBtn.attributes('aria-disabled')).toBe('true')
+    expect(describedText(off, offBtn)).toBe('Mesin isolir dinonaktifkan operator')
+    expect(buttonByText(off, 'Tambah akun pilot')!.attributes('aria-disabled')).toBe('true')
+    expect(buttonByText(off, 'Lepas')!.attributes('aria-disabled')).toBe('true')
+
+    const dry = await mountPanel({ engine: 'dry_run' })
+    expect(describedText(dry, buttonByText(dry, 'Uji Isolir')!)).toBe(
+      'Mesin isolir operator dalam mode uji (dry-run): tidak ada koneksi yang diputus.',
+    )
+
     expect(buttonByText(await mountPanel({ mode: 'simulation' }), 'Uji Isolir')).toBeUndefined()
+  })
+
+  it('klik pada Uji Isolir yang aria-disabled tidak memanggil API', async () => {
+    const w = await mountPanel({ engine: 'off' })
+    await buttonByText(w, 'Uji Isolir')!.trigger('click')
+    await flushPromises()
+    expect(api.pilot.startTest).not.toHaveBeenCalled()
+  })
+
+  it('alur pemilih: cari, pilih, lalu pilot.add', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    api.accounts.search.mockResolvedValue([
+      { id: 'a9', name: 'Sari Dewi', phone: '0812', email: '' },
+    ])
+    api.pilot.add.mockResolvedValue(undefined as never)
+    const w = await mountPanel()
+    await buttonByText(w, 'Tambah akun pilot')!.trigger('click')
+    await w.find('input[type="search"]').setValue('sari')
+    await vi.advanceTimersByTimeAsync(400)
+    await flushPromises()
+    expect(api.accounts.search).toHaveBeenCalledWith('sari')
+    await w
+      .findAll('li button')
+      .find((b) => b.text().includes('Sari Dewi'))!
+      .trigger('click')
+    await flushPromises()
+    expect(api.pilot.add).toHaveBeenCalledWith('a9')
+  })
+
+  it.each([
+    ['MIKROTIK_PILOT_TEST_NOT_RUNNABLE', 'Akun ini tidak bisa diuji'],
+    ['MIKROTIK_PILOT_MODE_REQUIRED', 'Uji isolir hanya bisa dijalankan saat mode Pilot.'],
+  ])('menampilkan galat %s', async (code, text) => {
+    api.pilot.startTest.mockRejectedValue({ response: { data: { code, message: 'x' } } })
+    const w = await mountPanel()
+    await buttonByText(w, 'Uji Isolir')!.trigger('click')
+    await flushPromises()
+    expect(w.find('[role="alert"]').text()).toContain(text)
   })
 
   it('memanggil StartPilotTest untuk akun terpilih', async () => {
@@ -83,13 +141,32 @@ describe('PilotPanel', () => {
     expect(api.pilot.stopTest).toHaveBeenCalledWith('a1')
   })
 
-  it('polling status tugas selama uji berjalan', async () => {
+  it('polling menyegarkan tugas, pilot, dan control; berhenti saat test_active false', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    api.pilot.list
+      .mockResolvedValueOnce([pilotAccount({ test_active: true })])
+      .mockResolvedValue([pilotAccount({ test_active: false, verified: true })])
+    const w = await mountPanel()
+    const tasksBefore = api.tasks.list.mock.calls.length
+    await vi.advanceTimersByTimeAsync(3100)
+    await flushPromises()
+    expect(api.tasks.list.mock.calls.length).toBeGreaterThan(tasksBefore)
+    expect(api.pilot.list).toHaveBeenCalledTimes(2)
+    expect(w.text()).toContain('Terverifikasi')
+    const settled = api.tasks.list.mock.calls.length
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(api.tasks.list.mock.calls.length).toBe(settled)
+    expect(api.pilot.list).toHaveBeenCalledTimes(2)
+  })
+
+  it('unmount menghentikan polling', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     api.pilot.list.mockResolvedValue([pilotAccount({ test_active: true })])
-    await mountPanel()
+    const w = await mountPanel()
+    w.unmount()
     const before = api.tasks.list.mock.calls.length
-    await vi.advanceTimersByTimeAsync(3100)
-    expect(api.tasks.list.mock.calls.length).toBeGreaterThan(before)
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(api.tasks.list.mock.calls.length).toBe(before)
   })
 
   it('menandai akun terverifikasi', async () => {
@@ -98,14 +175,17 @@ describe('PilotPanel', () => {
     expect(w.text()).toContain('Terverifikasi')
   })
 
-  it('member melihat daftar tetapi kontrol nonaktif dengan tooltip persis', async () => {
+  it('member melihat daftar tetapi kontrol aria-disabled dengan tooltip persis', async () => {
     const w = await mountPanel({}, false)
     expect(w.text()).toContain('Budi Santoso')
-    const test = buttonByText(w, 'Uji Isolir')!
-    expect(test.attributes('disabled')).toBeDefined()
-    expect(test.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
-    expect(buttonByText(w, 'Tambah akun pilot')!.attributes('disabled')).toBeDefined()
-    expect(buttonByText(w, 'Lepas')!.attributes('disabled')).toBeDefined()
+    for (const label of ['Uji Isolir', 'Tambah akun pilot', 'Lepas']) {
+      const b = buttonByText(w, label)!
+      expect(b.attributes('aria-disabled')).toBe('true')
+      expect(b.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+      expect(describedText(w, b)).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+    }
+    await buttonByText(w, 'Uji Isolir')!.trigger('click')
+    expect(api.pilot.startTest).not.toHaveBeenCalled()
   })
 
   it('menampilkan galat MIKROTIK_ENGINE_OFF dari backend', async () => {

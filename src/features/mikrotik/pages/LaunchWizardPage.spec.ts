@@ -17,7 +17,7 @@ vi.mock('@/components/ui/toast', () => ({
 
 import LaunchWizardPage from '@/features/mikrotik/pages/LaunchWizardPage.vue'
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
-import { controlState, previewSummary } from '@/features/mikrotik/testing/fixtures'
+import { controlState, pilotAccount, previewSummary } from '@/features/mikrotik/testing/fixtures'
 import { CONTROL_OWNER_ONLY_TOOLTIP } from '@/features/mikrotik/utils/control-permissions'
 import type { ControlState } from '@/features/mikrotik/types'
 import { useAuthStore } from '@/stores/auth.store'
@@ -81,7 +81,7 @@ describe('LaunchWizardPage', () => {
     const w = await mountPage({ mode: 'pilot' })
     expect(w.text()).toContain('Akun pilot')
     expect(w.find('[aria-current="step"]').text()).toContain('Pilot')
-    expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('disabled')).toBeDefined()
+    expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('aria-disabled')).toBe('true')
   })
 
   it('Aktif aktif setelah terverifikasi dan mengirim SetMode active', async () => {
@@ -103,15 +103,47 @@ describe('LaunchWizardPage', () => {
     expect(w.find('[role="alert"]').text()).toBe(PILOT_MSG)
   })
 
-  it('engine off: banner dan aksi pilot/aktif nonaktif', async () => {
+  it('Aktif nonaktif tanpa verifikasi: aria-describedby menjelaskan alasan', async () => {
+    const w = await mountPage({ mode: 'pilot' })
+    const b = btn(w, 'Aktifkan Isolir Otomatis')!
+    expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(PILOT_MSG)
+    await b.trigger('click')
+    expect(api.control.setMode).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['off', 'Mesin isolir dinonaktifkan operator'],
+    ['dry_run', 'Mesin isolir operator dalam mode uji (dry-run): tidak ada koneksi yang diputus.'],
+  ] as const)('engine %s: banner dan aksi pilot/aktif nonaktif', async (engine, text) => {
+    api.pilot.list.mockResolvedValue([pilotAccount()])
     const w = await mountPage({
       mode: 'pilot',
-      engine: 'off',
+      engine,
       pilot_verified_at: '2026-11-02T00:00:00Z',
     })
-    expect(w.text()).toContain('Mesin isolir dinonaktifkan operator')
-    expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('disabled')).toBeDefined()
-    expect(btn(w, 'Uji Isolir')).toBeUndefined()
+    expect(w.find('[role="status"]').text()).toContain(text)
+    const b = btn(w, 'Aktifkan Isolir Otomatis')!
+    expect(b.attributes('aria-disabled')).toBe('true')
+    expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(text)
+    await b.trigger('click')
+    expect(api.control.setMode).not.toHaveBeenCalled()
+    expect(btn(w, 'Uji Isolir')!.attributes('aria-disabled')).toBe('true')
+  })
+
+  it('setelah jendela uji berakhir, pilot_verified_at baru mengaktifkan tombol Aktif', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    api.pilot.list
+      .mockResolvedValueOnce([pilotAccount({ test_active: true })])
+      .mockResolvedValue([pilotAccount({ verified: true })])
+    const w = await mountPage({ mode: 'pilot' })
+    api.control.get.mockResolvedValue(
+      controlState({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:10:00Z' }),
+    )
+    expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('aria-disabled')).toBe('true')
+    await vi.advanceTimersByTimeAsync(3100)
+    await flushPromises()
+    expect(btn(w, 'Aktifkan Isolir Otomatis')!.attributes('aria-disabled')).toBeUndefined()
+    vi.useRealTimers()
   })
 
   it('mode active: langkah Aktif tanpa tombol aktivasi', async () => {
@@ -120,19 +152,22 @@ describe('LaunchWizardPage', () => {
     expect(btn(w, 'Aktifkan Isolir Otomatis')).toBeUndefined()
   })
 
-  it('member melihat semuanya tetapi kontrol nonaktif dengan tooltip persis', async () => {
+  it('member melihat semuanya tetapi kontrol aria-disabled dengan tooltip persis', async () => {
     const w = await mountPage({ mode: 'simulation' }, MEMBER)
     const b = btn(w, 'Lanjut ke Pilot')!
-    expect(b.attributes('disabled')).toBeDefined()
+    expect(b.attributes('aria-disabled')).toBe('true')
     expect(b.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+    expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+    await b.trigger('click')
     expect(w.find('[data-testid="count-target"]').exists()).toBe(true)
     expect(api.control.setMode).not.toHaveBeenCalled()
   })
 
-  it('member di mode pilot: Aktifkan nonaktif dengan tooltip persis', async () => {
+  it('member di mode pilot: Aktifkan aria-disabled dengan tooltip persis', async () => {
     const w = await mountPage({ mode: 'pilot', pilot_verified_at: '2026-11-02T00:00:00Z' }, MEMBER)
     const b = btn(w, 'Aktifkan Isolir Otomatis')!
-    expect(b.attributes('disabled')).toBeDefined()
+    expect(b.attributes('aria-disabled')).toBe('true')
     expect(b.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+    expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
   })
 })
