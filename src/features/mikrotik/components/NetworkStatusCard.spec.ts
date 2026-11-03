@@ -46,12 +46,6 @@ async function mountCard() {
   return w
 }
 
-function setDate(value: string) {
-  const el = document.body.querySelector('input[name="exempted_until"]') as HTMLInputElement
-  el.value = value
-  el.dispatchEvent(new Event('input'))
-}
-
 const bodyButton = (label: string) =>
   Array.from(document.body.querySelectorAll('button')).find((b) => b.textContent?.trim() === label)
 
@@ -119,9 +113,27 @@ describe('NetworkStatusCard', () => {
     await flushPromises()
     bodyButton('Simpan')!.click()
     await flushPromises()
-    expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
-    expect(document.body.textContent).toContain('Tanggal wajib diisi.')
-    setDate('2099-12-31')
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
+      exempt: true,
+      reason: 'Menunggu transfer',
+    })
+  })
+
+  it('grants an exemption with a WIB end date when one is picked', async () => {
+    setStatus(status())
+    const w = await mountCard()
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Beri Pengecualian')!
+      .trigger('click')
+    await flushPromises()
+    const date = document.body.querySelector('input[name="exempted_until"]') as HTMLInputElement
+    expect(document.body.textContent).toContain('Kosongkan untuk tanpa batas waktu')
+    date.value = '2099-12-31'
+    date.dispatchEvent(new Event('input'))
+    const input = document.body.querySelector('textarea[name="reason"]') as HTMLTextAreaElement
+    input.value = 'Menunggu transfer'
+    input.dispatchEvent(new Event('input'))
     await flushPromises()
     bodyButton('Simpan')!.click()
     await flushPromises()
@@ -144,7 +156,6 @@ describe('NetworkStatusCard', () => {
     expect(input.getAttribute('maxlength')).toBe('500')
     input.value = text
     input.dispatchEvent(new Event('input'))
-    setDate('2099-12-31')
     await flushPromises()
     bodyButton('Simpan')!.click()
     await flushPromises()
@@ -159,11 +170,7 @@ describe('NetworkStatusCard', () => {
   it('accepts a reason of exactly 500 characters', async () => {
     const reason = 'a'.repeat(500)
     await submitReason(reason)
-    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
-      exempt: true,
-      reason,
-      exempted_until: '2099-12-31',
-    })
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', { exempt: true, reason })
   })
 
   it('allows lifting an exemption even when no secret is installed', async () => {

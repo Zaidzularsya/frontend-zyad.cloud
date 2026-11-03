@@ -10,20 +10,21 @@ import ExemptUntilDialog from '@/features/mikrotik/components/ExemptUntilDialog.
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
 import { wibToday } from '@/features/mikrotik/utils/preview'
 
-async function mountDialog() {
+async function mountDialog(extra: Record<string, unknown> = {}) {
   const w = mount(ExemptUntilDialog, {
     attachTo: document.body,
-    props: { open: true, accountId: 'a1', accountName: 'Budi' },
+    props: { open: true, accountId: 'a1', accountName: 'Budi', ...extra },
     global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
   })
   await flushPromises()
   return w
 }
 
-function fill(sel: string, value: string) {
+async function fill(sel: string, value: string) {
   const el = document.body.querySelector(sel) as HTMLInputElement
   el.value = value
   el.dispatchEvent(new Event('input'))
+  await flushPromises()
 }
 const submit = async () => {
   ;(document.body.querySelector('button[type=submit]') as HTMLButtonElement).click()
@@ -39,9 +40,9 @@ describe('ExemptUntilDialog', () => {
   })
 
   it('mengirim exempt, alasan, dan tanggal inklusif, lalu menutup', async () => {
-    const w = await mountDialog()
-    fill('input[name=exempted_until]', '2099-01-31')
-    fill('textarea[name=reason]', '  Menunggu transfer  ')
+    const w = await mountDialog({ requireDate: true })
+    await fill('input[name=exempted_until]', '2099-01-31')
+    await fill('textarea[name=reason]', '  Menunggu transfer  ')
     await submit()
     expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
       exempt: true,
@@ -56,15 +57,33 @@ describe('ExemptUntilDialog', () => {
     await mountDialog()
     const input = document.body.querySelector('input[name=exempted_until]') as HTMLInputElement
     expect(input.min).toBe(wibToday())
-    fill('input[name=exempted_until]', '2000-01-01')
-    fill('textarea[name=reason]', 'x')
+    await fill('input[name=exempted_until]', '2000-01-01')
+    await fill('textarea[name=reason]', 'x')
     await submit()
     expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Tanggal tidak boleh sebelum hari ini')
   })
 
-  it('menolak tanggal kosong dan alasan kosong', async () => {
+  it('tanpa requireDate tanggal opsional dan tidak dikirim bila kosong', async () => {
     await mountDialog()
+    await fill('textarea[name=reason]', 'Kelonggaran')
+    await submit()
+    expect(mikrotikApi.policy.set).toHaveBeenCalledWith('a1', {
+      exempt: true,
+      reason: 'Kelonggaran',
+    })
+  })
+
+  it('galat tanggal hilang setelah pengguna mengubah isian', async () => {
+    await mountDialog({ requireDate: true })
+    await submit()
+    expect(document.body.textContent).toContain('Tanggal wajib diisi.')
+    await fill('input[name=exempted_until]', '2099-01-31')
+    expect(document.body.textContent).not.toContain('Tanggal wajib diisi.')
+  })
+
+  it('menolak tanggal kosong dan alasan kosong', async () => {
+    await mountDialog({ requireDate: true })
     await submit()
     expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Tanggal wajib diisi.')
@@ -73,8 +92,8 @@ describe('ExemptUntilDialog', () => {
 
   it('menolak alasan lebih dari 500 karakter', async () => {
     await mountDialog()
-    fill('input[name=exempted_until]', '2099-01-31')
-    fill('textarea[name=reason]', 'a'.repeat(501))
+    await fill('input[name=exempted_until]', '2099-01-31')
+    await fill('textarea[name=reason]', 'a'.repeat(501))
     await submit()
     expect(mikrotikApi.policy.set).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Maksimal 500 karakter')
@@ -85,8 +104,8 @@ describe('ExemptUntilDialog', () => {
       response: { data: { code: 'VALIDATION_ERROR' } },
     })
     const w = await mountDialog()
-    fill('input[name=exempted_until]', '2099-01-31')
-    fill('textarea[name=reason]', 'x')
+    await fill('input[name=exempted_until]', '2099-01-31')
+    await fill('textarea[name=reason]', 'x')
     await submit()
     expect(document.body.textContent).toContain('Data tidak valid')
     expect(w.emitted('close')).toBeFalsy()

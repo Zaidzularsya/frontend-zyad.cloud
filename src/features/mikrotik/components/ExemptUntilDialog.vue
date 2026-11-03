@@ -7,7 +7,10 @@ import { useSetPolicyMutation } from '@/features/mikrotik/api/mikrotik.queries'
 import { routerActionError } from '@/features/mikrotik/utils/errors'
 import { formatDateId, wibToday } from '@/features/mikrotik/utils/preview'
 
-const props = defineProps<{ open: boolean; accountId: string; accountName?: string }>()
+const props = withDefaults(
+  defineProps<{ open: boolean; accountId: string; accountName?: string; requireDate?: boolean }>(),
+  { requireDate: false, accountName: undefined },
+)
 const emit = defineEmits<{ (e: 'close'): void; (e: 'saved'): void }>()
 
 const until = ref('')
@@ -30,14 +33,19 @@ watch(
   },
 )
 
+// Galat hilang begitu pengguna mengubah isiannya.
+watch(until, () => (untilError.value = ''))
+watch(reason, () => (reasonError.value = ''))
+
 async function submit() {
   const text = reason.value.trim()
   const today = wibToday()
-  untilError.value = !until.value
-    ? 'Tanggal wajib diisi.'
-    : until.value < today
-      ? `Tanggal tidak boleh sebelum hari ini (${formatDateId(today)}).`
-      : ''
+  untilError.value =
+    !until.value && props.requireDate
+      ? 'Tanggal wajib diisi.'
+      : until.value && until.value < today
+        ? `Tanggal tidak boleh sebelum hari ini (${formatDateId(today)}).`
+        : ''
   // Batas sama dengan validasi backend (1-500).
   reasonError.value = !text
     ? 'Alasan wajib diisi.'
@@ -49,7 +57,11 @@ async function submit() {
   try {
     await mutation.mutateAsync({
       accountId: props.accountId,
-      payload: { exempt: true, reason: text, exempted_until: until.value },
+      payload: {
+        exempt: true,
+        reason: text,
+        ...(until.value ? { exempted_until: until.value } : {}),
+      },
     })
     emit('saved')
     emit('close')
@@ -63,8 +75,9 @@ async function submit() {
   <BaseModal :open="open" title="Beri Pengecualian" @close="emit('close')">
     <form class="space-y-4 text-sm" novalidate @submit.prevent="submit">
       <p>
-        Pelanggan{{ accountName ? ` ${accountName}` : '' }} tidak akan diisolir otomatis sampai
-        tanggal yang dipilih. Tanggal itu masih termasuk (hari terakhir pengecualian, waktu WIB).
+        Pelanggan{{ accountName ? ` ${accountName}` : '' }} tidak akan diisolir otomatis selama
+        pengecualian aktif. Tanggal yang dipilih masih termasuk (hari terakhir pengecualian, waktu
+        WIB).
       </p>
       <div>
         <label class="font-medium" for="exempt-until">Dikecualikan sampai</label>
@@ -78,6 +91,9 @@ async function submit() {
           :aria-describedby="untilError ? 'exempt-until-err' : undefined"
           class="mt-1 block w-full rounded-lg border bg-white p-2 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 sm:w-56 dark:bg-gray-950 dark:focus:ring-brand-900"
         />
+        <p v-if="!requireDate" class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+          Kosongkan untuk tanpa batas waktu.
+        </p>
         <p v-if="untilError" id="exempt-until-err" class="mt-1 text-red-700" role="alert">
           {{ untilError }}
         </p>

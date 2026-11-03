@@ -5,6 +5,7 @@ import {
   downloadBlob,
   exemptionLabel,
   isBlocked,
+  parseBlobError,
   statusLabel,
   wibToday,
 } from '@/features/mikrotik/utils/preview'
@@ -37,8 +38,13 @@ describe('isBlocked / blockedTooltip', () => {
 
 describe('exemptionLabel', () => {
   it('menampilkan tanggal WIB atau kosong', () => {
-    expect(exemptionLabel('2026-11-12')).toBe('Dikecualikan sampai 12 Nov 2026')
+    expect(exemptionLabel('2026-11-12', '2026-11-02')).toBe('Dikecualikan sampai 12 Nov 2026')
     expect(exemptionLabel(null)).toBe('')
+  })
+
+  it('hari terakhir masih aktif, sesudahnya berakhir', () => {
+    expect(exemptionLabel('2026-11-02', '2026-11-02')).toBe('Dikecualikan sampai 2 Nov 2026')
+    expect(exemptionLabel('2026-11-01', '2026-11-02')).toBe('Pengecualian berakhir 1 Nov 2026')
   })
 })
 
@@ -53,6 +59,7 @@ describe('wibToday', () => {
 
 describe('downloadBlob', () => {
   it('memakai object URL, tautan sementara, lalu mencabut URL', () => {
+    vi.useFakeTimers()
     const create = vi.fn().mockReturnValue('blob:x')
     const revoke = vi.fn()
     Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke })
@@ -60,8 +67,28 @@ describe('downloadBlob', () => {
     downloadBlob(new Blob(['a']), 'x.csv')
     expect(create).toHaveBeenCalled()
     expect(click).toHaveBeenCalled()
-    expect(revoke).toHaveBeenCalledWith('blob:x')
     expect(document.querySelector('a[download]')).toBeNull()
+    expect(revoke).not.toHaveBeenCalled()
+    vi.runAllTimers()
+    expect(revoke).toHaveBeenCalledWith('blob:x')
     click.mockRestore()
+    vi.useRealTimers()
+  })
+})
+
+describe('parseBlobError', () => {
+  it('membaca badan JSON dari Blob agar kode galat terpetakan', async () => {
+    const err = {
+      response: { data: new Blob([JSON.stringify({ code: 'INTERNAL_ERROR' })]), status: 500 },
+    }
+    const out = (await parseBlobError(err)) as { response: { data: { code: string } } }
+    expect(out.response.data.code).toBe('INTERNAL_ERROR')
+  })
+
+  it('mengembalikan galat apa adanya bila bukan Blob atau bukan JSON', async () => {
+    const plain = new Error('x')
+    expect(await parseBlobError(plain)).toBe(plain)
+    const bad = { response: { data: new Blob(['<html>']) } }
+    expect(await parseBlobError(bad)).toBe(bad)
   })
 })

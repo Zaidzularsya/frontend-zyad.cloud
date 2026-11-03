@@ -88,7 +88,9 @@ describe('CandidateTable', () => {
     const row = w.get('tbody tr')
     expect(row.classes().join(' ')).toContain('bg-red')
     const btn = row.get('button')
-    expect(btn.attributes('disabled')).toBeDefined()
+    expect(btn.attributes('aria-disabled')).toBe('true')
+    const hint = w.get(`#${btn.attributes('aria-describedby')}`)
+    expect(hint.text()).toBe(btn.attributes('title'))
     expect(btn.attributes('title')).toBe(
       'Tidak bisa diisolir. Secret tidak ditemukan di router. Perbaiki pemetaan di Akun PPPoE.',
     )
@@ -98,7 +100,10 @@ describe('CandidateTable', () => {
     setRows([previewItem()])
     const w = await mountTable(false)
     const btn = w.get('tbody tr button')
-    expect(btn.attributes('disabled')).toBeDefined()
+    expect(btn.attributes('aria-disabled')).toBe('true')
+    expect(w.get(`#${btn.attributes('aria-describedby')}`).text()).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+    await btn.trigger('click')
+    expect(document.body.querySelector('[role=dialog]')).toBeNull()
     expect(btn.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
     expect(btn.attributes('title')).toBe(
       'Hanya Pemilik Organisasi yang dapat mengubah pengaturan ini.',
@@ -157,6 +162,7 @@ describe('CandidateTable', () => {
     Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke })
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     const w = await mountTable()
+    vi.useFakeTimers()
     await w.get('select[name=status]').setValue('will_isolate')
     await flushPromises()
     const btn = w.findAll('button').find((b) => b.text() === 'Ekspor CSV')!
@@ -165,9 +171,11 @@ describe('CandidateTable', () => {
     expect(mikrotikApi.control.exportPreview).toHaveBeenCalledWith({ status: 'will_isolate' })
     expect(create).toHaveBeenCalledWith(blob)
     expect(click).toHaveBeenCalled()
+    vi.runAllTimers()
     expect(revoke).toHaveBeenCalledWith('blob:csv')
     expect(w.find('a[href]').exists()).toBe(false)
     click.mockRestore()
+    vi.useRealTimers()
   })
 
   it('galat ekspor ditampilkan lewat pemetaan galat yang ada', async () => {
@@ -182,6 +190,49 @@ describe('CandidateTable', () => {
       .trigger('click')
     await flushPromises()
     expect(toastError).toHaveBeenCalledWith('Terjadi kesalahan di server. Coba lagi nanti.')
+  })
+
+  it('pengecualian lewat tanggal tampil "berakhir" dengan aksi Kecualikan', async () => {
+    setRows([previewItem({ status: 'will_isolate', exempted_until: '2020-01-01' })])
+    const w = await mountTable()
+    const row = w.get('tbody tr')
+    expect(row.text()).toContain('Pengecualian berakhir 1 Jan 2020')
+    expect(row.text()).not.toContain('Dikecualikan sampai')
+    expect(row.get('button').text()).toBe('Kecualikan')
+  })
+
+  it('mundur ke halaman terakhir bila halaman lewat ujung daftar', async () => {
+    preview.mockImplementation(async (p) =>
+      (p?.page ?? 1) > 1
+        ? ({ data: [], meta: { page: 2, per_page: 20, total: 5, total_pages: 1 } } as never)
+        : ({
+            data: [previewItem()],
+            meta: { page: 1, per_page: 20, total: 5, total_pages: 1 },
+          } as never),
+    )
+    const w = await mountTable()
+    // Paksa halaman 2 lewat tombol paginasi sudah tidak ada (1 halaman); ubah lewat filter ulang.
+    const vm = w.vm as unknown as { $: { setupState: { page: number } } }
+    vm.$.setupState.page = 2
+    await flushPromises()
+    expect(preview).toHaveBeenLastCalledWith({ page: 1, per_page: 20 })
+    expect(w.text()).toContain('Budi Santoso')
+  })
+
+  it('galat ekspor berbadan Blob JSON dipetakan lewat kodenya', async () => {
+    setRows([previewItem()])
+    vi.mocked(mikrotikApi.control.exportPreview).mockRejectedValue({
+      response: { data: new Blob([JSON.stringify({ code: 'INTERNAL_ERROR' })]) },
+    })
+    const w = await mountTable()
+    await w
+      .findAll('button')
+      .find((b) => b.text() === 'Ekspor CSV')!
+      .trigger('click')
+    await flushPromises()
+    await vi.waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Terjadi kesalahan di server. Coba lagi nanti.'),
+    )
   })
 
   it('menampilkan keadaan kosong dan galat muat', async () => {

@@ -41,8 +41,15 @@ export function formatDateId(date: string): string {
   return month ? `${Number(d)} ${month} ${y}` : date
 }
 
-export function exemptionLabel(until: string | null): string {
-  return until ? `Dikecualikan sampai ${formatDateId(until)}` : ''
+export function isExpired(until: string | null, today: string = wibToday()): boolean {
+  return Boolean(until) && (until as string) < today
+}
+
+export function exemptionLabel(until: string | null, today: string = wibToday()): string {
+  if (!until) return ''
+  return isExpired(until, today)
+    ? `Pengecualian berakhir ${formatDateId(until)}`
+    : `Dikecualikan sampai ${formatDateId(until)}`
 }
 
 const wibDate = new Intl.DateTimeFormat('en-CA', {
@@ -67,6 +74,29 @@ export function downloadBlob(blob: Blob, filename: string): void {
     a.click()
   } finally {
     a.remove()
-    URL.revokeObjectURL(url)
+    // Ditunda agar unduhan sempat dimulai sebelum URL dicabut.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+}
+
+function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(blob)
+  })
+}
+
+// Galat responseType 'blob' membawa badan JSON sebagai Blob; ubah kembali agar pemetaan
+// galat yang ada (response.data.code/message) tetap bisa membacanya.
+export async function parseBlobError(error: unknown): Promise<unknown> {
+  const response = (error as { response?: { data?: unknown } } | undefined)?.response
+  if (!response || !(response.data instanceof Blob)) return error
+  try {
+    const parsed = JSON.parse(await readBlobText(response.data)) as unknown
+    return { ...(error as object), response: { ...response, data: parsed } }
+  } catch {
+    return error
   }
 }

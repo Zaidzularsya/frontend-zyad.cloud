@@ -20,6 +20,8 @@ import {
   downloadBlob,
   exemptionLabel,
   isBlocked,
+  isExpired,
+  parseBlobError,
   statusLabel,
   wibToday,
   type StatusTone,
@@ -69,10 +71,26 @@ const query = usePreviewQuery(params)
 const rows = computed(() => query.data.value?.data ?? [])
 const total = computed(() => query.data.value?.meta?.total ?? 0)
 
+// Halaman bisa melewati ujung daftar (filter menyempit, data berubah): mundur ke halaman terakhir.
+watch([rows, total, page, perPage], () => {
+  if (
+    query.isPlaceholderData.value ||
+    rows.value.length > 0 ||
+    total.value === 0 ||
+    page.value <= 1
+  )
+    return
+  page.value = Math.max(1, Math.ceil(total.value / perPage.value))
+})
+
 const TONE_CLASS: Record<StatusTone, string> = {
   ok: 'bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200',
   neutral: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
   danger: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200',
+}
+
+function hasActiveExemption(row: PreviewItem): boolean {
+  return Boolean(row.exempted_until) && !isExpired(row.exempted_until)
 }
 
 function reasonText(row: PreviewItem): string {
@@ -88,9 +106,15 @@ function actionHint(row: PreviewItem): string | undefined {
   return undefined
 }
 
+function isDisabled(row: PreviewItem): boolean {
+  return !props.canUpdate || isBlocked(row.status)
+}
+
 const target = ref<PreviewItem | null>(null)
 const dialogOpen = ref(false)
 function openDialog(row: PreviewItem) {
+  // aria-disabled tidak memblokir klik/Enter, jadi dijaga di sini.
+  if (isDisabled(row)) return
   target.value = row
   dialogOpen.value = true
 }
@@ -105,7 +129,7 @@ async function exportCsv() {
     const blob = await mikrotikApi.control.exportPreview(filters.value)
     downloadBlob(blob, `kandidat-isolir-${wibToday()}.csv`)
   } catch (error) {
-    toast.error(routerActionError(error))
+    toast.error(routerActionError(await parseBlobError(error)))
   } finally {
     exporting.value = false
   }
@@ -166,70 +190,83 @@ async function exportCsv() {
     <p v-else-if="rows.length === 0" class="rounded-xl border p-6 text-sm text-gray-600">
       Tidak ada pelanggan yang cocok dengan filter ini.
     </p>
-    <div v-else class="overflow-hidden rounded-xl border">
-      <table class="w-full text-left text-sm">
-        <thead
-          class="sticky top-0 z-10 hidden border-b bg-gray-50 text-xs text-gray-600 md:table-header-group dark:bg-gray-900 dark:text-gray-400"
-        >
-          <tr>
-            <th scope="col" class="px-4 py-3">Pelanggan &amp; Paket</th>
-            <th scope="col" class="px-4 py-3">Alasan Isolir</th>
-            <th scope="col" class="px-4 py-3">Status Secret di Router</th>
-            <th scope="col" class="px-4 py-3">Status Pengecualian</th>
-            <th scope="col" class="px-4 py-3"><span class="sr-only">Aksi</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in rows"
-            :key="row.account_id"
-            class="block border-b align-top last:border-0 md:table-row"
-            :class="isBlocked(row.status) ? 'bg-red-50 dark:bg-red-950/30' : ''"
-            :data-status="row.status"
+    <div v-else class="rounded-xl border">
+      <div class="max-h-[70vh] overflow-auto">
+        <table class="w-full text-left text-sm">
+          <thead
+            class="sticky top-0 z-10 hidden border-b bg-gray-50 text-xs text-gray-600 md:table-header-group dark:bg-gray-900 dark:text-gray-400"
           >
-            <td class="block px-4 py-2 md:table-cell md:py-3">
-              <span class="font-medium">{{ row.account_name }}</span>
-              <span class="block text-xs text-gray-600 dark:text-gray-400">{{
-                row.products || '-'
-              }}</span>
-            </td>
-            <td class="block px-4 py-1 md:table-cell md:py-3">
-              <span class="text-xs text-gray-600 md:hidden dark:text-gray-400"
-                >Alasan Isolir:
-              </span>
-              {{ reasonText(row) }}
-              <span
-                v-if="row.oldest_invoice_number"
-                class="block text-xs text-gray-600 dark:text-gray-400"
-                >Invoice tertua {{ row.oldest_invoice_number }}</span
-              >
-            </td>
-            <td class="block px-4 py-1 md:table-cell md:py-3">
-              <span
-                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                :class="TONE_CLASS[statusLabel(row.status).tone]"
-                >{{ statusLabel(row.status).text }}</span
-              >
-            </td>
-            <td class="block px-4 py-1 md:table-cell md:py-3">
-              {{ exemptionLabel(row.exempted_until)
-              }}{{ !row.exempted_until && row.status === 'exempt' ? 'Dikecualikan' : '' }}
-            </td>
-            <td class="block px-4 py-2 md:table-cell md:py-3 md:text-right">
-              <button
-                type="button"
-                class="min-h-11 rounded-lg border px-3 py-1 text-xs font-medium hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-60 md:min-h-0 dark:hover:bg-gray-800"
-                :disabled="!canUpdate || isBlocked(row.status)"
-                :title="actionHint(row)"
-                :aria-label="`${row.exempted_until ? 'Ubah pengecualian' : 'Kecualikan'} ${row.account_name}`"
-                @click="openDialog(row)"
-              >
-                {{ row.exempted_until ? 'Ubah' : 'Kecualikan' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <tr>
+              <th scope="col" class="px-4 py-3">Pelanggan &amp; Paket</th>
+              <th scope="col" class="px-4 py-3">Alasan Isolir</th>
+              <th scope="col" class="px-4 py-3">Status Secret di Router</th>
+              <th scope="col" class="px-4 py-3">Status Pengecualian</th>
+              <th scope="col" class="px-4 py-3"><span class="sr-only">Aksi</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in rows"
+              :key="row.account_id"
+              class="block border-b align-top last:border-0 md:table-row"
+              :class="isBlocked(row.status) ? 'bg-red-50 dark:bg-red-950/30' : ''"
+              :data-status="row.status"
+            >
+              <td class="block px-4 py-2 md:table-cell md:py-3">
+                <span class="font-medium">{{ row.account_name }}</span>
+                <span class="block text-xs text-gray-600 dark:text-gray-400">{{
+                  row.products || '-'
+                }}</span>
+              </td>
+              <td class="block px-4 py-1 md:table-cell md:py-3">
+                <span class="text-xs text-gray-600 md:hidden dark:text-gray-400"
+                  >Alasan Isolir:
+                </span>
+                {{ reasonText(row) }}
+                <span
+                  v-if="row.oldest_invoice_number"
+                  class="block text-xs text-gray-600 dark:text-gray-400"
+                  >Invoice tertua {{ row.oldest_invoice_number }}</span
+                >
+              </td>
+              <td class="block px-4 py-1 md:table-cell md:py-3">
+                <span class="text-xs text-gray-600 md:hidden dark:text-gray-400"
+                  >Status Secret di Router:
+                </span>
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="TONE_CLASS[statusLabel(row.status).tone]"
+                  >{{ statusLabel(row.status).text }}</span
+                >
+              </td>
+              <td class="block px-4 py-1 md:table-cell md:py-3">
+                <span class="text-xs text-gray-600 md:hidden dark:text-gray-400"
+                  >Status Pengecualian:
+                </span>
+                {{ exemptionLabel(row.exempted_until)
+                }}{{ !row.exempted_until && row.status === 'exempt' ? 'Dikecualikan' : '' }}
+              </td>
+              <td class="block px-4 py-2 md:table-cell md:py-3 md:text-right">
+                <button
+                  type="button"
+                  class="min-h-11 rounded-lg border px-3 py-1 text-xs font-medium hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-brand-100 md:min-h-0 dark:hover:bg-gray-800"
+                  :class="isDisabled(row) ? 'cursor-not-allowed opacity-60' : ''"
+                  :aria-disabled="isDisabled(row) ? 'true' : undefined"
+                  :aria-describedby="actionHint(row) ? `hint-${row.account_id}` : undefined"
+                  :title="actionHint(row)"
+                  :aria-label="`${hasActiveExemption(row) ? 'Ubah pengecualian' : 'Kecualikan'} ${row.account_name}`"
+                  @click="openDialog(row)"
+                >
+                  {{ hasActiveExemption(row) ? 'Ubah' : 'Kecualikan' }}
+                </button>
+                <span v-if="actionHint(row)" :id="`hint-${row.account_id}`" class="sr-only">{{
+                  actionHint(row)
+                }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <DataPagination
         :page="page"
         :per-page="perPage"
@@ -242,6 +279,7 @@ async function exportCsv() {
 
     <ExemptUntilDialog
       :open="dialogOpen"
+      require-date
       :account-id="target?.account_id ?? ''"
       :account-name="target?.account_name"
       @close="dialogOpen = false"
