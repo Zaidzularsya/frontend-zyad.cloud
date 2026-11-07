@@ -23,6 +23,14 @@ import {
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { useEntitlement } from '@/features/entitlements/composables/useEntitlement'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { usePageSelection } from '@/features/landing/builder/composables/usePageSelection'
 import { landingApi } from '@/features/landing/shared/api/landing.api'
 import type {
@@ -245,6 +253,9 @@ function dateValue(value?: string | null) {
   const timestamp = new Date(value).getTime()
   return Number.isNaN(timestamp) ? 0 : timestamp
 }
+
+const invalidateEntitlements = useInvalidateEntitlements()
+const { atLimit: pagesAtLimit } = useEntitlement('landing.max_pages')
 
 function getApiMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -534,13 +545,19 @@ async function savePage() {
         is_homepage: isHomepage,
         builder: 'grapesjs',
       })
+      invalidateEntitlements()
       showNotice('Landing page berhasil dibuat.')
       pagePanelOpen.value = false
       await loadPages()
       goToContent(created.data)
     }
   } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Gagal menyimpan landing page.')
+    if (isQuotaExceededError(error)) {
+      invalidateEntitlements()
+      errorMessage.value = quotaExceededMessage('landing page')
+    } else {
+      errorMessage.value = getApiMessage(error, 'Gagal menyimpan landing page.')
+    }
   } finally {
     saving.value = false
   }
@@ -613,11 +630,25 @@ async function runPageAction(
         include_forms: true,
       })
     }
+    // Archive/restore/delete/duplicate mengubah jumlah halaman yang dihitung kuota.
+    if (
+      action === 'archive' ||
+      action === 'restore' ||
+      action === 'delete' ||
+      action === 'duplicate'
+    ) {
+      invalidateEntitlements()
+    }
 
     showNotice('Aksi landing page berhasil dijalankan.')
     await loadPages()
   } catch (error) {
-    errorMessage.value = getApiMessage(error, 'Aksi landing page gagal dijalankan.')
+    if (isQuotaExceededError(error)) {
+      invalidateEntitlements()
+      errorMessage.value = quotaExceededMessage('landing page')
+    } else {
+      errorMessage.value = getApiMessage(error, 'Aksi landing page gagal dijalankan.')
+    }
   } finally {
     actionBusy.value = ''
   }
@@ -628,12 +659,17 @@ async function runPageAction(
   <div class="space-y-6">
     <PageHeader :title="title" :description="description">
       <div class="flex flex-wrap items-center gap-2">
-        <BaseButton @click="openCreatePanel">
-          <Plus class="size-4" />
-          Create Page
-        </BaseButton>
+        <QuotaActionButton
+          feature-key="landing.max_pages"
+          label="Create Page"
+          upgrade-label="Upgrade untuk tambah page"
+          @click="openCreatePanel"
+        >
+          <template #icon><Plus class="size-4" /></template>
+        </QuotaActionButton>
       </div>
     </PageHeader>
+    <QuotaLimitBanner feature-key="landing.max_pages" noun="landing page" />
 
     <div
       v-if="notice"
@@ -1092,10 +1128,15 @@ async function runPageAction(
             Buat reusable company profile, SaaS landing, atau product page pertama untuk mulai
             menyusun website builder workspace ini.
           </p>
-          <BaseButton class="mt-5" @click="openCreatePanel">
-            <Plus class="size-4" />
-            Create First Page
-          </BaseButton>
+          <QuotaActionButton
+            class="mt-5"
+            feature-key="landing.max_pages"
+            label="Create First Page"
+            upgrade-label="Upgrade untuk tambah page"
+            @click="openCreatePanel"
+          >
+            <template #icon><Plus class="size-4" /></template>
+          </QuotaActionButton>
         </div>
       </div>
 
@@ -1222,7 +1263,12 @@ async function runPageAction(
                   </button>
                   <button
                     class="rounded-lg border px-3 py-1.5 font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                    :disabled="actionBusy === `duplicate:${page.id}`"
+                    :disabled="actionBusy === `duplicate:${page.id}` || pagesAtLimit"
+                    :title="
+                      pagesAtLimit
+                        ? 'Kuota landing page penuh — upgrade plan untuk menduplikasi'
+                        : undefined
+                    "
                     @click="runPageAction(page, 'duplicate')"
                   >
                     <Copy class="inline size-3.5" />

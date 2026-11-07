@@ -1,6 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
+
 import {
   receivableApi,
   type AccountPayload,
@@ -85,9 +88,16 @@ export function useInvoicePaymentsQuery(id: Ref<string | undefined>) {
 
 export function useCreateInvoiceMutation() {
   const invalidate = useInvalidateReceivable()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: InvoicePayload) => receivableApi.invoices.create(payload),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
+    },
   })
 }
 
@@ -110,10 +120,14 @@ export function useIssueInvoiceMutation() {
 
 export function useVoidInvoiceMutation() {
   const invalidate = useInvalidateReceivable()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       receivableApi.invoices.void(id, reason),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
   })
 }
 

@@ -6,6 +6,8 @@ import { ChevronDown, FileText, Landmark, ShieldQuestion, UserCircle2, X } from 
 import { platformMenuGroups, customerMenuGroups } from '@/config/menu'
 import type { MenuChildItem, MenuItem } from '@/config/menu'
 import type { LandingMenuTone } from '@/features/landing/builder/config/landing-menu'
+import { useHiddenFeatures } from '@/features/entitlements/composables/useHiddenFeatures'
+import { filterMenuByEntitlement } from '@/features/entitlements/utils/menu-filter'
 import { hasPermission } from '@/lib/permission'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -18,6 +20,8 @@ const tenant = useTenantStore()
 const route = useRoute()
 const openMenus = ref(new Set<string>(['Landing Page']))
 
+const isFeatureHidden = useHiddenFeatures()
+
 const isPlatformMode = computed(() => route.path.startsWith('/platform'))
 
 function hasChildren(
@@ -27,7 +31,10 @@ function hasChildren(
 }
 
 const visibleGroups = computed(() => {
-  const groups = route.path.startsWith('/platform') ? platformMenuGroups : customerMenuGroups
+  const groups = filterMenuByEntitlement(
+    route.path.startsWith('/platform') ? platformMenuGroups : customerMenuGroups,
+    isFeatureHidden,
+  )
   return groups
     .map((group) => ({
       ...group,

@@ -11,11 +11,16 @@ import {
   type ProductForm,
 } from '@/features/catalog/utils/product-form'
 
-const props = defineProps<{
-  modelValue: ProductForm
-  defs: CatalogFeatureDef[]
-  listingError?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: ProductForm
+    defs: CatalogFeatureDef[]
+    listingError?: string
+    // false = daftar fitur generik disembunyikan (platform memakai ProductEntitlementTable).
+    showFeatures?: boolean
+  }>(),
+  { listingError: '', showFeatures: true },
+)
 
 const emit = defineEmits<{ (e: 'update:modelValue', value: ProductForm): void }>()
 
@@ -106,7 +111,7 @@ function removeRow(index: number) {
       </label>
     </div>
 
-    <div class="space-y-2">
+    <div v-if="showFeatures" class="space-y-2">
       <p class="text-sm font-medium">Fitur</p>
       <p v-if="modelValue.features.length === 0" class="text-xs text-gray-500">
         Belum ada fitur. Fitur tampil di pricing page, penawaran, dan link penawaran.

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
 
-import BaseButton from '@/components/ui/BaseButton.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
 import type { QuotationStatus } from '@/features/crm/quotations/api/quotations.api'
 import { useQuotationsQuery } from '@/features/crm/quotations/api/quotations.queries'
 import { formatRupiah } from '@/features/crm/quotations/utils/quotation-editor'
@@ -54,10 +54,15 @@ function create() {
   <div class="space-y-3">
     <div class="flex items-center justify-between gap-2">
       <p class="text-sm text-gray-500">Penawaran untuk deal ini, versi terbaru di atas.</p>
-      <BaseButton v-if="auth.can('quotation.create')" @click="create">
-        <Plus class="size-4" />
-        Buat quotation
-      </BaseButton>
+      <QuotaActionButton
+        v-if="auth.can('quotation.create')"
+        feature-key="crm.max_quotations_per_month"
+        label="Buat quotation"
+        upgrade-label="Upgrade untuk buat quotation"
+        @click="create"
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </div>
     <p v-if="quotationsQuery.isPending.value" class="py-6 text-center text-sm text-gray-500">
       Memuat data...

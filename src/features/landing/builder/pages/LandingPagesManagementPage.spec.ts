@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 const api = vi.hoisted(() => ({
   getPages: vi.fn(),
@@ -8,6 +9,9 @@ const api = vi.hoisted(() => ({
 }))
 
 vi.mock('@/features/landing/shared/api/landing.api', () => ({ landingApi: api }))
+vi.mock('@/features/entitlements/api/entitlements.api', () => ({
+  entitlementsApi: { summary: vi.fn().mockResolvedValue([]) },
+}))
 vi.mock('vue-router', () => ({
   useRoute: () => ({ name: 'landing-pages', query: {}, fullPath: '/' }),
   useRouter: () => ({ push: vi.fn(), resolve: vi.fn() }),
@@ -41,7 +45,12 @@ function page(over: Record<string, unknown> = {}) {
 async function openManage(pages: Array<Record<string, unknown>>) {
   api.getPages.mockResolvedValue({ data: pages })
   api.updatePage.mockResolvedValue({ data: pages[0] })
-  const wrapper = mount(LandingPagesManagementPage, { global: { stubs: { PageHeader: true } } })
+  const wrapper = mount(LandingPagesManagementPage, {
+    global: {
+      plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]],
+      stubs: { PageHeader: true },
+    },
+  })
   await flushPromises()
   const kelola = wrapper.findAll('button').find((b) => b.text() === 'Kelola')!
   await kelola.trigger('click')
