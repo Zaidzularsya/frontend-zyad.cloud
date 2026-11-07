@@ -408,17 +408,61 @@ describe('PublicInvoicePage', () => {
       expect(provisioning).toHaveBeenCalledTimes(2)
     })
 
-    it('a request error hides the block and stops polling', async () => {
+    it('a 404 hides the block and stops polling', async () => {
       get.mockResolvedValue(paid())
       provisioning
         .mockResolvedValueOnce({ applicable: true, stage: 'restoring' })
-        .mockRejectedValue({ response: { status: 429 } })
+        .mockRejectedValue({ response: { status: 404 } })
       const w = await mountPage()
       expect(w.text()).toContain('Sedang mengaktifkan internet')
       await vi.advanceTimersByTimeAsync(5000)
       expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(false)
       await vi.advanceTimersByTimeAsync(60000)
       expect(provisioning).toHaveBeenCalledTimes(2)
+    })
+
+    it('a 429 keeps the last stage and keeps polling with backoff', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockResolvedValueOnce({ applicable: true, stage: 'restoring' })
+        .mockRejectedValueOnce({ response: { status: 429 } })
+        .mockRejectedValueOnce({ response: { status: 429 } })
+        .mockResolvedValue({ applicable: true, stage: 'active' })
+      const w = await mountPage()
+      await vi.advanceTimersByTimeAsync(5000) // 2nd call: 429
+      expect(provisioning).toHaveBeenCalledTimes(2)
+      expect(w.text()).toContain('Sedang mengaktifkan internet')
+      // backoff: the next try waits longer than the normal 5 s interval.
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(provisioning).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(5000) // 3rd call after 10 s: 429 again
+      expect(provisioning).toHaveBeenCalledTimes(3)
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(true)
+      await vi.advanceTimersByTimeAsync(20000) // 4th call after 20 s: active
+      expect(provisioning).toHaveBeenCalledTimes(4)
+      expect(w.text()).toContain('Internet Anda sudah aktif.')
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(4)
+    })
+
+    it('a network error before any answer keeps polling without showing a block', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockRejectedValueOnce(new Error('Network Error'))
+        .mockResolvedValue({ applicable: true, stage: 'received' })
+      const w = await mountPage()
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(false)
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(provisioning).toHaveBeenCalledTimes(2)
+      expect(w.text()).toContain('Pembayaran diterima.')
+    })
+
+    it('repeated 429s still respect the 60-attempt cap', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockRejectedValue({ response: { status: 429 } })
+      await mountPage()
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60000)
+      expect(provisioning).toHaveBeenCalledTimes(60)
     })
 
     it('gives up after 60 attempts', async () => {

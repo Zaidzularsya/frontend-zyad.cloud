@@ -7,7 +7,8 @@ import { expect, test, type Page, type Route } from '@playwright/test'
  *     blok tahap bergerak received -> restoring -> active;
  *  b. info `enabled:false` -> halaman netral tanpa nama tenant;
  *  c. lookup found=false -> pesan seragam + blok bantuan;
- *  d. tahap needs_help menampilkan tautan tel:/mailto:/wa.me.
+ *  d. tahap needs_help menampilkan tautan tel:/mailto:/wa.me;
+ *  e. halaman tetap tampil saat semua origin lain (font) di-abort atau tidak menjawab.
  */
 
 function json(route: Route, data: unknown, status = 200) {
@@ -164,3 +165,32 @@ test('tahap needs_help menampilkan tautan kontak tenant', async ({ page }) => {
   await expect(status.locator('a[href="https://wa.me/6281234567890"]')).toBeVisible()
   await expect(status.locator('a[href="mailto:cs@rumahnet.test"]')).toBeVisible()
 })
+
+/**
+ * Sesi terisolir hanya bisa menjangkau aplikasi (walled garden: origin app + API):
+ * paket ke origin lain (Google Fonts dll.) dibuang tanpa jawaban. Halaman tidak
+ * boleh menunggu resource asing untuk tampil. Pada build preview API berada di
+ * origin lain (VITE_API_URL), jadi path `/api/` tetap diteruskan (lalu di-stub).
+ */
+async function isolateFromForeignOrigins(page: Page, mode: 'abort' | 'hang') {
+  const appOrigin = new URL('http://127.0.0.1:4173').origin
+  await page.route('**/*', (route) => {
+    const url = new URL(route.request().url())
+    if (url.origin === appOrigin || url.pathname.startsWith('/api/')) return route.continue()
+    // hang = paket dibuang (tidak pernah dijawab), seperti jaringan isolir sesungguhnya.
+    return mode === 'abort' ? route.abort() : new Promise<void>(() => {})
+  })
+}
+
+for (const mode of ['abort', 'hang'] as const) {
+  test(`halaman isolir tampil tanpa resource origin lain (${mode})`, async ({ page }) => {
+    await isolateFromForeignOrigins(page, mode)
+    await stubInfo(page, true)
+    await page.goto('/isolir', { waitUntil: 'commit' })
+    await expect(page.getByRole('heading', { name: 'Tagihan Internet' })).toBeVisible({
+      timeout: 5000,
+    })
+    await expect(page.getByLabel('Username PPPoE atau nomor WhatsApp')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cek tagihan' })).toBeVisible()
+  })
+}

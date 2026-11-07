@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
@@ -56,6 +56,7 @@ describe('IsolirPage', () => {
     info.mockReset()
     lookup.mockReset()
     document.body.innerHTML = ''
+    document.head.querySelectorAll('meta[name="robots"]').forEach((m) => m.remove())
   })
 
   it('renders neutral page when info.enabled is false', async () => {
@@ -182,5 +183,76 @@ describe('IsolirPage', () => {
     const w = await mountPage()
     expect(w.find('a[href^="https://wa.me/"]').exists()).toBe(false)
     expect(w.find('a[href^="tel:"]').exists()).toBe(false)
+  })
+
+  it('marks the page noindex while mounted', async () => {
+    info.mockResolvedValue(enabledInfo())
+    const w = await mountPage()
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex',
+    )
+    w.unmount()
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull()
+  })
+
+  it('wa.me link drops a 00 international prefix', async () => {
+    info.mockResolvedValue(enabledInfo('0062812-3456-7890'))
+    const w = await mountPage()
+    expect(w.find('a[href^="https://wa.me/"]').attributes('href')).toBe(
+      'https://wa.me/6281234567890',
+    )
+  })
+
+  describe('info request failures are transient', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('retries a 429 with backoff and renders the page once info arrives', async () => {
+      info
+        .mockRejectedValueOnce({ response: { status: 429 } })
+        .mockRejectedValueOnce({ response: { status: 429 } })
+        .mockResolvedValue(enabledInfo())
+      const w = await mountPage()
+      expect(w.text()).not.toContain('Halaman ini tidak tersedia.')
+      expect(info).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(info).toHaveBeenCalledTimes(1) // backoff: not retried immediately
+      await vi.advanceTimersByTimeAsync(30000)
+      await flushPromises()
+      expect(info).toHaveBeenCalledTimes(3)
+      expect(w.text()).toContain('NetKita')
+      expect(w.find('input').exists()).toBe(true)
+    })
+
+    it('a network error never shows the unavailable page and offers a retry', async () => {
+      info.mockRejectedValue(new Error('Network Error'))
+      const w = await mountPage()
+      await vi.advanceTimersByTimeAsync(5 * 60000)
+      await flushPromises()
+      expect(w.text()).not.toContain('Halaman ini tidak tersedia.')
+      expect(w.text()).toContain('Halaman belum dapat dimuat.')
+      const calls = info.mock.calls.length
+      expect(calls).toBeGreaterThan(1)
+      info.mockResolvedValue(enabledInfo())
+      const retry = w.findAll('button').find((b) => b.text().includes('Coba lagi'))
+      expect(retry).toBeDefined()
+      await retry!.trigger('click')
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      expect(info.mock.calls.length).toBe(calls + 1)
+      expect(w.text()).toContain('NetKita')
+    })
+
+    it('other errors also show the neutral retry state, not the unavailable page', async () => {
+      info.mockRejectedValue({ response: { status: 500 } })
+      const w = await mountPage()
+      await flushPromises()
+      expect(w.text()).not.toContain('Halaman ini tidak tersedia.')
+      expect(w.text()).toContain('Halaman belum dapat dimuat.')
+    })
   })
 })

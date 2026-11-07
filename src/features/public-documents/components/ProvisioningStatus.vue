@@ -7,12 +7,15 @@ import {
   type ProvisioningContact,
   type ProvisioningStage,
 } from '../api/public-invoice.api'
-import { telHref, whatsappUrl } from '../utils/contact-links'
+import { telHref, whatsappUrl } from '@/lib/contact-links'
 
 const props = defineProps<{ token: string }>()
 
-// Rate limit endpoint publik dipakai bersama (30/menit/IP): jangan lebih rapat dari 5 detik.
+// Rate limit endpoint publik per IP dipakai bersama pelanggan satu ISP (NAT):
+// jangan lebih rapat dari 5 detik. 429/galat jaringan dianggap sementara dan
+// diulang dengan jeda berlipat (maks. POLL_BACKOFF_MAX_MS).
 const POLL_INTERVAL_MS = 5000
+const POLL_BACKOFF_MAX_MS = 40000
 const POLL_MAX_ATTEMPTS = 60
 
 const TEXT: Record<ProvisioningStage, string> = {
@@ -30,7 +33,18 @@ const stage = ref<ProvisioningStage | null>(null)
 const contact = ref<ProvisioningContact | null>(null)
 let timer: ReturnType<typeof setTimeout> | undefined
 let attempts = 0
+let consecutiveErrors = 0
 let stopped = false
+
+function isTransient(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } } | null)?.response?.status
+  return status === undefined || status === 429
+}
+
+function schedule(delay: number) {
+  if (stopped || attempts >= POLL_MAX_ATTEMPTS) return
+  timer = setTimeout(() => void poll(), delay)
+}
 
 async function poll() {
   attempts += 1
@@ -42,19 +56,24 @@ async function poll() {
       contact.value = null
       return
     }
+    consecutiveErrors = 0
     stage.value = res.stage
     contact.value = res.stage === 'needs_help' ? (res.contact ?? null) : null
     if (!IN_PROGRESS.includes(res.stage)) return
-  } catch {
-    // Termasuk 404/429: jangan tampilkan status yang belum pasti.
-    if (!stopped) {
-      stage.value = null
-      contact.value = null
+  } catch (err) {
+    if (stopped) return
+    if (isTransient(err)) {
+      // Pertahankan tahap terakhir yang sudah tampil; coba lagi nanti.
+      consecutiveErrors += 1
+      schedule(Math.min(POLL_INTERVAL_MS * 2 ** consecutiveErrors, POLL_BACKOFF_MAX_MS))
+      return
     }
+    // 404 dan galat lain: jangan tampilkan status yang belum pasti.
+    stage.value = null
+    contact.value = null
     return
   }
-  if (attempts >= POLL_MAX_ATTEMPTS) return
-  timer = setTimeout(() => void poll(), POLL_INTERVAL_MS)
+  schedule(POLL_INTERVAL_MS)
 }
 
 onMounted(() => void poll())

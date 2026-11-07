@@ -2,16 +2,12 @@
 import { Mail, MessageCircle, Phone } from 'lucide-vue-next'
 import { computed } from 'vue'
 
+import { telHref as toTelHref, whatsappUrl } from '@/lib/contact-links'
+
 const props = defineProps<{ phone: string; email: string }>()
 
-// wa.me butuh format internasional tanpa tanda: digit saja, awalan 0 -> 62.
-const waUrl = computed(() => {
-  const digits = props.phone.replace(/\D/g, '')
-  if (!digits) return ''
-  const intl = digits.startsWith('0') ? `62${digits.slice(1)}` : digits
-  return `https://wa.me/${intl}`
-})
-const telHref = computed(() => `tel:${props.phone.replace(/[^\d+]/g, '')}`)
+const waUrl = computed(() => whatsappUrl(props.phone))
+const telHref = computed(() => toTelHref(props.phone))
 
 const linkClass =
   'flex min-h-11 items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'

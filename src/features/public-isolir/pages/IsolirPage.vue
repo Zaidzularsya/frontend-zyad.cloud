@@ -1,19 +1,48 @@
 <script setup lang="ts">
 import { useMutation, useQuery } from '@tanstack/vue-query'
-import { AlertTriangle, Loader2, Search } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { AlertTriangle, Loader2, RotateCw, Search } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { isolirApi } from '../api/isolir.api'
 import IsolirFaq from '../components/IsolirFaq.vue'
 import IsolirHelpBlock from '../components/IsolirHelpBlock.vue'
 import IsolirInvoiceList from '../components/IsolirInvoiceList.vue'
 
-const { data: info, isPending } = useQuery({
+// Pelanggan satu ISP sering berbagi satu IP NAT, jadi 429 dan galat jaringan
+// pada info bersifat sementara: ulangi dengan jeda bertambah. Halaman
+// "tidak tersedia" hanya untuk enabled=false, bukan untuk galat.
+const INFO_MAX_RETRIES = 5
+const INFO_RETRY_BASE_MS = 2000
+const INFO_RETRY_MAX_MS = 30000
+
+function isTransient(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } } | null)?.response?.status
+  return status === undefined || status === 429
+}
+
+const {
+  data: info,
+  isPending,
+  isError: infoFailed,
+  isFetching: infoFetching,
+  refetch: refetchInfo,
+} = useQuery({
   queryKey: ['public-isolir-info'],
   queryFn: () => isolirApi.info(),
-  retry: false,
+  retry: (failures, err) => failures < INFO_MAX_RETRIES && isTransient(err),
+  retryDelay: (attempt) => Math.min(INFO_RETRY_BASE_MS * 2 ** attempt, INFO_RETRY_MAX_MS),
   refetchOnWindowFocus: false,
 })
+
+// Halaman berisi data tagihan per pelanggan: jangan diindeks mesin pencari.
+let robots: HTMLMetaElement | null = null
+onMounted(() => {
+  robots = document.createElement('meta')
+  robots.name = 'robots'
+  robots.content = 'noindex'
+  document.head.appendChild(robots)
+})
+onBeforeUnmount(() => robots?.remove())
 
 const query = ref('')
 const lookup = useMutation({ mutationFn: (q: string) => isolirApi.lookup(q) })
@@ -41,6 +70,22 @@ const tenant = computed(() => info.value?.tenant)
   <div class="min-h-screen bg-gray-50 pb-16 dark:bg-gray-950">
     <main class="mx-auto max-w-xl px-4 py-8 sm:px-6">
       <p v-if="isPending" class="py-24 text-center text-sm text-gray-500" role="status">Memuat…</p>
+
+      <section v-else-if="infoFailed && !info" class="py-24 text-center" role="status">
+        <p class="text-sm text-gray-700 dark:text-gray-300">
+          Halaman belum dapat dimuat. Periksa koneksi Anda lalu coba lagi.
+        </p>
+        <button
+          type="button"
+          :disabled="infoFetching"
+          class="mx-auto mt-4 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-800 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          @click="refetchInfo()"
+        >
+          <Loader2 v-if="infoFetching" class="size-4 animate-spin" aria-hidden="true" />
+          <RotateCw v-else class="size-4" aria-hidden="true" />
+          Coba lagi
+        </button>
+      </section>
 
       <section v-else-if="!info?.enabled || !tenant" class="py-24 text-center">
         <h1 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
