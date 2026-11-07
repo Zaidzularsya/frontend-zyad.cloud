@@ -76,6 +76,14 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Penawaran', public: true },
   },
   {
+    // Halaman isolir publik di domain tenant: tanpa login, tenant di-resolve backend dari Host.
+    // Didaftarkan di level atas sehingga tidak tertangkap `/:slug` landing page.
+    path: '/isolir',
+    name: 'public-isolir',
+    component: () => import('@/features/public-isolir/pages/IsolirPage.vue'),
+    meta: { title: 'Tagihan Internet', public: true },
+  },
+  {
     // Link invoice untuk pelanggan tenant: tanpa login/tenant, sama seperti /q/:token.
     path: '/i/:token',
     name: 'public-invoice',
