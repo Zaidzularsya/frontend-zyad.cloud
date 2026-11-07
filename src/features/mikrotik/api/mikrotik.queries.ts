@@ -3,10 +3,13 @@ import { computed, ref, type Ref } from 'vue'
 
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
 import type {
+  ActivityParams,
   ApplySetupPayload,
   CreateRouterPayload,
   PairBulkItem,
+  PreviewParams,
   SecretListParams,
+  SetModePayload,
   SetPolicyPayload,
   SetupPayload,
   TaskListParams,
@@ -26,6 +29,11 @@ export const mikrotikKeys = {
   triggerPreview: (productId: string) =>
     [...mikrotikKeys.all, 'products', 'preview', productId] as const,
   tasks: (params: object) => [...mikrotikKeys.all, 'tasks', params] as const,
+  control: () => [...mikrotikKeys.all, 'control'] as const,
+  previewSummary: () => [...mikrotikKeys.all, 'preview-summary'] as const,
+  preview: (params: object) => [...mikrotikKeys.all, 'preview', params] as const,
+  pilot: () => [...mikrotikKeys.all, 'pilot'] as const,
+  activity: (params: object) => [...mikrotikKeys.all, 'activity', params] as const,
   taskSummary: () => [...mikrotikKeys.all, 'task-summary'] as const,
 }
 
@@ -265,5 +273,101 @@ export function useSetupCleanupMutation() {
   return useMutation({
     mutationFn: (routerId: string) => mikrotikApi.setup.cleanup(routerId),
     onSuccess: invalidate,
+  })
+}
+
+export function useControlQuery(enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    queryKey: mikrotikKeys.control(),
+    queryFn: () => mikrotikApi.control.get(),
+    enabled,
+  })
+}
+
+// Mode, pilot, dan pengecualian memengaruhi kandidat, log, dan tugas, jadi semua mutation kendali
+// memakai invalidasi menyeluruh yang sama dengan mutation lain.
+export function useSetGraceDaysMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (graceDays: number) => mikrotikApi.control.setGraceDays(graceDays),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetModeMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (payload: SetModePayload) => mikrotikApi.control.setMode(payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function usePreviewSummaryQuery() {
+  return useQuery({
+    queryKey: mikrotikKeys.previewSummary(),
+    queryFn: () => mikrotikApi.control.previewSummary(),
+  })
+}
+
+export function usePreviewQuery(params: Ref<PreviewParams>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.preview(params.value)),
+    queryFn: () => mikrotikApi.control.preview(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function usePilotQuery() {
+  return useQuery({
+    queryKey: mikrotikKeys.pilot(),
+    queryFn: () => mikrotikApi.pilot.list(),
+  })
+}
+
+export function useAddPilotMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.add(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRemovePilotMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.remove(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStartPilotTestMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.startTest(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStopPilotTestMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.stopTest(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRestoreAllMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: () => mikrotikApi.control.restoreAll(),
+    onSuccess: invalidate,
+  })
+}
+
+export function useActivityQuery(params: Ref<ActivityParams> = ref({})) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.activity(params.value)),
+    queryFn: () => mikrotikApi.control.activity(params.value),
+    placeholderData: keepPreviousData,
   })
 }

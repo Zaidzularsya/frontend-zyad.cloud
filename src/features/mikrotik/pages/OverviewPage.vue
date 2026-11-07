@@ -5,6 +5,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import {
+  useControlQuery,
   useOnboardingQuery,
   useRoutersQuery,
   useTaskSummaryQuery,
@@ -13,8 +14,11 @@ import {
 import OnboardingChecklist, {
   type OnboardingStepKey,
 } from '@/features/mikrotik/components/OnboardingChecklist.vue'
+import ControlPage from '@/features/mikrotik/pages/ControlPage.vue'
 import type { TaskListParams } from '@/features/mikrotik/types'
+import { controlPermissions } from '@/features/mikrotik/utils/control-permissions'
 import { taskErrorAction } from '@/features/mikrotik/utils/errors'
+import { useAuthStore } from '@/stores/auth.store'
 
 const router = useRouter()
 const onboardingQuery = useOnboardingQuery()
@@ -23,7 +27,20 @@ const failedParams = ref<TaskListParams>({ status: 'failed', limit: 5 })
 const failedQuery = useTasksQuery(failedParams)
 const routersQuery = useRoutersQuery()
 
+const auth = useAuthStore()
+const canReadControl = computed(() => controlPermissions(auth.user?.permissions ?? []).canRead)
+
 const status = computed(() => onboardingQuery.data.value)
+// Mode kendali hanya dibaca setelah onboarding lengkap dan hanya oleh yang berhak.
+const controlEnabled = computed(() => canReadControl.value && Boolean(status.value?.complete))
+const controlQuery = useControlQuery(controlEnabled)
+const controlMode = computed(() => controlQuery.data.value?.mode)
+// Selama kueri kendali memuat atau gagal, tampilan ringkasan lama tetap dipakai.
+const showControl = computed(() => controlMode.value === 'active' || controlMode.value === 'paused')
+const showLaunchCta = computed(
+  () => controlMode.value === 'simulation' || controlMode.value === 'pilot',
+)
+
 const counts = computed(() => summaryQuery.data.value?.counts ?? {})
 const failed = computed(() => (failedQuery.data.value?.data ?? []).slice(0, 5))
 
@@ -64,9 +81,18 @@ const pendingAgeMinutes = computed(() => {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Ringkasan Jaringan" description="Status isolir PPPoE dan kesiapan setup." />
+    <PageHeader
+      v-if="!showControl"
+      title="Ringkasan Jaringan"
+      description="Status isolir PPPoE dan kesiapan setup."
+    />
 
-    <p v-if="onboardingQuery.isLoading.value" class="text-sm text-gray-500">Memuat...</p>
+    <p
+      v-if="onboardingQuery.isLoading.value || (controlEnabled && controlQuery.isLoading.value)"
+      class="text-sm text-gray-500"
+    >
+      Memuat...
+    </p>
     <p v-else-if="onboardingQuery.isError.value" class="text-sm text-red-600" role="alert">
       Gagal memuat status setup.
     </p>
@@ -77,7 +103,26 @@ const pendingAgeMinutes = computed(() => {
       @navigate="onNavigate"
     />
 
+    <ControlPage v-else-if="status && showControl" />
+
     <template v-else-if="status">
+      <section
+        v-if="showLaunchCta"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
+      >
+        <div>
+          <p class="font-medium">Isolir otomatis belum aktif.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Lihat simulasi dan jalankan uji pilot sebelum mengaktifkannya.
+          </p>
+        </div>
+        <RouterLink
+          :to="{ name: 'mikrotik-launch' }"
+          class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
+          >Buka Peluncuran Isolir</RouterLink
+        >
+      </section>
+
       <div
         v-if="pendingAgeMinutes !== null"
         class="rounded-lg bg-red-100 p-4 text-sm font-medium text-red-700 dark:bg-red-950 dark:text-red-200"

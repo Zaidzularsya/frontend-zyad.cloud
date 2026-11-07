@@ -31,5 +31,17 @@ export function buildMikrotikRoutes(
       component: () => import('@/features/mikrotik/pages/TasksPage.vue'),
       meta: { title: 'Tugas Isolir', permissions: ['mikrotik_task.read'] },
     },
+    {
+      path: `${pathPrefix}/control`,
+      name: `${namePrefix}-control`,
+      component: () => import('@/features/mikrotik/pages/ControlPage.vue'),
+      meta: { title: 'Kendali Isolir', permissions: ['mikrotik_control.read'] },
+    },
+    {
+      path: `${pathPrefix}/launch`,
+      name: `${namePrefix}-launch`,
+      component: () => import('@/features/mikrotik/pages/LaunchWizardPage.vue'),
+      meta: { title: 'Peluncuran Isolir', permissions: ['mikrotik_control.read'] },
+    },
   ]
 }

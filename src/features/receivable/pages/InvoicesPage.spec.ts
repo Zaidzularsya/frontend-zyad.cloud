@@ -137,6 +137,23 @@ describe('InvoicesPage isolation badge', () => {
     expect(w.text().match(/Terisolir/g)).toHaveLength(2)
   })
 
+  it('badges pending accounts from the same single status call', async () => {
+    summary.mockResolvedValue(mikrotikOn)
+    statusFn.mockResolvedValue([
+      {
+        account_id: 'acc-1',
+        isolation_state: 'normal',
+        exempt: false,
+        pending_isolation: true,
+        secrets: 1,
+      },
+      { account_id: 'acc-2', isolation_state: 'normal', exempt: false, secrets: 1 },
+    ])
+    const w = await mountPage()
+    expect(statusFn).toHaveBeenCalledTimes(1)
+    expect(w.text().match(/Menunggu Isolir/g)).toHaveLength(2)
+  })
+
   it('does not request status or show a badge when the feature is off', async () => {
     summary.mockResolvedValue([])
     const w = await mountPage()

@@ -4,14 +4,15 @@ import { RouterLink } from 'vue-router'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
-import BaseModal from '@/components/ui/BaseModal.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import {
   useCustomerStatusQuery,
   usePolicyQuery,
   useSetPolicyMutation,
 } from '@/features/mikrotik/api/mikrotik.queries'
+import ExemptUntilDialog from '@/features/mikrotik/components/ExemptUntilDialog.vue'
 import { routerActionError } from '@/features/mikrotik/utils/errors'
+import { exemptionLabel } from '@/features/mikrotik/utils/preview'
 import { useInvoicesQuery } from '@/features/receivable/api/receivable.queries'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -25,6 +26,9 @@ const statusQuery = useCustomerStatusQuery(accountIds)
 const status = computed(() => statusQuery.data.value?.find((s) => s.account_id === props.accountId))
 const isolated = computed(() => status.value?.isolation_state === 'isolated')
 const exempt = computed(() => Boolean(status.value?.exempt))
+const pending = computed(() => Boolean(status.value?.pending_isolation) && !isolated.value)
+// Tanggal lewat tetap berlabel "berakhir", jadi tidak terbaca sebagai pengecualian aktif.
+const untilText = computed(() => exemptionLabel(status.value?.exempted_until ?? null))
 
 // Alasan pengecualian hanya diminta saat pelanggan memang dikecualikan.
 const policyAccountId = computed(() => (exempt.value ? props.accountId : undefined))
@@ -46,41 +50,13 @@ const oldestInvoice = computed(() => {
 })
 
 const dialogOpen = ref(false)
-const reason = ref('')
-const reasonError = ref('')
 const error = ref('')
 const revokeOpen = ref(false)
 const mutation = useSetPolicyMutation()
 
 function openDialog() {
-  reason.value = ''
-  reasonError.value = ''
   error.value = ''
   dialogOpen.value = true
-}
-
-async function grant() {
-  const text = reason.value.trim()
-  if (!text) {
-    reasonError.value = 'Alasan wajib diisi.'
-    return
-  }
-  // Batas sama dengan validasi backend (max=500).
-  if (text.length > 500) {
-    reasonError.value = 'Maksimal 500 karakter'
-    return
-  }
-  reasonError.value = ''
-  error.value = ''
-  try {
-    await mutation.mutateAsync({
-      accountId: props.accountId,
-      payload: { exempt: true, reason: text },
-    })
-    dialogOpen.value = false
-  } catch (e) {
-    error.value = routerActionError(e)
-  }
 }
 
 async function revoke() {
@@ -121,6 +97,12 @@ async function revoke() {
             "
             >{{ isolated ? 'Terisolir' : 'Aktif' }}</span
           >
+          <span
+            v-if="pending"
+            title="Akan diisolir begitu isolir otomatis aktif"
+            class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            >Menunggu Isolir</span
+          >
         </p>
         <p class="text-gray-500">{{ status.secrets }} secret terpasang</p>
         <p v-if="isolated" class="text-xs text-gray-500">
@@ -130,8 +112,8 @@ async function revoke() {
       </div>
 
       <p v-if="exempt" class="text-sm">
-        <span class="font-medium">Dikecualikan</span>
-        <span v-if="reasonText" class="text-gray-500"> — {{ reasonText }}</span>
+        <span class="font-medium">{{ untilText || 'Dikecualikan' }}</span>
+        <span v-if="reasonText" class="text-gray-500">. Alasan: {{ reasonText }}</span>
       </p>
 
       <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
@@ -174,29 +156,11 @@ async function revoke() {
       @confirm="revoke"
       @cancel="revokeOpen = false"
     />
-    <BaseModal :open="dialogOpen" title="Beri Pengecualian" @close="dialogOpen = false">
-      <div class="space-y-3 text-sm">
-        <p>
-          Pelanggan{{ contactName ? ` ${contactName}` : '' }} tidak akan diisolir otomatis selama
-          pengecualian aktif.
-        </p>
-        <label class="block">
-          <span class="font-medium">Alasan</span>
-          <textarea
-            v-model="reason"
-            name="reason"
-            maxlength="500"
-            rows="3"
-            class="mt-1 w-full rounded-lg border bg-white p-2 outline-none focus:border-brand-500 dark:bg-gray-950"
-          ></textarea>
-        </label>
-        <p v-if="reasonError" class="text-red-600" role="alert">{{ reasonError }}</p>
-        <p v-if="error" class="text-red-600" role="alert">{{ error }}</p>
-      </div>
-      <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <BaseButton variant="outline" @click="dialogOpen = false">Batal</BaseButton>
-        <BaseButton :disabled="mutation.isPending.value" @click="grant">Simpan</BaseButton>
-      </div>
-    </BaseModal>
+    <ExemptUntilDialog
+      :open="dialogOpen"
+      :account-id="accountId"
+      :account-name="contactName"
+      @close="dialogOpen = false"
+    />
   </BaseCard>
 </template>

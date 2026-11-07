@@ -67,6 +67,7 @@ const ALL_MIKROTIK: Permission[] = [
   'mikrotik_router.read',
   'mikrotik_secret.read',
   'mikrotik_task.read',
+  'mikrotik_control.read',
 ]
 
 // Meniru urutan di AppSidebar: filter entitlement dulu, lalu permission per item.
@@ -82,12 +83,26 @@ function jaringanLabels(permissions: Permission[], hiddenFeatures: string[]) {
 describe('grup menu Jaringan', () => {
   it('ada di menu tenant dan tiap item memakai feature mikrotik.enabled', () => {
     const group = customerMenuGroups.find((g) => g.label === 'Jaringan')
-    expect(group?.items.map((i) => i.label)).toEqual(['Ringkasan', 'Router', 'Akun PPPoE', 'Tugas'])
+    expect(group?.items.map((i) => i.label)).toEqual([
+      'Ringkasan',
+      'Router',
+      'Akun PPPoE',
+      'Tugas',
+      'Kendali',
+      'Peluncuran',
+    ])
     for (const item of group?.items ?? []) expect(item.feature).toBe('mikrotik.enabled')
   })
 
   it('tampil penuh bila fitur tidak disembunyikan dan permission lengkap', () => {
-    expect(jaringanLabels(ALL_MIKROTIK, [])).toEqual(['Ringkasan', 'Router', 'Akun PPPoE', 'Tugas'])
+    expect(jaringanLabels(ALL_MIKROTIK, [])).toEqual([
+      'Ringkasan',
+      'Router',
+      'Akun PPPoE',
+      'Tugas',
+      'Kendali',
+      'Peluncuran',
+    ])
   })
 
   it('tersembunyi bila mikrotik.enabled hidden', () => {
@@ -100,5 +115,9 @@ describe('grup menu Jaringan', () => {
 
   it('hanya item yang permission-nya terpenuhi', () => {
     expect(jaringanLabels(['mikrotik_task.read'], [])).toEqual(['Tugas'])
+  })
+
+  it('Kendali dan Peluncuran butuh mikrotik_control.read', () => {
+    expect(jaringanLabels(['mikrotik_control.read'], [])).toEqual(['Kendali', 'Peluncuran'])
   })
 })

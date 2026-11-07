@@ -3,8 +3,12 @@ import type { PaginatedResponse } from '@/types/api'
 
 import type {
   AccountRef,
+  ActivityItem,
+  ActivityMeta,
+  ActivityParams,
   AnalyzeResult,
   ApplySetupPayload,
+  ControlState,
   CreateRouterPayload,
   CustomerPolicy,
   CustomerStatus,
@@ -13,11 +17,18 @@ import type {
   OnboardingStatus,
   PairBulkItem,
   PairBulkResult,
+  PilotAccount,
+  PilotTest,
+  PreviewItem,
+  PreviewParams,
+  PreviewSummary,
   PppSecret,
   Product,
   ProductTrigger,
+  RestoreAllResult,
   Router,
   SecretListParams,
+  SetModePayload,
   SetPolicyPayload,
   SetupPayload,
   SetupPlan,
@@ -148,5 +159,53 @@ export const mikrotikApi = {
       http.get<Envelope<TaskSummary>>(`${BASE}/tasks/summary`).then((r) => r.data.data),
     retry: (id: string) =>
       http.post<Envelope<IsolationTask>>(`${BASE}/tasks/${id}/retry`).then((r) => r.data.data),
+  },
+
+  control: {
+    get: () => http.get<Envelope<ControlState>>(`${BASE}/control`).then((r) => r.data.data),
+    setGraceDays: (graceDays: number) =>
+      http
+        .put<Envelope<ControlState>>(`${BASE}/control/grace-days`, { grace_days: graceDays })
+        .then((r) => r.data.data),
+    setMode: (payload: SetModePayload) =>
+      http.put<Envelope<ControlState>>(`${BASE}/control/mode`, payload).then((r) => r.data.data),
+    restoreAll: () =>
+      http.post<Envelope<RestoreAllResult>>(`${BASE}/control/restore-all`).then((r) => r.data.data),
+    previewSummary: () =>
+      http
+        .get<Envelope<PreviewSummary>>(`${BASE}/control/preview/summary`)
+        .then((r) => r.data.data),
+    preview: async (params: PreviewParams = {}) => {
+      const r = await http.get<Paged<PreviewItem>>(`${BASE}/control/preview`, { params })
+      return { data: r.data.data, meta: r.data.meta }
+    },
+    // Ekspor CSV lewat klien http agar Authorization dan header organisasi ikut terkirim.
+    // Hanya filter status/q yang berlaku; paginasi diabaikan backend.
+    exportPreview: (params: Pick<PreviewParams, 'status' | 'q'> = {}) =>
+      http
+        .get<Blob>(`${BASE}/control/preview/export`, { params, responseType: 'blob' })
+        .then((r) => r.data),
+    activity: async (params: ActivityParams = {}) => {
+      const r = await http.get<{ success: boolean; data: ActivityItem[]; meta: ActivityMeta }>(
+        `${BASE}/control/activity`,
+        { params },
+      )
+      return { data: r.data.data, meta: r.data.meta }
+    },
+  },
+
+  pilot: {
+    list: () =>
+      http.get<Envelope<PilotAccount[]>>(`${BASE}/control/pilot`).then((r) => r.data.data),
+    add: (accountId: string) =>
+      http.put(`${BASE}/control/pilot/${accountId}`).then(() => undefined),
+    remove: (accountId: string) =>
+      http.delete(`${BASE}/control/pilot/${accountId}`).then(() => undefined),
+    startTest: (accountId: string) =>
+      http
+        .post<Envelope<PilotTest>>(`${BASE}/control/pilot/${accountId}/test`)
+        .then((r) => r.data.data),
+    stopTest: (accountId: string) =>
+      http.delete(`${BASE}/control/pilot/${accountId}/test`).then(() => undefined),
   },
 }

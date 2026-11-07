@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   checkStatusLabel,
+  controlActionError,
   routerActionError,
   secretActionError,
   taskErrorAction,
@@ -126,5 +127,40 @@ describe('checkStatusLabel', () => {
     expect(checkStatusLabel('tls_untrusted')).toBe('Sertifikat tidak dipercaya')
     expect(checkStatusLabel('host_not_allowed')).toBe('Host ditolak')
     expect(checkStatusLabel('aneh')).toBe('aneh')
+  })
+})
+
+describe('controlActionError', () => {
+  const CODES = [
+    'MIKROTIK_PILOT_REQUIRED',
+    'MIKROTIK_NOT_PAUSED',
+    'MIKROTIK_PILOT_MODE_REQUIRED',
+    'MIKROTIK_ENGINE_OFF',
+    'MIKROTIK_MODE_INVALID',
+    'MIKROTIK_PILOT_TEST_NOT_RUNNABLE',
+    'MIKROTIK_ACCOUNT_NOT_FOUND',
+    'VALIDATION_ERROR',
+  ]
+
+  it.each(CODES)('memberi pesan non-kosong untuk %s', (code) => {
+    expect(controlActionError({ response: { data: { code } } }).trim()).not.toBe('')
+  })
+
+  it('tiap kode punya pesan berbeda', () => {
+    const msgs = new Set(CODES.map((code) => controlActionError({ response: { data: { code } } })))
+    expect(msgs.size).toBe(CODES.length)
+  })
+
+  it('MIKROTIK_PILOT_REQUIRED memakai pesan persis dari spec', () => {
+    expect(controlActionError({ response: { data: { code: 'MIKROTIK_PILOT_REQUIRED' } } })).toBe(
+      'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.',
+    )
+  })
+
+  it('kode tak dikenal memakai message backend, lalu fallback', () => {
+    expect(controlActionError({ response: { data: { code: 'X', message: 'pesan be' } } })).toBe(
+      'pesan be',
+    )
+    expect(controlActionError(new Error('x'))).toBe('Terjadi kesalahan, silakan coba lagi.')
   })
 })

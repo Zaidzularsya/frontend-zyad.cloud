@@ -1,26 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { createRouter, createMemoryHistory } from 'vue-router'
+import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createMemoryHistory, RouterLink } from 'vue-router'
 
+import { useAuthStore } from '@/stores/auth.store'
+import type { Permission } from '@/types/auth'
 import OverviewPage from '@/features/mikrotik/pages/OverviewPage.vue'
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
-import { onboarding } from '@/features/mikrotik/testing/fixtures'
+import { controlState, onboarding } from '@/features/mikrotik/testing/fixtures'
 
 vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: {
     onboarding: { get: vi.fn() },
+    control: {
+      get: vi.fn(),
+      previewSummary: vi.fn().mockResolvedValue({}),
+      preview: vi.fn().mockResolvedValue({ data: [], meta: {} }),
+      activity: vi.fn().mockResolvedValue({ data: [], meta: {} }),
+    },
+    policy: { set: vi.fn() },
     tasks: { summary: vi.fn(), list: vi.fn() },
     routers: { list: vi.fn().mockResolvedValue({ data: [], meta: {} }) },
   },
 }))
 
-async function mountPage() {
+async function mountPage(permissions: Permission[] = ['mikrotik_control.read']) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().$patch((st) => {
+    ;(st as { user: unknown }).user = { id: 'u', name: 'A', email: 'a@x.test', permissions }
+  })
   const names = [
     'mikrotik',
     'mikrotik-routers',
     'mikrotik-accounts',
     'mikrotik-tasks',
+    'mikrotik-launch',
     'crm-products',
     'billing-receivable-settings',
   ]
@@ -30,8 +46,18 @@ async function mountPage() {
   })
   await router.push('/mikrotik')
   const w = mount(OverviewPage, {
-    global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    global: {
+      plugins: [
+        pinia,
+        router,
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
+    },
   })
+  await flushPromises()
   await flushPromises()
   return w
 }
@@ -92,5 +118,51 @@ describe('OverviewPage', () => {
     const w = await mountPage()
     expect(w.text()).toMatch(/sudah bayar tapi belum dibuka/)
     expect(w.text()).toMatch(/tertua 1[12] menit/)
+  })
+
+  describe('once onboarding is complete', () => {
+    beforeEach(() => {
+      vi.mocked(mikrotikApi.onboarding.get).mockResolvedValue(onboarding({ complete: true }))
+      vi.mocked(mikrotikApi.control.get).mockReset()
+    })
+
+    it.each(['active', 'paused'] as const)('shows the control center in %s mode', async (mode) => {
+      vi.mocked(mikrotikApi.control.get).mockResolvedValue(controlState({ mode }))
+      const w = await mountPage()
+      expect(w.text()).toContain('Kendali Isolir')
+      expect(w.text()).not.toContain('Ringkasan Jaringan')
+    })
+
+    it.each(['simulation', 'pilot'] as const)('links to the wizard in %s mode', async (mode) => {
+      vi.mocked(mikrotikApi.control.get).mockResolvedValue(controlState({ mode }))
+      const w = await mountPage()
+      expect(w.text()).toContain('Tugas gagal terbaru')
+      const cta = w
+        .findAllComponents(RouterLink)
+        .find((l) => (l.props('to') as { name?: string }).name === 'mikrotik-launch')
+      expect(cta).toBeDefined()
+    })
+
+    it('shows the loading state, not the old summary, while the control query is loading', async () => {
+      vi.mocked(mikrotikApi.control.get).mockReturnValue(new Promise(() => {}))
+      const w = await mountPage()
+      expect(w.text()).toContain('Memuat...')
+      expect(w.text()).not.toContain('Tugas gagal terbaru')
+      expect(w.text()).not.toContain('Buka Peluncuran Isolir')
+    })
+
+    it('keeps the summary when the control query fails', async () => {
+      vi.mocked(mikrotikApi.control.get).mockRejectedValue(new Error('boom'))
+      const w = await mountPage()
+      expect(w.text()).toContain('Tugas gagal terbaru')
+      expect(w.text()).not.toContain('Buka Peluncuran Isolir')
+    })
+
+    it('never calls the control endpoint without mikrotik_control.read', async () => {
+      const w = await mountPage([])
+      expect(mikrotikApi.control.get).not.toHaveBeenCalled()
+      expect(w.text()).toContain('Tugas gagal terbaru')
+      expect(w.text()).not.toContain('Buka Peluncuran Isolir')
+    })
   })
 })
