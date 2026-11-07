@@ -53,9 +53,17 @@ export type ProvisioningStage =
   | 'needs_help'
   | 'other_invoices'
 
+/** Kontak CS tenant; hanya dikirim backend saat stage = needs_help. */
+export interface ProvisioningContact {
+  name?: string
+  phone?: string
+  email?: string
+}
+
 export interface PublicInvoiceProvisioning {
   applicable: boolean
   stage?: ProvisioningStage
+  contact?: ProvisioningContact
 }
 
 interface Envelope<T> {

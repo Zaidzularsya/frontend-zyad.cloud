@@ -253,7 +253,7 @@ onBeforeUnmount(() => {
           </dl>
         </section>
 
-        <ProvisioningStatus v-if="data.state === 'paid'" :token="token" />
+        <ProvisioningStatus v-if="data.state === 'paid'" :key="token" :token="token" />
 
         <div
           v-if="paymentReceived"

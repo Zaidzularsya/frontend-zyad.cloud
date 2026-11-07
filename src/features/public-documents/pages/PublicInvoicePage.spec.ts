@@ -303,6 +303,70 @@ describe('PublicInvoicePage', () => {
       expect(provisioning).toHaveBeenCalledTimes(1)
     })
 
+    it('needs_help with contact shows tel, wa.me and mailto links', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({
+        applicable: true,
+        stage: 'needs_help',
+        contact: { name: 'ISP Maju', phone: '0812-3456-7890', email: 'cs@isp.id' },
+      })
+      const w = await mountPage()
+      const block = w.find('[data-testid="provisioning-status"]')
+      expect(block.find('a[href="tel:081234567890"]').exists()).toBe(true)
+      expect(block.find('a[href="https://wa.me/6281234567890"]').exists()).toBe(true)
+      expect(block.find('a[href="mailto:cs@isp.id"]').exists()).toBe(true)
+      expect(block.text()).toContain('ISP Maju')
+    })
+
+    it('needs_help without contact shows plain text only', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({ applicable: true, stage: 'needs_help' })
+      const w = await mountPage()
+      const block = w.find('[data-testid="provisioning-status"]')
+      expect(block.text()).toContain('Hubungi kami agar segera dibantu.')
+      expect(block.find('a').exists()).toBe(false)
+    })
+
+    it('needs_help with partial contact hides missing channels', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({
+        applicable: true,
+        stage: 'needs_help',
+        contact: { email: 'cs@isp.id' },
+      })
+      const w = await mountPage()
+      const block = w.find('[data-testid="provisioning-status"]')
+      expect(block.findAll('a')).toHaveLength(1)
+      expect(block.find('a[href="mailto:cs@isp.id"]').exists()).toBe(true)
+    })
+
+    it('status region is present before any answer arrives', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockReturnValue(new Promise(() => {}))
+      const w = await mountPage()
+      const region = w.find('[data-testid="provisioning-region"]')
+      expect(region.exists()).toBe(true)
+      expect(region.attributes('role')).toBe('status')
+      expect(region.text()).toBe('')
+    })
+
+    it('Muat ulang reloads the page', async () => {
+      const reload = vi.fn()
+      vi.stubGlobal('location', { ...window.location, reload })
+      try {
+        get.mockResolvedValue(paid())
+        provisioning.mockResolvedValue({ applicable: true, stage: 'active' })
+        const w = await mountPage()
+        await w
+          .findAll('button')
+          .find((b) => b.text() === 'Muat ulang')!
+          .trigger('click')
+        expect(reload).toHaveBeenCalledTimes(1)
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+
     it('other_invoices stops polling', async () => {
       get.mockResolvedValue(paid())
       provisioning.mockResolvedValue({ applicable: true, stage: 'other_invoices' })

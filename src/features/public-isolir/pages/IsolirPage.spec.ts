@@ -154,12 +154,33 @@ describe('IsolirPage', () => {
     expect(w.text()).toContain('Terjadi kendala. Silakan coba lagi.')
   })
 
-  it('does not render phone or email of customer', async () => {
+  it('does not render phone or email of customer even if the API sent them', async () => {
     info.mockResolvedValue(enabledInfo())
-    lookup.mockResolvedValue(result())
+    lookup.mockResolvedValue({
+      ...result(),
+      phone: '0899-1111-2222',
+      email: 'budi.customer@example.org',
+    })
     const w = await mountPage()
     await submit(w)
     expect(w.text()).toContain('B*** S****')
-    expect(w.text()).not.toMatch(/@.*(gmail|yahoo)/)
+    expect(document.body.innerHTML).not.toContain('0899')
+    expect(document.body.innerHTML).not.toContain('budi.customer@example.org')
+  })
+
+  it.each([
+    ['+62812-3456-7890', 'https://wa.me/6281234567890'],
+    ['6281234567890', 'https://wa.me/6281234567890'],
+  ])('wa.me link keeps international format %s', async (phone, href) => {
+    info.mockResolvedValue(enabledInfo(phone))
+    const w = await mountPage()
+    expect(w.find('a[href^="https://wa.me/"]').attributes('href')).toBe(href)
+  })
+
+  it('hides the wa.me and tel links when tenant phone is empty', async () => {
+    info.mockResolvedValue(enabledInfo(''))
+    const w = await mountPage()
+    expect(w.find('a[href^="https://wa.me/"]').exists()).toBe(false)
+    expect(w.find('a[href^="tel:"]').exists()).toBe(false)
   })
 })

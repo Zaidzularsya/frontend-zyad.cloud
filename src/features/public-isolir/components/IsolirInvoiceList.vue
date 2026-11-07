@@ -6,10 +6,16 @@ import type { IsolirInvoice } from '../types'
 defineProps<{ invoices: IsolirInvoice[] }>()
 
 // Tanggal kalender (YYYY-MM-DD) ditampilkan apa adanya, tanpa geser zona waktu.
+// Nilai yang tidak bisa diparse ditampilkan mentah supaya render tidak melempar error.
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeZone: 'UTC' }).format(
-    new Date(`${value.slice(0, 10)}T00:00:00Z`),
-  )
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeZone: 'UTC' }).format(date)
+}
+
+// Hanya http(s) yang dipakai sebagai href; skema lain (javascript:, data:) dianggap tidak ada.
+function safePayUrl(url: string) {
+  return /^https?:\/\//i.test(url) ? url : ''
 }
 </script>
 
@@ -26,8 +32,8 @@ function formatDate(value: string) {
         {{ formatRupiah(inv.balance) }}
       </p>
       <a
-        v-if="inv.pay_url"
-        :href="inv.pay_url"
+        v-if="safePayUrl(inv.pay_url)"
+        :href="safePayUrl(inv.pay_url)"
         class="mt-3 flex min-h-11 items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white"
       >
         Bayar
