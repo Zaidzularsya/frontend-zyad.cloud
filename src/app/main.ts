@@ -1,11 +1,14 @@
 import { createApp } from 'vue'
 
 import App from '@/App.vue'
+import { activateAsyncStylesheets } from '@/app/async-stylesheets'
 import { registerProviders } from '@/app/providers'
 import { router } from '@/app/router'
 import { redirectToSuspended, WORKSPACE_SUSPENDED_EVENT } from '@/lib/workspace-suspended'
 import '@/assets/main.css'
 import 'flatpickr/dist/flatpickr.css'
+
+activateAsyncStylesheets()
 
 const app = createApp(App)
 
