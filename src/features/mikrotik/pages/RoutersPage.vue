@@ -14,6 +14,7 @@ import {
   useRoutersQuery,
   useSetupCleanupMutation,
 } from '@/features/mikrotik/api/mikrotik.queries'
+import AllowlistHealthWarning from '@/features/mikrotik/components/AllowlistHealthWarning.vue'
 import RouterSecretCount from '@/features/mikrotik/components/RouterSecretCount.vue'
 import RouterFormModal from '@/features/mikrotik/components/RouterFormModal.vue'
 import SetupPlanModal from '@/features/mikrotik/components/SetupPlanModal.vue'
@@ -230,6 +231,7 @@ async function confirmDelete() {
                 >
                   {{ r.isolir_ready ? 'Siap' : 'Belum siap' }}
                 </span>
+                <AllowlistHealthWarning :router-id="r.id" :ready="r.isolir_ready" />
               </td>
               <td class="py-2 pr-4">
                 <RouterSecretCount :router-id="r.id" />

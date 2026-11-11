@@ -59,6 +59,12 @@ export interface SetupPayload {
   redirect_url?: string
 }
 
+/** Counts only: operators never see the allowlist hosts. */
+export interface AllowlistHealth {
+  total: number
+  unresolved: number
+}
+
 export interface ApplySetupPayload extends SetupPayload {
   plan_hash: string
 }

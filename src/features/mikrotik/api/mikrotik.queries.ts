@@ -35,6 +35,8 @@ export const mikrotikKeys = {
   pilot: () => [...mikrotikKeys.all, 'pilot'] as const,
   activity: (params: object) => [...mikrotikKeys.all, 'activity', params] as const,
   taskSummary: () => [...mikrotikKeys.all, 'task-summary'] as const,
+  allowlistHealth: (routerId: string) =>
+    [...mikrotikKeys.all, 'allowlist-health', routerId] as const,
 }
 
 // Router, secret, tugas, onboarding, dan status pelanggan saling terkait: mutation menyegarkan semuanya.
@@ -369,5 +371,18 @@ export function useActivityQuery(params: Ref<ActivityParams> = ref({})) {
     queryKey: computed(() => mikrotikKeys.activity(params.value)),
     queryFn: () => mikrotikApi.control.activity(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+// Each call logs in to the router and counts against the per-organization
+// probe limit (20/min), so it is cached for minutes and never refetched on focus.
+export function useAllowlistHealthQuery(routerId: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.allowlistHealth(routerId.value)),
+    queryFn: () => mikrotikApi.setup.allowlistHealth(routerId.value),
+    enabled,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
   })
 }

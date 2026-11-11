@@ -2,6 +2,7 @@ import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
 import type {
+  AllowlistHealth,
   AccountRef,
   ActivityItem,
   ActivityMeta,
@@ -74,6 +75,10 @@ export const mikrotikApi = {
     cleanup: (routerId: string) =>
       http
         .post<Envelope<Router>>(`${BASE}/routers/${routerId}/setup/cleanup`, {})
+        .then((r) => r.data.data),
+    allowlistHealth: (routerId: string) =>
+      http
+        .get<Envelope<AllowlistHealth>>(`${BASE}/routers/${routerId}/setup/allowlist-health`)
         .then((r) => r.data.data),
   },
 

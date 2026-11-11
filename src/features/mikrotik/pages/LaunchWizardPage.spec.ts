@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
 
 vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: {
@@ -40,11 +41,23 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
     ;(s as { user: unknown }).user = { id: 'u', name: 'A', email: 'a@x.test', permissions }
   })
   api.control.get.mockResolvedValue(controlState(control))
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: { template: '<i/>' } },
+      {
+        path: '/app/landing-pages/content',
+        name: 'landing-pages-content',
+        component: { template: '<i/>' },
+      },
+    ],
+  })
   const w = mount(LaunchWizardPage, {
     attachTo: document.body,
     global: {
       plugins: [
         pinia,
+        router,
         [
           VueQueryPlugin,
           { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
@@ -207,5 +220,19 @@ describe('LaunchWizardPage', () => {
     expect(b.attributes('aria-disabled')).toBe('true')
     expect(b.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
     expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+  })
+
+  it('LaunchWizardPage menampilkan pesan kontak CS saat API menjawab MIKROTIK_TENANT_CONTACT_REQUIRED', async () => {
+    api.control.setMode.mockRejectedValue({
+      response: { data: { code: 'MIKROTIK_TENANT_CONTACT_REQUIRED', message: 'raw' } },
+    })
+    const w = await mountPage({ mode: 'simulation' })
+    await btn(w, 'Lanjut ke Pilot')!.trigger('click')
+    await flushPromises()
+    const alert = w.get('[role="alert"]')
+    expect(alert.text()).toContain(
+      'Isi kontak CS (telepon atau email) di pengaturan Brand sebelum mengaktifkan.',
+    )
+    expect(alert.findComponent(RouterLink).props('to')).toEqual({ name: 'landing-pages-content' })
   })
 })

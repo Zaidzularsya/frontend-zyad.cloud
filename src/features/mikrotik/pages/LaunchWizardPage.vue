@@ -15,7 +15,7 @@ import LaunchStepper from '@/features/mikrotik/components/LaunchStepper.vue'
 import PilotPanel from '@/features/mikrotik/components/PilotPanel.vue'
 import { engineBlockReason } from '@/features/mikrotik/utils/engine'
 import { controlPermissions } from '@/features/mikrotik/utils/control-permissions'
-import { controlActionError } from '@/features/mikrotik/utils/errors'
+import { apiErrorCode, controlActionError } from '@/features/mikrotik/utils/errors'
 import { useAuthStore } from '@/stores/auth.store'
 
 const auth = useAuthStore()
@@ -31,16 +31,19 @@ const engineReason = computed(() =>
   control.value ? engineBlockReason(control.value.engine) : null,
 )
 const errorText = ref('')
+const needsContact = ref(false)
 const PILOT_REQUIRED_HINT =
   'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.'
 
 async function changeMode(mode: 'pilot' | 'active') {
   errorText.value = ''
+  needsContact.value = false
   try {
     await setMode.mutateAsync({ mode })
     toast.success(mode === 'pilot' ? 'Mode Pilot dimulai.' : 'Isolir otomatis diaktifkan.')
   } catch (error) {
     errorText.value = controlActionError(error)
+    needsContact.value = apiErrorCode(error) === 'MIKROTIK_TENANT_CONTACT_REQUIRED'
   }
 }
 
@@ -111,6 +114,13 @@ async function confirmActivate() {
       </p>
       <p v-if="errorText" class="rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
         {{ errorText }}
+        <RouterLink
+          v-if="needsContact"
+          :to="{ name: 'landing-pages-content' }"
+          class="ml-1 font-medium underline"
+        >
+          Buka pengaturan Brand
+        </RouterLink>
       </p>
 
       <section v-if="control.mode === 'simulation'" class="space-y-4" aria-label="Langkah Simulasi">

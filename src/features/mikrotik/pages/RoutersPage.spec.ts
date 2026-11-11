@@ -13,7 +13,7 @@ import type { Permission } from '@/types/auth'
 vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: {
     routers: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), check: vi.fn() },
-    setup: { preview: vi.fn(), apply: vi.fn(), cleanup: vi.fn() },
+    setup: { preview: vi.fn(), apply: vi.fn(), cleanup: vi.fn(), allowlistHealth: vi.fn() },
     secrets: { list: vi.fn() },
   },
 }))
@@ -75,6 +75,9 @@ describe('RoutersPage', () => {
     vi.mocked(mikrotikApi.routers.remove).mockReset().mockResolvedValue(undefined)
     vi.mocked(mikrotikApi.setup.cleanup).mockReset().mockResolvedValue(R1)
     vi.mocked(mikrotikApi.setup.preview).mockReset().mockResolvedValue(planFixture())
+    vi.mocked(mikrotikApi.setup.allowlistHealth)
+      .mockReset()
+      .mockResolvedValue({ total: 4, unresolved: 0 })
   })
 
   it('shows all actions with every permission and the secret count', async () => {
@@ -216,5 +219,46 @@ describe('RoutersPage', () => {
       } as never)
     await mountPage(ALL)
     expect(document.body.textContent).toContain('Kredensial ditolak')
+  })
+
+  describe('peringatan DNS allowlist', () => {
+    const DNS_MSG =
+      'DNS router bermasalah: pelanggan terisolir mungkin tidak bisa membuka halaman bayar.'
+
+    it('RoutersPage menampilkan peringatan DNS hanya bila unresolved > 0', async () => {
+      vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+        data: [routerFixture({ id: 'r1', isolir_ready: true })],
+        meta: { total: 1 },
+      } as never)
+      vi.mocked(mikrotikApi.setup.allowlistHealth).mockResolvedValue({ total: 4, unresolved: 1 })
+      await mountPage(ALL)
+      expect(mikrotikApi.setup.allowlistHealth).toHaveBeenCalledWith('r1')
+      expect(document.body.textContent).toContain(DNS_MSG)
+    })
+
+    it('tidak menampilkan peringatan bila semua ter-resolve', async () => {
+      vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+        data: [routerFixture({ id: 'r1', isolir_ready: true })],
+        meta: { total: 1 },
+      } as never)
+      await mountPage(ALL)
+      expect(document.body.textContent).not.toContain(DNS_MSG)
+    })
+
+    it('tidak memeriksa router yang belum siap isolir', async () => {
+      await mountPage(ALL)
+      expect(mikrotikApi.setup.allowlistHealth).not.toHaveBeenCalled()
+    })
+
+    it('tidak menampilkan nama host', async () => {
+      vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+        data: [routerFixture({ id: 'r1', isolir_ready: true })],
+        meta: { total: 1 },
+      } as never)
+      vi.mocked(mikrotikApi.setup.allowlistHealth).mockResolvedValue({ total: 4, unresolved: 4 })
+      await mountPage(ALL)
+      const text = document.body.textContent ?? ''
+      for (const host of ['doku.com', 'zyad.cloud', 'aliyuncs']) expect(text).not.toContain(host)
+    })
   })
 })
