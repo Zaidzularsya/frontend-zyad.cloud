@@ -9,6 +9,7 @@ import {
   useSetupPreviewMutation,
 } from '@/features/mikrotik/api/mikrotik.queries'
 import type { Router, SetupAction, SetupPayload, SetupPlan } from '@/features/mikrotik/types'
+import { DEFAULT_POOL_CIDR, poolCidrError } from '@/features/mikrotik/utils/cidr'
 import { apiErrorCode, routerActionError } from '@/features/mikrotik/utils/errors'
 
 const props = defineProps<{ open: boolean; router: Router }>()
@@ -23,40 +24,39 @@ const previewedPayload = ref<SetupPayload>({})
 const errorMessage = ref('')
 const notice = ref('')
 
-const advanced = reactive({
+const form = reactive({
+  pool_cidr: DEFAULT_POOL_CIDR,
   profile_name: '',
-  pool_cidr: '',
   rate_limit: '',
-  platform_host: '',
-  tenant_isolir_host: '',
-  doku_hosts: '',
   redirect_url: '',
 })
 
+// Pre-fill from the last applied setup so reopening the wizard never asks for retyping.
+function resetForm() {
+  const saved = props.router.setup
+  form.pool_cidr = saved?.pool_cidr || DEFAULT_POOL_CIDR
+  form.profile_name = saved?.profile_name ?? ''
+  form.rate_limit = saved?.rate_limit ?? ''
+  form.redirect_url = saved?.redirect_url ?? ''
+}
+
+const poolError = computed(() => poolCidrError(form.pool_cidr))
+
 function buildPayload(): SetupPayload {
   const payload: SetupPayload = {}
-  const text = [
-    'profile_name',
-    'pool_cidr',
-    'rate_limit',
-    'platform_host',
-    'tenant_isolir_host',
-    'redirect_url',
-  ] as const
-  for (const key of text) {
-    const value = advanced[key].trim()
+  for (const key of ['profile_name', 'pool_cidr', 'rate_limit', 'redirect_url'] as const) {
+    const value = form[key].trim()
     if (value) payload[key] = value
   }
-  const hosts = advanced.doku_hosts
-    .split(',')
-    .map((h) => h.trim())
-    .filter(Boolean)
-  if (hosts.length) payload.doku_hosts = hosts
   return payload
 }
 
 async function loadPreview() {
   errorMessage.value = ''
+  if (poolError.value) {
+    plan.value = null
+    return
+  }
   const payload = buildPayload()
   try {
     plan.value = await previewMutation.mutateAsync({ routerId: props.router.id, payload })
@@ -73,6 +73,7 @@ watch(
     if (!open) return
     notice.value = ''
     plan.value = null
+    resetForm()
     void loadPreview()
   },
   { immediate: true },
@@ -100,7 +101,7 @@ const stale = computed(
 const busy = computed(() => previewMutation.isPending.value || applyMutation.isPending.value)
 
 async function apply() {
-  if (!plan.value || busy.value || stale.value) return
+  if (!plan.value || busy.value || stale.value || poolError.value) return
   errorMessage.value = ''
   try {
     const router = await applyMutation.mutateAsync({
@@ -123,31 +124,27 @@ async function apply() {
 <template>
   <BaseModal :open="open" :title="`Setup isolir: ${router.name}`" @close="$emit('close')">
     <div class="space-y-4">
+      <div>
+        <TextField v-model="form.pool_cidr" name="pool_cidr" label="Pool CIDR" :error="poolError" />
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Rentang IP sementara untuk pelanggan terisolir. Aman dibiarkan default.
+        </p>
+      </div>
+
       <details class="rounded-lg border p-3 text-sm">
         <summary class="cursor-pointer font-medium">Pengaturan lanjutan (opsional)</summary>
         <div class="mt-3 grid gap-3 sm:grid-cols-2">
-          <TextField v-model="advanced.profile_name" name="profile_name" label="Nama profile" />
-          <TextField v-model="advanced.pool_cidr" name="pool_cidr" label="Pool CIDR" />
-          <TextField v-model="advanced.rate_limit" name="rate_limit" label="Rate limit" />
-          <TextField v-model="advanced.platform_host" name="platform_host" label="Host platform" />
-          <TextField
-            v-model="advanced.tenant_isolir_host"
-            name="tenant_isolir_host"
-            label="Host isolir tenant"
-          />
-          <TextField
-            v-model="advanced.doku_hosts"
-            name="doku_hosts"
-            label="Host DOKU (pisah koma)"
-          />
-          <TextField v-model="advanced.redirect_url" name="redirect_url" label="URL redirect" />
-        </div>
-        <div class="mt-3">
-          <BaseButton variant="outline" :disabled="busy" @click="loadPreview">
-            Pratinjau ulang
-          </BaseButton>
+          <TextField v-model="form.profile_name" name="profile_name" label="Nama profile" />
+          <TextField v-model="form.rate_limit" name="rate_limit" label="Rate limit" />
+          <TextField v-model="form.redirect_url" name="redirect_url" label="URL redirect" />
         </div>
       </details>
+
+      <div>
+        <BaseButton variant="outline" :disabled="busy" @click="loadPreview">
+          Pratinjau ulang
+        </BaseButton>
+      </div>
 
       <p v-if="previewMutation.isPending.value" class="text-sm text-gray-500">
         Membaca state router...
@@ -176,7 +173,11 @@ async function apply() {
       >
         {{ notice }}
       </p>
-      <p v-if="plan && stale" class="text-sm text-amber-700 dark:text-amber-300" role="status">
+      <p
+        v-if="plan && stale && !poolError"
+        class="text-sm text-amber-700 dark:text-amber-300"
+        role="status"
+      >
         Pratinjau ulang dulu — pengaturan berubah sejak pratinjau.
       </p>
       <p v-if="errorMessage" class="text-sm text-red-600 dark:text-red-400" role="alert">
@@ -185,8 +186,8 @@ async function apply() {
 
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <BaseButton variant="outline" @click="$emit('close')">Tutup</BaseButton>
-        <BaseButton :disabled="!plan || busy || stale" @click="apply">
-          {{ applyMutation.isPending.value ? 'Menerapkan...' : 'Terapkan' }}
+        <BaseButton :disabled="!plan || busy || stale || !!poolError" @click="apply">
+          {{ applyMutation.isPending.value ? 'Menerapkan… (bisa sampai 1 menit)' : 'Terapkan' }}
         </BaseButton>
       </div>
     </div>

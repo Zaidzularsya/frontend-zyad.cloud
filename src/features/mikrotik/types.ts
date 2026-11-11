@@ -19,6 +19,8 @@ export interface Router {
   isolir_ready_at?: string
   isolir_profile_name?: string
   isolir_redirect_url?: string
+  /** Last successfully applied setup input (no hosts), or null before the first apply. */
+  setup?: RouterSetupSnapshot | null
   last_check_at?: string
   last_check_status?: string
   routeros_version?: string
@@ -39,6 +41,14 @@ export interface CreateRouterPayload {
 // Update parsial: field yang tidak dikirim tidak berubah.
 export type UpdateRouterPayload = Partial<CreateRouterPayload>
 
+export interface RouterSetupSnapshot {
+  profile_name: string
+  pool_cidr: string
+  rate_limit: string
+  redirect_url: string
+}
+
+/** Hosts (platform, tenant, DOKU) are derived by the backend and never sent from the UI. */
 export interface SetupPayload {
   profile_name?: string
   pool_cidr?: string
