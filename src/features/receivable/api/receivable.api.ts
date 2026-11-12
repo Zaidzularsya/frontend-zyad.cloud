@@ -358,6 +358,8 @@ export const receivableApi = {
       payment_terms_days: number
       default_channels: SendChannel[]
       default_sender_user_id?: string
+      /** Selalu dikirim: PUT mengganti semua field, null menghapus default. */
+      default_billing_day: number | null
     }) =>
       http
         .put<Envelope<ReceivableSettings>>('/app/receivable/settings', payload)

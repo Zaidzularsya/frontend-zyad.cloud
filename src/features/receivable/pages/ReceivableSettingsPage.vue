@@ -27,6 +27,8 @@ const leadDays = ref('7')
 const termsDays = ref('7')
 const channels = ref<SendChannel[]>(['email'])
 const senderId = ref('')
+// Kosong = tanpa default (form onboarding memakai tanggal hari ini).
+const billingDay = ref('')
 const errorMessage = ref('')
 
 watch(
@@ -37,6 +39,7 @@ watch(
     termsDays.value = String(s.payment_terms_days)
     channels.value = [...s.default_channels]
     senderId.value = s.default_sender_user_id ?? ''
+    billingDay.value = s.default_billing_day ? String(s.default_billing_day) : ''
   },
   { immediate: true },
 )
@@ -48,6 +51,11 @@ function toggle(channel: SendChannel, on: boolean) {
   channels.value = (['email', 'whatsapp'] as const).filter((c) => next.has(c))
 }
 
+function parsedBillingDay(): number | null {
+  const raw = String(billingDay.value ?? '').trim()
+  return raw === '' ? null : Number(raw)
+}
+
 function validate(): string | null {
   const lead = Number(leadDays.value)
   const terms = Number(termsDays.value)
@@ -56,6 +64,9 @@ function validate(): string | null {
   if (!Number.isInteger(terms) || terms < 0 || terms > 90)
     return 'Termin pembayaran harus 0–90 hari.'
   if (channels.value.length === 0) return 'Pilih minimal satu kanal default.'
+  const day = parsedBillingDay()
+  if (day !== null && (!Number.isInteger(day) || day < 1 || day > 31))
+    return 'Default tanggal tagih harus 1–31.'
   return null
 }
 
@@ -68,6 +79,8 @@ async function save() {
       payment_terms_days: Number(termsDays.value),
       default_channels: channels.value,
       default_sender_user_id: senderId.value || undefined,
+      // PUT mengganti semua field: selalu dikirim, null menghapus default.
+      default_billing_day: parsedBillingDay(),
     })
     toast.success('Pengaturan penagihan disimpan.')
   } catch (error) {
@@ -118,6 +131,24 @@ const inputClass =
             <span class="block text-xs text-gray-500">Jatuh tempo = tanggal terbit + termin.</span>
           </label>
         </div>
+
+        <label class="block space-y-1 sm:w-1/2">
+          <span class="font-medium">Default tanggal tagih (1–31)</span>
+          <input
+            v-model="billingDay"
+            name="default_billing_day"
+            type="number"
+            min="1"
+            max="31"
+            placeholder="Tanggal hari ini"
+            :disabled="!canEdit"
+            :class="inputClass"
+          />
+          <span class="block text-xs text-gray-500"
+            >Opsional. Nilai awal "Tanggal tagih setiap bulan" saat onboarding pelanggan dari secret
+            PPPoE; 29–31 memakai hari terakhir pada bulan yang lebih pendek.</span
+          >
+        </label>
 
         <fieldset class="space-y-2">
           <legend class="font-medium">Kanal pengiriman default</legend>
