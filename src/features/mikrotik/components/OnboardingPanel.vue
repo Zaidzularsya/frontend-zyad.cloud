@@ -35,13 +35,16 @@ const customerFixed = computed(
 )
 const inProgress = computed(() => onboarding.value !== null && onboarding.value.stage !== 'paired')
 
-// --- katalog: hanya produk aktif yang ditagih berulang (kontrak hanya lahir dari baris berulang) ---
+// --- katalog: hanya produk aktif yang ditagih berulang setiap bulan (kontrak hanya lahir dari baris
+// berulang, dan tanggal tagih/awal kontrak dihitung per bulan; backend menolak frekuensi lain) ---
 const products = useQuery({
   queryKey: ['mikrotik', 'onboard-products'],
   queryFn: () => catalogApi.products({ page: 1, per_page: 100, is_active: true }),
 })
 const recurringProducts = computed(() =>
-  (products.data.value?.data ?? []).filter((p) => p.charge_type === 'recurring' && p.is_active),
+  (products.data.value?.data ?? []).filter(
+    (p) => p.charge_type === 'recurring' && p.billing_frequency === 'monthly' && p.is_active,
+  ),
 )
 const catalogEmpty = computed(
   () => products.isSuccess.value && recurringProducts.value.length === 0,
@@ -355,10 +358,10 @@ const doneIndex = computed(() => STAGES.findIndex((s) => s.key === (onboarding.v
         <BaseButton
           v-if="inProgress"
           data-testid="onboard-resume"
-          :disabled="!formReady || running"
-          @click="execute"
+          :disabled="!formReady || running || preview.isPending.value"
+          @click="review"
         >
-          {{ running ? 'Melanjutkan…' : 'Lanjutkan' }}
+          {{ preview.isPending.value ? 'Memeriksa…' : 'Lanjutkan' }}
         </BaseButton>
         <BaseButton
           v-else

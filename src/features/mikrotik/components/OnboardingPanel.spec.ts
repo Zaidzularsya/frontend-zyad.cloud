@@ -194,13 +194,60 @@ describe('OnboardingPanel', () => {
     expect(w.text()).toContain('Kuota penawaran bulan ini penuh.')
     await w.get('select[name="product_id"]').setValue('p1')
     await flushPromises()
-    const resume = w.get('button[data-testid="onboard-resume"]')
-    await resume.trigger('click')
-    await resume.trigger('click')
+    await w.get('button[data-testid="onboard-resume"]').trigger('click')
+    await flushPromises()
+    // Lanjutkan juga melewati ringkasan yang harus dikonfirmasi (spec 3.2).
+    expect(mikrotikApi.onboard.preview).toHaveBeenCalledTimes(1)
+    expect(mikrotikApi.onboard.run).not.toHaveBeenCalled()
+    const runButton = document.querySelector<HTMLButtonElement>('[data-testid="onboard-run"]')
+    expect(runButton).not.toBeNull()
+    runButton!.click()
+    runButton!.click()
     await flushPromises()
     expect(mikrotikApi.onboard.run).toHaveBeenCalledTimes(1)
     resolveRun({ stage: 'paired' })
     await flushPromises()
+  })
+
+  it('Lanjutkan pada kontak baru yang ganda menawarkan kontak yang ada', async () => {
+    vi.mocked(mikrotikApi.onboard.preview).mockResolvedValueOnce(
+      plan({ duplicate_of: { id: 'c-old', name: 'Budi Lama', email: 'sari@b.com', phone: '' } }),
+    )
+    const w = await mountPanel(
+      detail({
+        onboarding: {
+          secret_id: 's1',
+          stage: '',
+          contact_id: '',
+          deal_id: '',
+          quotation_id: '',
+          sales_order_id: '',
+          contract_id: '',
+          account_id: '',
+          last_error: 'Kuota kontak penuh.',
+          updated_at: null,
+        },
+      }),
+    )
+    await fillNewCustomer(w)
+    await w.get('button[data-testid="onboard-resume"]').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('[data-testid="use-existing-contact"]')).not.toBeNull()
+    expect(mikrotikApi.onboard.run).not.toHaveBeenCalled()
+  })
+
+  it('hanya produk bulanan yang ditawarkan', async () => {
+    vi.mocked(catalogApi.products).mockResolvedValue({
+      data: [
+        PRODUCT,
+        { ...PRODUCT, id: 'p-week', name: 'Voucher mingguan', billing_frequency: 'weekly' },
+      ],
+      meta: { total: 2 },
+    } as never)
+    const w = await mountPanel()
+    const options = w.findAll('select[name="product_id"] option').map((o) => o.attributes('value'))
+    expect(options).toContain('p1')
+    expect(options).not.toContain('p-week')
   })
 
   it('katalog kosong menampilkan tautan buat produk', async () => {
