@@ -228,8 +228,8 @@ describe('LaunchWizardPage', () => {
     })
     const w = await mountPage({ mode: 'simulation' })
     await btn(w, 'Lanjut ke Pilot')!.trigger('click')
-    await flushPromises()
-    const alert = w.get('[role="alert"]')
+    // The mutation rejection can take more than one tick under a loaded test run.
+    const alert = await vi.waitFor(() => w.get('[role="alert"]'))
     expect(alert.text()).toContain(
       'Isi kontak CS (telepon atau email) di pengaturan Brand sebelum mengaktifkan.',
     )
