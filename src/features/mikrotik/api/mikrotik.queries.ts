@@ -6,6 +6,7 @@ import type {
   ActivityParams,
   ApplySetupPayload,
   CreateRouterPayload,
+  OnboardPayload,
   PairBulkItem,
   PreviewParams,
   SecretListParams,
@@ -21,6 +22,7 @@ export const mikrotikKeys = {
   routers: (params: object = {}) => [...mikrotikKeys.all, 'routers', params] as const,
   secrets: (params: object) => [...mikrotikKeys.all, 'secrets', params] as const,
   secretSummary: (params: object) => [...mikrotikKeys.all, 'secret-summary', params] as const,
+  secretDetail: (id: string) => [...mikrotikKeys.all, 'secret-detail', id] as const,
   accountSearch: (q: string) => [...mikrotikKeys.all, 'account-search', q] as const,
   onboarding: () => [...mikrotikKeys.all, 'onboarding'] as const,
   customerStatus: (ids: string[]) => [...mikrotikKeys.all, 'customer-status', ids] as const,
@@ -125,6 +127,32 @@ export function useSecretSummaryQuery(
     enabled,
     queryKey: computed(() => mikrotikKeys.secretSummary(params.value)),
     queryFn: () => mikrotikApi.secrets.summary(params.value),
+  })
+}
+
+export function useSecretDetailQuery(id: Ref<string>) {
+  return useQuery({
+    enabled: computed(() => Boolean(id.value)),
+    queryKey: computed(() => mikrotikKeys.secretDetail(id.value)),
+    queryFn: () => mikrotikApi.secrets.detail(id.value),
+  })
+}
+
+// Preview tidak menulis apa pun.
+export function useOnboardPreviewMutation() {
+  return useMutation({
+    mutationFn: (v: { secretId: string; payload: OnboardPayload }) =>
+      mikrotikApi.onboard.preview(v.secretId, v.payload),
+  })
+}
+
+// Berhasil atau gagal di tengah, tahap yang selesai sudah tersimpan: segarkan semuanya.
+export function useOnboardRunMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { secretId: string; payload: OnboardPayload }) =>
+      mikrotikApi.onboard.run(v.secretId, v.payload),
+    onSettled: invalidate,
   })
 }
 

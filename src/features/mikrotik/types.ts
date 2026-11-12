@@ -380,3 +380,68 @@ export interface ActivityMeta {
   offset: number
   total: number
 }
+
+// --- Onboarding pelanggan dari secret (Gelombang 2) ---
+
+export interface OnboardContactRef {
+  id: string
+  name: string
+  email: string
+  phone: string
+}
+
+export interface OnboardPayload {
+  /** contact_id = kontak CRM yang ada; new = kontak baru. */
+  customer: { contact_id?: string; new?: { name: string; phone: string; email: string } }
+  product_id: string
+  quantity?: string
+  /** Kosong = harga katalog. */
+  unit_price?: string
+  billing_day: number
+  create_initial_invoice: boolean
+  channels?: string[]
+}
+
+export interface OnboardPlan {
+  secret_name: string
+  contact_action: 'existing' | 'new'
+  contact: OnboardContactRef
+  product_name: string
+  quantity: string
+  unit_price: string
+  deal_title: string
+  /** YYYY-MM-DD, awal siklus tagih berjalan. */
+  contract_start_date: string
+  initial_invoice: boolean
+  channels: string[]
+  duplicate_of: OnboardContactRef | null
+}
+
+export type OnboardStage =
+  | ''
+  | 'contact'
+  | 'deal'
+  | 'quotation'
+  | 'sales_order'
+  | 'confirmed'
+  | 'paired'
+
+export interface OnboardState {
+  secret_id: string
+  stage: OnboardStage
+  contact_id: string
+  deal_id: string
+  quotation_id: string
+  sales_order_id: string
+  contract_id: string
+  account_id: string
+  last_error: string
+  updated_at: string | null
+}
+
+export interface SecretDetail {
+  secret: PppSecret
+  onboarding: OnboardState | null
+  contract: { id: string; number: string } | null
+  can_onboard: boolean
+}

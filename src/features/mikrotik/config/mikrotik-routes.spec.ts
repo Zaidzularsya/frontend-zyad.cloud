@@ -5,11 +5,12 @@ import { buildMikrotikRoutes } from '@/features/mikrotik/config/mikrotik-routes'
 describe('buildMikrotikRoutes', () => {
   const routes = buildMikrotikRoutes('mikrotik')
 
-  it('menyediakan enam rute dengan nama dan path yang diharapkan', () => {
+  it('menyediakan tujuh rute dengan nama dan path yang diharapkan', () => {
     expect(routes.map((r) => [r.name, r.path])).toEqual([
       ['mikrotik', 'mikrotik'],
       ['mikrotik-routers', 'mikrotik/routers'],
       ['mikrotik-accounts', 'mikrotik/accounts'],
+      ['mikrotik-secret-detail', 'mikrotik/secrets/:id'],
       ['mikrotik-tasks', 'mikrotik/tasks'],
       ['mikrotik-control', 'mikrotik/control'],
       ['mikrotik-launch', 'mikrotik/launch'],
@@ -22,6 +23,7 @@ describe('buildMikrotikRoutes', () => {
       mikrotik: ['mikrotik_router.read'],
       'mikrotik-routers': ['mikrotik_router.read'],
       'mikrotik-accounts': ['mikrotik_secret.read'],
+      'mikrotik-secret-detail': ['mikrotik_secret.read'],
       'mikrotik-tasks': ['mikrotik_task.read'],
       'mikrotik-control': ['mikrotik_control.read'],
       'mikrotik-launch': ['mikrotik_control.read'],

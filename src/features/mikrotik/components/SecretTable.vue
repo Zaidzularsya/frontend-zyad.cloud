@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import AccountPicker from '@/features/mikrotik/components/AccountPicker.vue'
-import type { AccountRef, PppSecret } from '@/features/mikrotik/types'
+import type { PppSecret } from '@/features/mikrotik/types'
 import { mappingLabel } from '@/features/mikrotik/utils/pairing'
 
 const props = defineProps<{
@@ -10,20 +9,17 @@ const props = defineProps<{
   mode: 'unpaired' | 'paired'
   /** secretId -> accountId untuk baris yang dipilih. */
   selected: Map<string, string>
-  /** accountId -> nama pelanggan yang dipilih manual lewat AccountPicker. */
+  /** accountId -> nama pelanggan untuk akun terpilih yang bukan usulan. */
   accountNames?: Record<string, string>
   /** secretId -> pesan galat dari pairing yang gagal. */
   failures: Record<string, string>
-  searchText?: string
   canPair: boolean
   canUnpair: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'toggle', row: PppSecret): void
-  (e: 'pick', row: PppSecret, account: AccountRef): void
   (e: 'clear', row: PppSecret): void
-  (e: 'new-customer', row: PppSecret): void
   (e: 'set-profile', row: PppSecret, profile: string): void
   (e: 'unpair', row: PppSecret): void
   (e: 'open', row: PppSecret): void
@@ -45,7 +41,6 @@ const BASIS_LABEL: Record<string, string> = {
   ambiguous: 'Nama ganda',
 }
 
-const pickerFor = ref<string | null>(null)
 const profileFor = ref<string | null>(null)
 const profileInput = ref('')
 
@@ -85,10 +80,6 @@ function customerLabel(row: PppSecret): string {
   return props.accountNames?.[chosen] ?? 'Pelanggan dipilih'
 }
 
-function onPick(row: PppSecret, account: AccountRef) {
-  pickerFor.value = null
-  emit('pick', row, account)
-}
 function openProfile(row: PppSecret) {
   profileFor.value = row.id
   profileInput.value = ''
@@ -225,21 +216,14 @@ function saveProfile(row: PppSecret) {
               </button>
             </template>
             <template v-else>
+              <!-- Pelanggan baru/kontak lain dipilih di halaman detail (onboarding lengkap dengan kontrak). -->
               <button
                 type="button"
                 class="rounded-lg border px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
                 :disabled="!canPair"
-                @click="pickerFor = row.id"
+                @click="emit('open', row)"
               >
-                {{ accountFor(row) ? 'Ganti pelanggan' : 'Pilih pelanggan' }}
-              </button>
-              <button
-                type="button"
-                class="rounded-lg border px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
-                :disabled="!canPair"
-                @click="emit('new-customer', row)"
-              >
-                Buat pelanggan baru
+                Onboarding
               </button>
               <button
                 v-if="selected.has(row.id)"
@@ -251,14 +235,6 @@ function saveProfile(row: PppSecret) {
                 X
               </button>
             </template>
-          </div>
-          <div v-if="pickerFor === row.id" class="absolute right-4 z-20 mt-1">
-            <AccountPicker
-              :initial-query="searchText"
-              :label="`Cari pelanggan untuk ${row.name}`"
-              @pick="(a) => onPick(row, a)"
-              @cancel="pickerFor = null"
-            />
           </div>
         </td>
       </tr>

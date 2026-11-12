@@ -164,6 +164,8 @@ export interface ReceivableSettings {
   payment_terms_days: number
   default_channels: SendChannel[]
   default_sender_user_id: string | null
+  /** Default "tanggal tagih setiap bulan" (1–31); null = tanggal hari onboarding. */
+  default_billing_day?: number | null
 }
 
 export interface Sender {

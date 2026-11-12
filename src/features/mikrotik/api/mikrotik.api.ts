@@ -28,8 +28,12 @@ import type {
   ProductTrigger,
   RestoreAllResult,
   Router,
+  SecretDetail,
   SecretListParams,
   SecretSummary,
+  OnboardPayload,
+  OnboardPlan,
+  OnboardState,
   SetModePayload,
   SetPolicyPayload,
   SetupPayload,
@@ -83,6 +87,17 @@ export const mikrotikApi = {
         .then((r) => r.data.data),
   },
 
+  onboard: {
+    preview: (secretId: string, payload: OnboardPayload) =>
+      http
+        .post<Envelope<OnboardPlan>>(`${BASE}/secrets/${secretId}/onboard/preview`, payload)
+        .then((r) => r.data.data),
+    run: (secretId: string, payload: OnboardPayload) =>
+      http
+        .post<Envelope<OnboardState>>(`${BASE}/secrets/${secretId}/onboard`, payload)
+        .then((r) => r.data.data),
+  },
+
   secrets: {
     list: async (params: SecretListParams = {}) => {
       const r = await http.get<Paged<PppSecret>>(`${BASE}/secrets`, { params })
@@ -92,6 +107,8 @@ export const mikrotikApi = {
       http
         .get<Envelope<SecretSummary>>(`${BASE}/secrets/summary`, { params })
         .then((r) => r.data.data),
+    detail: (id: string) =>
+      http.get<Envelope<SecretDetail>>(`${BASE}/secrets/${id}`).then((r) => r.data.data),
     import: (routerId: string) =>
       http
         .post<Envelope<ImportResult>>(`${BASE}/routers/${routerId}/secrets/import`)

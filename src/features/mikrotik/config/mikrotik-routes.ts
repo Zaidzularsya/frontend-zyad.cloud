@@ -26,6 +26,12 @@ export function buildMikrotikRoutes(
       meta: { title: 'Akun PPPoE', permissions: ['mikrotik_secret.read'] },
     },
     {
+      path: `${pathPrefix}/secrets/:id`,
+      name: `${namePrefix}-secret-detail`,
+      component: () => import('@/features/mikrotik/pages/SecretDetailPage.vue'),
+      meta: { title: 'Detail Secret', permissions: ['mikrotik_secret.read'] },
+    },
+    {
       path: `${pathPrefix}/tasks`,
       name: `${namePrefix}-tasks`,
       component: () => import('@/features/mikrotik/pages/TasksPage.vue'),

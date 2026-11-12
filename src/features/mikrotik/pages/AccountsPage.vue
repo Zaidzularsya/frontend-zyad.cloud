@@ -13,7 +13,6 @@ import {
   useAnalyzeMutation,
   useImportSecretsMutation,
   usePairBulkMutation,
-  usePairNewCustomerMutation,
   useRoutersQuery,
   useSecretSummaryQuery,
   useSecretsQuery,
@@ -24,12 +23,7 @@ import PairConfirmFooter from '@/features/mikrotik/components/PairConfirmFooter.
 import PairResultModal from '@/features/mikrotik/components/PairResultModal.vue'
 import SecretTable from '@/features/mikrotik/components/SecretTable.vue'
 import { usePairSelection } from '@/features/mikrotik/composables/usePairSelection'
-import type {
-  AccountRef,
-  PairBulkItemResult,
-  PppSecret,
-  SecretListParams,
-} from '@/features/mikrotik/types'
+import type { PairBulkItemResult, PppSecret, SecretListParams } from '@/features/mikrotik/types'
 import { secretActionError } from '@/features/mikrotik/utils/errors'
 import {
   buildListParams,
@@ -221,10 +215,6 @@ watch(
 function onToggle(row: PppSecret) {
   selection.toggleRow(row)
 }
-function onPick(row: PppSecret, account: AccountRef) {
-  accountNames.value[account.id] = account.name
-  selection.setAccount(row.id, account.id)
-}
 
 // --- konfirmasi pairing (bertahap ≤200) ---
 const failures = ref<Record<string, string>>({})
@@ -262,26 +252,19 @@ async function confirmPair() {
 }
 
 // --- aksi per baris ---
-type Pending = { kind: 'new-customer' | 'unpair'; row: PppSecret }
+// Membuat pelanggan baru kini lewat onboarding di halaman detail (kontak + kontrak), bukan dari baris.
+type Pending = { kind: 'unpair'; row: PppSecret }
 const pending = ref<Pending | null>(null)
-const newCustomerMutation = usePairNewCustomerMutation()
 const unpairMutation = useUnpairMutation()
 const profileMutation = useSetOriginalProfileMutation()
-const pendingBusy = computed(
-  () => newCustomerMutation.isPending.value || unpairMutation.isPending.value,
-)
+const pendingBusy = computed(() => unpairMutation.isPending.value)
 
 async function runPending() {
   const p = pending.value
   if (!p) return
   try {
-    if (p.kind === 'new-customer') {
-      await newCustomerMutation.mutateAsync(p.row.id)
-      toast.success(`Pelanggan baru dibuat dan dipasangkan ke ${p.row.name}.`)
-    } else {
-      await unpairMutation.mutateAsync(p.row.id)
-      toast.success(`Pasangan ${p.row.name} dilepas.`)
-    }
+    await unpairMutation.mutateAsync(p.row.id)
+    toast.success(`Pasangan ${p.row.name} dilepas.`)
     delete failures.value[p.row.id]
     selection.prune([p.row.id])
     pending.value = null
@@ -299,15 +282,10 @@ async function setProfile(row: PppSecret, profile: string) {
   }
 }
 
-const pendingTitle = computed(() =>
-  pending.value?.kind === 'unpair' ? 'Lepas pasangan?' : 'Buat pelanggan baru?',
+const pendingMessage = computed(
+  () =>
+    `Secret ${pending.value?.row.name ?? ''} tidak lagi terhubung ke pelanggan dan tidak ikut diisolir.`,
 )
-const pendingMessage = computed(() => {
-  const name = pending.value?.row.name ?? ''
-  return pending.value?.kind === 'unpair'
-    ? `Secret ${name} tidak lagi terhubung ke pelanggan dan tidak ikut diisolir.`
-    : `Pelanggan baru akan dibuat dari secret ${name} dan langsung dipasangkan.`
-})
 
 function closeResult() {
   resultOpen.value = false
@@ -438,13 +416,10 @@ function closeResult() {
             :selected="selection.selected"
             :account-names="accountNames"
             :failures="failures"
-            :search-text="search"
             :can-pair="canPair"
             :can-unpair="canUnpair"
             @toggle="onToggle"
-            @pick="onPick"
             @clear="(r) => selection.clear(r.id)"
-            @new-customer="(r) => (pending = { kind: 'new-customer', row: r })"
             @set-profile="setProfile"
             @unpair="(r) => (pending = { kind: 'unpair', row: r })"
             @open="openSecret"
@@ -474,10 +449,10 @@ function closeResult() {
     />
     <ConfirmDialog
       :open="pending !== null"
-      :title="pendingTitle"
+      title="Lepas pasangan?"
       :message="pendingMessage"
-      :confirm-label="pending?.kind === 'unpair' ? 'Lepas' : 'Buat pelanggan'"
-      :tone="pending?.kind === 'unpair' ? 'danger' : 'default'"
+      confirm-label="Lepas"
+      tone="danger"
       :loading="pendingBusy"
       @confirm="runPending"
       @cancel="pending = null"

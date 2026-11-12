@@ -1,10 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-
-vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
-  mikrotikApi: { accounts: { search: vi.fn().mockResolvedValue([]) } },
-}))
 
 import type { PppSecret } from '@/features/mikrotik/types'
 import SecretTable from '@/features/mikrotik/components/SecretTable.vue'
@@ -137,13 +133,27 @@ describe('SecretTable', () => {
     expect(b!.text()).toContain('Perlu profile asli')
   })
 
-  it('klik baris memancarkan open, klik tombol tidak', async () => {
+  it('klik baris memancarkan open, klik checkbox tidak', async () => {
     const row = secret({ id: 'x', name: 'x1', suggestion })
     const w = mountTable({ mode: 'unpaired', rows: [row] })
     await w.get('tbody tr').trigger('click')
     expect(w.emitted('open')?.[0]).toEqual([row])
     await w.get('tbody tr input[type=checkbox]').trigger('click')
-    await w.findAll('tbody tr button')[0]!.trigger('click')
     expect(w.emitted('open')).toHaveLength(1)
+  })
+
+  it('baris belum terpasang menawarkan Onboarding, bukan picker pelanggan', async () => {
+    const row = secret({ id: 'x', name: 'x1' })
+    const w = mountTable({ mode: 'unpaired', rows: [row] })
+    const labels = w.findAll('tbody tr button').map((b) => b.text())
+    expect(labels).toContain('Onboarding')
+    expect(labels).not.toContain('Pilih pelanggan')
+    expect(labels).not.toContain('Buat pelanggan baru')
+    await w
+      .findAll('tbody tr button')
+      .find((b) => b.text() === 'Onboarding')!
+      .trigger('click')
+    // Tepat satu open: tombol tidak ikut memicu klik baris.
+    expect(w.emitted('open')).toEqual([[row]])
   })
 })
