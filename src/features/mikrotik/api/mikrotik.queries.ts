@@ -20,6 +20,7 @@ export const mikrotikKeys = {
   all: ['mikrotik'] as const,
   routers: (params: object = {}) => [...mikrotikKeys.all, 'routers', params] as const,
   secrets: (params: object) => [...mikrotikKeys.all, 'secrets', params] as const,
+  secretSummary: (params: object) => [...mikrotikKeys.all, 'secret-summary', params] as const,
   accountSearch: (q: string) => [...mikrotikKeys.all, 'account-search', q] as const,
   onboarding: () => [...mikrotikKeys.all, 'onboarding'] as const,
   customerStatus: (ids: string[]) => [...mikrotikKeys.all, 'customer-status', ids] as const,
@@ -113,6 +114,17 @@ export function useSecretsQuery(params: Ref<SecretListParams>, enabled: Ref<bool
     queryKey: computed(() => mikrotikKeys.secrets(params.value)),
     queryFn: () => mikrotikApi.secrets.list(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useSecretSummaryQuery(
+  params: Ref<{ router_id?: string }>,
+  enabled: Ref<boolean> = ref(true),
+) {
+  return useQuery({
+    enabled,
+    queryKey: computed(() => mikrotikKeys.secretSummary(params.value)),
+    queryFn: () => mikrotikApi.secrets.summary(params.value),
   })
 }
 

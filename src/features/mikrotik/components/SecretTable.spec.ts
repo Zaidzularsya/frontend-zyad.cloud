@@ -121,4 +121,29 @@ describe('SecretTable', () => {
     expect(labels).toEqual(['Pilih profile asli'])
     expect(row.text()).toContain('Budi')
   })
+
+  it('menampilkan kolom Status dan label pemetaan per baris', () => {
+    const w = mountTable({
+      mode: 'unpaired',
+      rows: [
+        secret({ id: 'a', name: 'aktif', disabled: false, suggestion }),
+        secret({ id: 'b', name: 'mati', disabled: true, needs_original_profile: true }),
+      ],
+    })
+    const [a, b] = w.findAll('tbody tr')
+    expect(a!.text()).toContain('Aktif')
+    expect(a!.text()).toContain('Diusulkan')
+    expect(b!.text()).toContain('Nonaktif')
+    expect(b!.text()).toContain('Perlu profile asli')
+  })
+
+  it('klik baris memancarkan open, klik tombol tidak', async () => {
+    const row = secret({ id: 'x', name: 'x1', suggestion })
+    const w = mountTable({ mode: 'unpaired', rows: [row] })
+    await w.get('tbody tr').trigger('click')
+    expect(w.emitted('open')?.[0]).toEqual([row])
+    await w.get('tbody tr input[type=checkbox]').trigger('click')
+    await w.findAll('tbody tr button')[0]!.trigger('click')
+    expect(w.emitted('open')).toHaveLength(1)
+  })
 })

@@ -1,4 +1,5 @@
 import type {
+  MappingStatus,
   PairBulkItem,
   PairBulkItemResult,
   PppSecret,
@@ -74,7 +75,16 @@ export function visibleItems(selected: Map<string, string>, rows: PppSecret[]): 
   return out
 }
 
-export type PairingTab = 'all' | 'suggested' | 'needs_decision' | 'needs_profile' | 'paired'
+export type PairingTab = MappingStatus
+
+/** Label status pemetaan satu baris, urutan sama dengan aturan filter backend. */
+export function mappingLabel(row: PppSecret): string {
+  if (row.needs_original_profile) return 'Perlu profile asli'
+  if (row.account_id) return 'Terpasang'
+  const s = row.suggestion
+  if (s && s.basis !== 'ambiguous' && s.account_id) return 'Diusulkan'
+  return 'Butuh keputusan'
+}
 
 export function buildListParams(p: {
   routerId: string
@@ -83,17 +93,13 @@ export function buildListParams(p: {
   page: number
   perPage: number
 }): SecretListParams {
-  const params: SecretListParams = {
+  return {
     router_id: p.routerId || undefined,
     q: p.search || undefined,
-    ...(p.tab === 'needs_profile' ? {} : { paired: p.tab === 'paired' }),
     page: p.page,
     per_page: p.perPage,
+    mapping_status: p.tab,
   }
-  if (p.tab === 'suggested') params.suggestion = 'suggested'
-  if (p.tab === 'needs_decision') params.suggestion = 'needs_decision'
-  if (p.tab === 'needs_profile') params.needs_original_profile = true
-  return params
 }
 
 export function progressText(processed: number, total: number): string {

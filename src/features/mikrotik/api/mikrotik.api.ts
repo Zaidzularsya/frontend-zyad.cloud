@@ -29,6 +29,7 @@ import type {
   RestoreAllResult,
   Router,
   SecretListParams,
+  SecretSummary,
   SetModePayload,
   SetPolicyPayload,
   SetupPayload,
@@ -87,6 +88,10 @@ export const mikrotikApi = {
       const r = await http.get<Paged<PppSecret>>(`${BASE}/secrets`, { params })
       return { data: r.data.data, meta: r.data.meta }
     },
+    summary: (params: { router_id?: string } = {}) =>
+      http
+        .get<Envelope<SecretSummary>>(`${BASE}/secrets/summary`, { params })
+        .then((r) => r.data.data),
     import: (routerId: string) =>
       http
         .post<Envelope<ImportResult>>(`${BASE}/routers/${routerId}/secrets/import`)

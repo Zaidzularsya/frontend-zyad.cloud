@@ -84,21 +84,20 @@ describe('visibleItems', () => {
 
 describe('buildListParams', () => {
   const base = { routerId: 'r1', search: '', page: 2, perPage: 20 }
-  it('uses the server filter for the needs-profile tab with normal pagination', () => {
+  it('sends the mapping status instead of the old tab filters', () => {
     expect(buildListParams({ ...base, tab: 'needs_profile' })).toEqual({
       router_id: 'r1',
       q: undefined,
       page: 2,
       per_page: 20,
-      needs_original_profile: true,
+      mapping_status: 'needs_profile',
     })
-    // Paired secrets also need an original profile (onboarding counts them), so no paired filter.
-    expect(buildListParams({ ...base, tab: 'needs_profile' })).not.toHaveProperty('paired')
-  })
-  it('maps other tabs', () => {
-    expect(buildListParams({ ...base, tab: 'paired' }).paired).toBe(true)
-    expect(buildListParams({ ...base, tab: 'suggested' }).suggestion).toBe('suggested')
-    expect(buildListParams({ ...base, tab: 'all' }).needs_original_profile).toBeUndefined()
+    for (const tab of ['all', 'suggested', 'needs_decision', 'paired'] as const) {
+      const params = buildListParams({ ...base, tab })
+      expect(params.mapping_status).toBe(tab)
+      expect(params).not.toHaveProperty('paired')
+      expect(params).not.toHaveProperty('suggestion')
+    }
   })
 })
 

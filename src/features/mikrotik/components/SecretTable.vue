@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import AccountPicker from '@/features/mikrotik/components/AccountPicker.vue'
 import type { AccountRef, PppSecret } from '@/features/mikrotik/types'
+import { mappingLabel } from '@/features/mikrotik/utils/pairing'
 
 const props = defineProps<{
   rows: PppSecret[]
@@ -25,7 +26,15 @@ const emit = defineEmits<{
   (e: 'new-customer', row: PppSecret): void
   (e: 'set-profile', row: PppSecret, profile: string): void
   (e: 'unpair', row: PppSecret): void
+  (e: 'open', row: PppSecret): void
 }>()
+
+// Klik di mana pun pada baris membuka detail, kecuali pada kontrol di dalamnya.
+function onRowClick(row: PppSecret, event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, input, a, select, label, [data-row-ignore]')) return
+  emit('open', row)
+}
 
 const ISOLATED_HINT =
   'Secret ini sedang terisolir. Lepas pasangan setelah pelanggan lunas atau dikecualikan.'
@@ -93,7 +102,7 @@ function saveProfile(row: PppSecret) {
 </script>
 
 <template>
-  <table class="w-full min-w-[820px] text-left text-sm">
+  <table class="w-full min-w-[980px] text-left text-sm">
     <thead
       class="sticky top-0 z-10 border-b bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-900"
     >
@@ -102,6 +111,8 @@ function saveProfile(row: PppSecret) {
           <span class="sr-only">Pilih</span>
         </th>
         <th class="px-4 py-3">Secret</th>
+        <th class="px-4 py-3">Status</th>
+        <th class="px-4 py-3">Pemetaan</th>
         <th class="px-4 py-3">Profile</th>
         <template v-if="mode === 'unpaired'">
           <th class="px-4 py-3">Usulan pelanggan</th>
@@ -115,8 +126,9 @@ function saveProfile(row: PppSecret) {
       <tr
         v-for="row in rows"
         :key="row.id"
-        class="border-b align-top last:border-0"
+        class="cursor-pointer border-b align-top last:border-0 hover:bg-gray-50/60 dark:hover:bg-gray-900/40"
         :class="ROW_CLASS[tone(row)]"
+        @click="onRowClick(row, $event)"
       >
         <td v-if="mode === 'unpaired'" class="px-4 py-3">
           <input
@@ -129,7 +141,12 @@ function saveProfile(row: PppSecret) {
           />
         </td>
         <td class="px-4 py-3 font-medium">
-          {{ row.name }}
+          <a
+            :href="`#secret-${row.id}`"
+            class="text-brand-600 hover:underline"
+            @click.prevent="emit('open', row)"
+            >{{ row.name }}</a
+          >
           <span
             v-if="failures[row.id]"
             class="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
@@ -137,6 +154,18 @@ function saveProfile(row: PppSecret) {
             >Gagal: {{ failures[row.id] }}</span
           >
         </td>
+        <td class="px-4 py-3">
+          <span
+            class="rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="
+              row.disabled
+                ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                : 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300'
+            "
+            >{{ row.disabled ? 'Nonaktif' : 'Aktif' }}</span
+          >
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">{{ mappingLabel(row) }}</td>
         <td class="px-4 py-3">
           {{ row.profile }}
           <span v-if="row.needs_original_profile" class="block text-xs text-red-700"

@@ -113,14 +113,24 @@ export interface PppSecret {
   suggestion: SecretSuggestion | null
 }
 
+/** Status pemetaan (dulu lima tab); backend menerjemahkannya ke filter list. */
+export type MappingStatus = 'all' | 'suggested' | 'needs_decision' | 'needs_profile' | 'paired'
+
 export interface SecretListParams {
   router_id?: string
   paired?: boolean
   q?: string
   suggestion?: SuggestionFilter
   needs_original_profile?: boolean
+  mapping_status?: MappingStatus
   page?: number
   per_page?: number
+}
+
+/** Jumlah secret yang masih ada di router menurut flag disabled di router. */
+export interface SecretSummary {
+  active: number
+  inactive: number
 }
 
 export interface PairBulkItem {
