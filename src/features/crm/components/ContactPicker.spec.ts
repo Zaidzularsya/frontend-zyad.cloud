@@ -7,7 +7,7 @@ vi.mock('@/features/crm/contacts/api/contacts.api', () => ({
 }))
 
 import { contactsApi } from '@/features/crm/contacts/api/contacts.api'
-import ContactPicker from '@/features/mikrotik/components/ContactPicker.vue'
+import ContactPicker from '@/features/crm/components/ContactPicker.vue'
 
 describe('ContactPicker', () => {
   beforeEach(() => {

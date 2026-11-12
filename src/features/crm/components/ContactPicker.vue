@@ -3,12 +3,11 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { Search } from 'lucide-vue-next'
 
-import { contactsApi } from '@/features/crm/contacts/api/contacts.api'
-import type { OnboardContactRef } from '@/features/mikrotik/types'
+import { contactsApi, type ContactRef } from '@/features/crm/contacts/api/contacts.api'
 
-// Mencari kontak CRM (bukan akun receivable): akun dibuat otomatis saat SO onboarding ditagih.
+// Pencari kontak CRM (bukan akun receivable). Dipakai form deal dan onboarding secret Mikrotik.
 const props = defineProps<{ initialQuery?: string }>()
-const emit = defineEmits<{ (e: 'pick', contact: OnboardContactRef): void }>()
+const emit = defineEmits<{ (e: 'pick', contact: ContactRef): void }>()
 
 const input = ref(props.initialQuery ?? '')
 const query = ref(input.value.trim())
@@ -22,11 +21,11 @@ onBeforeUnmount(() => clearTimeout(timer))
 const enabled = computed(() => query.value.length >= 2)
 const results = useQuery({
   enabled,
-  queryKey: computed(() => ['mikrotik', 'onboard-contact-search', query.value]),
+  queryKey: computed(() => ['crm', 'contact-picker', query.value]),
   queryFn: () => contactsApi.list({ page: 1, per_page: 10, search: query.value }),
 })
 
-const contacts = computed<OnboardContactRef[]>(() =>
+const contacts = computed<ContactRef[]>(() =>
   (results.data.value?.data ?? []).map((c) => ({
     id: c.id,
     name: [c.first_name, c.last_name].filter(Boolean).join(' '),

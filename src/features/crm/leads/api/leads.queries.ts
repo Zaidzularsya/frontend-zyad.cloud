@@ -26,6 +26,15 @@ export const leadKeys = {
   detail: (id: string) => [...leadKeys.details(), id] as const,
   attachments: (id: string) => [...leadKeys.detail(id), 'attachments'] as const,
   members: () => ['crm', 'members'] as const,
+  contactMatches: (id: string) => [...leadKeys.detail(id), 'contact-matches'] as const,
+}
+
+export function useLeadContactMatchesQuery(leadId: Ref<string>) {
+  return useQuery({
+    enabled: computed(() => Boolean(leadId.value)),
+    queryKey: computed(() => leadKeys.contactMatches(leadId.value)),
+    queryFn: () => leadsApi.contactMatches(leadId.value),
+  })
 }
 
 export function useLeadsQuery(params: Ref<LeadListParams>) {

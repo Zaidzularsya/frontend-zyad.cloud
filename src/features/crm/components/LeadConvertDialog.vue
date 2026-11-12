@@ -11,7 +11,13 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import DealFormFields from '@/features/crm/components/DealFormFields.vue'
 import { useCompanyLookupQuery } from '@/features/crm/companies/api/companies.queries'
 import type { Lead, LeadConversionResult } from '@/features/crm/leads/api/leads.api'
-import { useConvertLeadMutation, useCrmMembersQuery } from '@/features/crm/leads/api/leads.queries'
+import {
+  useConvertLeadMutation,
+  useCrmMembersQuery,
+  useLeadContactMatchesQuery,
+} from '@/features/crm/leads/api/leads.queries'
+import type { ContactRef } from '@/features/crm/contacts/api/contacts.api'
+import { duplicateFromError, toContactRef } from '@/features/crm/contacts/utils/contact-duplicate'
 import {
   activePipelines,
   buildConvertPayload,
@@ -44,6 +50,50 @@ watch(
   },
   { immediate: true },
 )
+
+// --- Kontak: tawarkan kontak yang email/WA-nya sama agar tidak lahir kontak ganda ---
+const matchesQuery = useLeadContactMatchesQuery(computed(() => props.lead?.id ?? ''))
+const duplicate = ref<ContactRef | null>(null)
+const contactOptions = computed<ContactRef[]>(() => {
+  const list = (matchesQuery.data.value ?? []).map(toContactRef)
+  if (duplicate.value && !list.some((c) => c.id === duplicate.value?.id)) list.push(duplicate.value)
+  return list
+})
+// Nilai radio: "new" atau "existing:<id>".
+const contactChoice = computed({
+  get: () =>
+    form.value?.contactMode === 'existing' && form.value.contactId
+      ? `existing:${form.value.contactId}`
+      : 'new',
+  set: (value: string) => {
+    if (!form.value) return
+    if (value.startsWith('existing:')) {
+      form.value.contactMode = 'existing'
+      form.value.contactId = value.slice('existing:'.length)
+    } else {
+      form.value.contactMode = 'new'
+      form.value.contactId = ''
+    }
+  },
+})
+// Kontak yang cocok dipilih default (sekali per lead); pengguna tetap bisa memilih kontak baru.
+watch(
+  [() => form.value, () => matchesQuery.data.value],
+  () => {
+    const first = matchesQuery.data.value?.[0]
+    if (form.value && first && form.value.contactMode === 'new' && !form.value.contactId)
+      contactChoice.value = `existing:${first.id}`
+  },
+  { immediate: true },
+)
+watch(
+  () => props.lead?.id,
+  () => (duplicate.value = null),
+)
+function useDuplicate() {
+  if (duplicate.value) contactChoice.value = `existing:${duplicate.value.id}`
+  error.value = ''
+}
 
 const lookupName = computed(() => (form.value?.companyMode === 'new' ? form.value.companyName : ''))
 const similarQuery = useCompanyLookupQuery(lookupName)
@@ -86,7 +136,10 @@ async function submit() {
     })
     emit('converted', result)
   } catch (e) {
-    error.value = extractError(e)
+    duplicate.value = duplicateFromError(e)
+    error.value = duplicate.value
+      ? `Email atau nomor WhatsApp lead ini sudah dipakai kontak ${duplicate.value.name}.`
+      : extractError(e)
   }
 }
 
@@ -101,11 +154,34 @@ const field = 'w-full rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-
   >
     <p v-if="!form" class="text-sm text-gray-500">Memuat…</p>
     <form v-else class="max-h-[75vh] space-y-4 overflow-y-auto" @submit.prevent="submit">
-      <section class="rounded-lg border p-3 text-sm">
+      <section class="space-y-2 rounded-lg border p-3 text-sm">
         <h3 class="font-semibold">Contact</h3>
         <p class="text-gray-600">
           {{ lead?.contact_name }} · {{ lead?.email || '-' }} · {{ lead?.phone || '-' }}
         </p>
+        <div v-if="contactOptions.length" class="space-y-1">
+          <p class="text-xs text-amber-700 dark:text-amber-300">
+            Email/WhatsApp sama dengan kontak yang sudah ada:
+          </p>
+          <label v-for="c in contactOptions" :key="c.id" class="flex items-center gap-2">
+            <input
+              v-model="contactChoice"
+              type="radio"
+              name="contact-mode"
+              :value="`existing:${c.id}`"
+            />
+            <span
+              >Pakai {{ c.name }}
+              <span class="text-xs text-gray-500">{{
+                [c.email, c.phone].filter(Boolean).join(' · ')
+              }}</span></span
+            >
+          </label>
+          <label class="flex items-center gap-2">
+            <input v-model="contactChoice" type="radio" name="contact-mode" value="new" />
+            Buat kontak baru dari lead
+          </label>
+        </div>
       </section>
 
       <section class="space-y-2 rounded-lg border p-3">
@@ -197,7 +273,18 @@ const field = 'w-full rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-
         />
       </section>
 
-      <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
+      <div v-if="error" class="space-y-1 text-sm text-red-600" role="alert">
+        <p>{{ error }}</p>
+        <button
+          v-if="duplicate"
+          type="button"
+          class="text-xs font-medium text-brand-600 underline"
+          data-testid="use-duplicate-contact"
+          @click="useDuplicate"
+        >
+          Pakai kontak {{ duplicate.name }}
+        </button>
+      </div>
       <div class="flex justify-end gap-2">
         <BaseButton type="button" variant="secondary" @click="emit('close')">Batal</BaseButton>
         <BaseButton type="submit" :disabled="mutation.isPending.value">

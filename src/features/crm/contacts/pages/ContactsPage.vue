@@ -15,7 +15,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import TextField from '@/components/form/TextField.vue'
 
-import type { Contact, ContactPayload } from '@/features/crm/contacts/api/contacts.api'
+import type { Contact, ContactPayload, ContactRef } from '@/features/crm/contacts/api/contacts.api'
 import {
   useContactsQuery,
   useCreateContactMutation,
@@ -24,6 +24,10 @@ import {
   useUpdateContactMutation,
 } from '@/features/crm/contacts/api/contacts.queries'
 import { useCompaniesQuery } from '@/features/crm/companies/api/companies.queries'
+import {
+  duplicateContactIds,
+  duplicateFromError,
+} from '@/features/crm/contacts/utils/contact-duplicate'
 
 // Dipakai untuk link detail supaya berlaku di prefix tenant maupun platform.
 const route = useRoute()
@@ -54,6 +58,8 @@ const companyNameById = computed(() =>
 )
 
 const contacts = computed(() => contactsQuery.data.value?.data ?? [])
+// Hanya membandingkan kontak di halaman yang tampil (penanda bantu, bukan dedupe penuh).
+const duplicateIds = computed(() => duplicateContactIds(contacts.value))
 const totalPages = computed(() => contactsQuery.data.value?.meta.total_pages ?? 1)
 const totalContacts = computed(() => contactsQuery.data.value?.meta.total ?? 0)
 const currentPage = computed(() => contactsQuery.data.value?.meta.page ?? page.value)
@@ -70,6 +76,8 @@ function changePage(next: number) {
 const isModalOpen = ref(false)
 const editingContact = ref<Contact | null>(null)
 const errorMessage = ref('')
+// Kontak lama dari 409 CONTACT_DUPLICATE: ditautkan agar operator memakainya, bukan membuat ganda.
+const duplicateOf = ref<ContactRef | null>(null)
 const form = reactive<ContactPayload>({
   first_name: '',
   last_name: '',
@@ -132,6 +140,7 @@ function buildPayload(): ContactPayload {
 
 async function submitForm() {
   errorMessage.value = ''
+  duplicateOf.value = null
   try {
     if (editingContact.value) {
       await updateMutation.mutateAsync({ id: editingContact.value.id, payload: buildPayload() })
@@ -140,6 +149,7 @@ async function submitForm() {
     }
     isModalOpen.value = false
   } catch (error) {
+    duplicateOf.value = duplicateFromError(error)
     errorMessage.value = isQuotaExceededError(error)
       ? quotaExceededMessage('contact')
       : extractError(error)
@@ -224,7 +234,7 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
           <thead class="border-b bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-900">
             <tr>
               <th class="px-5 py-3">Nama</th>
-              <th class="px-5 py-3">Kontak</th>
+              <th class="px-5 py-3">Email / WhatsApp</th>
               <th class="px-5 py-3">Company</th>
               <th class="px-5 py-3">Status</th>
               <th class="px-5 py-3 text-right">Aksi</th>
@@ -240,7 +250,17 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
                   {{ contact.first_name }} {{ contact.last_name }}
                 </RouterLink>
               </td>
-              <td class="px-5 py-3 text-gray-500">{{ contact.email || contact.phone || '-' }}</td>
+              <td class="px-5 py-3 text-gray-500">
+                <span class="block">{{ contact.email || '-' }}</span>
+                <span class="block text-xs">{{ contact.phone || '-' }}</span>
+                <span
+                  v-if="duplicateIds.has(contact.id)"
+                  class="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                  title="Email atau nomor WhatsApp sama dengan kontak lain di halaman ini"
+                  data-testid="duplicate-badge"
+                  >Duplikat</span
+                >
+              </td>
               <td class="px-5 py-3 text-gray-500">
                 {{ contact.company_id ? (companyNameById[contact.company_id] ?? '-') : '-' }}
               </td>
@@ -351,7 +371,16 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
           </label>
         </div>
 
-        <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="text-sm text-red-600" role="alert">
+          {{ errorMessage }}
+          <RouterLink
+            v-if="duplicateOf"
+            :to="`${route.path}/${duplicateOf.id}`"
+            class="font-medium text-brand-600 underline"
+            data-testid="duplicate-contact-link"
+            >Buka {{ duplicateOf.name }}</RouterLink
+          >
+        </p>
 
         <div class="flex justify-end gap-3 pt-2">
           <BaseButton type="button" variant="secondary" @click="closeModal">Batal</BaseButton>

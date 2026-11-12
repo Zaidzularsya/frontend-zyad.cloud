@@ -11,7 +11,7 @@ import {
   useOnboardPreviewMutation,
   useOnboardRunMutation,
 } from '@/features/mikrotik/api/mikrotik.queries'
-import ContactPicker from '@/features/mikrotik/components/ContactPicker.vue'
+import ContactPicker from '@/features/crm/components/ContactPicker.vue'
 import OnboardingSummaryDialog from '@/features/mikrotik/components/OnboardingSummaryDialog.vue'
 import type {
   OnboardContactRef,
