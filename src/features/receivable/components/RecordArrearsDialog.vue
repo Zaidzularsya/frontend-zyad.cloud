@@ -41,6 +41,8 @@ const open = computed(() => props.open)
 const contractId = computed(() => props.contractId)
 const periodsQuery = useArrearsPeriodsQuery(contractId, open)
 const periods = computed<ArrearsPeriod[]>(() => periodsQuery.data.value?.periods ?? [])
+// Newest first: the list can reach back up to 24 cycles before the contract started.
+const periodsNewestFirst = computed(() => [...periods.value].reverse())
 const hasTrigger = computed(() => periodsQuery.data.value?.has_trigger_product ?? false)
 // The tenant mode decides whether flagging needs a confirmation (active = isolation can run now).
 const controlEnabled = computed(() => open.value && canFlag.value && mikrotikOn.value)
@@ -227,7 +229,7 @@ const notifyText = computed(() => {
       <fieldset v-else class="space-y-1">
         <legend class="mb-1 font-medium">Periode yang ditunggak</legend>
         <label
-          v-for="p in periods"
+          v-for="p in periodsNewestFirst"
           :key="p.start"
           class="flex items-center gap-2"
           :class="p.conflict ? 'text-gray-400' : ''"
@@ -240,6 +242,7 @@ const notifyText = computed(() => {
             @change="togglePeriod(p, ($event.target as HTMLInputElement).checked)"
           />
           <span>{{ periodLabel(p.start, p.end) }}</span>
+          <span v-if="p.index < 0" class="text-xs text-gray-500">· sebelum kontrak dimulai</span>
           <span v-if="p.conflict" class="text-xs">· {{ p.conflict }}</span>
         </label>
       </fieldset>

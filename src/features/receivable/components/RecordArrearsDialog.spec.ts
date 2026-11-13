@@ -220,4 +220,26 @@ describe('RecordArrearsDialog', () => {
     await w.find('input[name="flag-2026-08-05"]').setValue(true)
     expect(w.text()).toContain('bisa langsung terisolir')
   })
+
+  it('lists the newest period first and marks periods before the contract start', async () => {
+    periods.mockResolvedValue({
+      has_trigger_product: true,
+      periods: [
+        {
+          index: -1,
+          start: '2026-07-05',
+          end: '2026-08-04',
+          default_amount: '333000.00',
+          conflict: '',
+        },
+        ...periodData().periods,
+      ],
+    })
+    const w = mountDialog()
+    await flushPromises()
+    const names = w.findAll('input[name^="period-"]').map((i) => i.attributes('name'))
+    expect(names[0]).toBe('period-2026-10-05')
+    expect(names[names.length - 1]).toBe('period-2026-07-05')
+    expect(w.text()).toContain('sebelum kontrak dimulai')
+  })
 })
