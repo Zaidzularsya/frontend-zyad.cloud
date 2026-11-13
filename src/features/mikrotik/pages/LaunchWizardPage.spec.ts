@@ -128,6 +128,27 @@ describe('LaunchWizardPage', () => {
     expect(w.find('[role="alert"]').text()).toBe(PILOT_MSG)
   })
 
+  it('mode pilot: Kembali ke Simulasi mengirim SetMode simulation (temuan T13-B1)', async () => {
+    const w = await mountPage({ mode: 'pilot' })
+    await btn(w, 'Kembali ke Simulasi')!.trigger('click')
+    await flushPromises()
+    expect(api.control.setMode).toHaveBeenCalledWith({ mode: 'simulation' })
+  })
+
+  it.each([[{ test_active_count: 1 }], [{ isolated_secrets: 2 }]])(
+    'Kembali ke Simulasi terkunci selama uji berjalan atau ada akun terisolir (%o)',
+    async (over) => {
+      const w = await mountPage({ mode: 'pilot', ...over })
+      const b = btn(w, 'Kembali ke Simulasi')!
+      expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(
+        'Hentikan uji dan pulihkan akun yang terisolir lebih dulu.',
+      )
+      await b.trigger('click')
+      await flushPromises()
+      expect(api.control.setMode).not.toHaveBeenCalled()
+    },
+  )
+
   it('Aktif nonaktif tanpa verifikasi: aria-describedby menjelaskan alasan', async () => {
     const w = await mountPage({ mode: 'pilot' })
     const b = btn(w, 'Aktifkan Isolir Otomatis')!
