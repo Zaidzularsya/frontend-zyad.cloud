@@ -2,6 +2,7 @@ import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
 import type { BillingFrequency, ChargeType, PaymentTiming } from '@/features/catalog/utils/pricing'
+import type { ArrearsPayload } from '@/features/receivable/utils/arrears'
 
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'overdue' | 'void'
 export type SendChannel = 'email' | 'whatsapp'
@@ -94,6 +95,10 @@ export interface Invoice {
   items: InvoiceItem[]
   last_send?: InvoiceSend | null
   created_at: string
+  /** Arrears invoices only: the owner chose that it may trigger Mikrotik isolation. */
+  isolir_flag?: boolean
+  /** Set when the invoice was created by "Catat tunggakan". */
+  arrears_recording_id?: string | null
 }
 
 export interface InvoiceItemPayload {
@@ -260,7 +265,64 @@ export interface ContractListParams {
 type Envelope<T> = { success: boolean; data: T }
 type Paged<T> = { success: boolean; data: T[]; meta: PaginatedResponse<T>['meta'] }
 
+export interface ArrearsPeriod {
+  index: number
+  start: string
+  end: string
+  default_amount: string
+  /** Empty when the period can be recorded. */
+  conflict: string
+}
+
+export interface ArrearsPeriods {
+  periods: ArrearsPeriod[]
+  has_trigger_product: boolean
+}
+
+export type ArrearsNotifyStatus = 'pending' | 'sent' | 'failed' | 'skipped'
+
+export interface ArrearsRecording {
+  id: string
+  account_id: string
+  contract_id: string
+  reason: string
+  recorded_by: string | null
+  notify_status: ArrearsNotifyStatus
+  notify_error: string
+  notified_at: string | null
+  created_at: string
+}
+
+export interface ArrearsResult {
+  recording: ArrearsRecording
+  invoices: Invoice[]
+  notify_status: ArrearsNotifyStatus
+}
+
+export interface ArrearsConflict {
+  row: number
+  period_start: string
+  reason: string
+}
+
 export const receivableApi = {
+  arrears: {
+    periods: (contractId: string) =>
+      http
+        .get<Envelope<ArrearsPeriods>>(`/app/receivable/contracts/${contractId}/arrears/periods`)
+        .then((r) => r.data.data),
+    record: (payload: ArrearsPayload, idempotencyKey: string) =>
+      http
+        .post<Envelope<ArrearsResult>>('/app/receivable/invoices/arrears', payload, {
+          headers: { 'Idempotency-Key': idempotencyKey },
+        })
+        .then((r) => r.data.data),
+    resend: (recordingId: string) =>
+      http
+        .post<Envelope<ArrearsRecording>>(`/app/receivable/invoices/arrears/${recordingId}/resend`)
+        .then((r) => r.data.data),
+  },
+
   overview: {
     get: () =>
       http.get<Envelope<ReceivableOverview>>('/app/receivable/overview').then((r) => r.data.data),
@@ -334,6 +396,10 @@ export const receivableApi = {
     payments: (id: string) =>
       http
         .get<Envelope<Payment[]>>(`/app/receivable/invoices/${id}/payments`)
+        .then((r) => r.data.data),
+    setIsolirFlag: (id: string, value: boolean) =>
+      http
+        .put<Envelope<Invoice>>(`/app/receivable/invoices/${id}/isolir-flag`, { value })
         .then((r) => r.data.data),
     recordPayment: (id: string, payload: PaymentPayload) =>
       http

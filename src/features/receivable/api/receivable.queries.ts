@@ -14,6 +14,7 @@ import {
   type PaymentPayload,
   type SendInvoicePayload,
 } from '@/features/receivable/api/receivable.api'
+import type { ArrearsPayload } from '@/features/receivable/utils/arrears'
 
 export const receivableKeys = {
   all: ['receivable'] as const,
@@ -28,6 +29,8 @@ export const receivableKeys = {
   contractList: (params: ContractListParams) =>
     [...receivableKeys.contracts(), 'list', params] as const,
   contract: (id: string) => [...receivableKeys.contracts(), 'detail', id] as const,
+  arrearsPeriods: (contractId: string) =>
+    [...receivableKeys.contracts(), 'arrears-periods', contractId] as const,
   overview: () => [...receivableKeys.all, 'overview'] as const,
   settings: () => [...receivableKeys.all, 'settings'] as const,
   senders: () => [...receivableKeys.all, 'senders'] as const,
@@ -251,6 +254,47 @@ export function useEndContractMutation() {
   return useMutation({
     mutationFn: (v: { id: string; reason: string; endDate?: string }) =>
       receivableApi.contracts.end(v.id, { reason: v.reason, end_date: v.endDate }),
+    onSuccess: invalidate,
+  })
+}
+
+// ---- Tunggakan (invoice mundur) ----
+
+export function useArrearsPeriodsQuery(contractId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!contractId.value),
+    queryKey: computed(() => receivableKeys.arrearsPeriods(contractId.value)),
+    queryFn: () => receivableApi.arrears.periods(contractId.value),
+  })
+}
+
+export function useRecordArrearsMutation() {
+  const invalidate = useInvalidateReceivable()
+  return useMutation({
+    mutationFn: ({
+      payload,
+      idempotencyKey,
+    }: {
+      payload: ArrearsPayload
+      idempotencyKey: string
+    }) => receivableApi.arrears.record(payload, idempotencyKey),
+    onSuccess: invalidate,
+  })
+}
+
+export function useResendArrearsMutation() {
+  const invalidate = useInvalidateReceivable()
+  return useMutation({
+    mutationFn: (recordingId: string) => receivableApi.arrears.resend(recordingId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetIsolirFlagMutation() {
+  const invalidate = useInvalidateReceivable()
+  return useMutation({
+    mutationFn: ({ id, value }: { id: string; value: boolean }) =>
+      receivableApi.invoices.setIsolirFlag(id, value),
     onSuccess: invalidate,
   })
 }
