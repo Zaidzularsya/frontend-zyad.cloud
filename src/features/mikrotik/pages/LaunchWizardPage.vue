@@ -134,13 +134,15 @@ async function confirmActivate() {
       </p>
       <p v-if="errorText" class="rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
         {{ errorText }}
-        <RouterLink
-          v-if="needsContact"
-          :to="{ name: 'landing-pages-content' }"
-          class="ml-1 font-medium underline"
-        >
-          Buka pengaturan Brand
-        </RouterLink>
+        <template v-if="needsContact">
+          <RouterLink :to="{ name: 'whatsapp' }" class="ml-1 font-medium underline"
+            >Hubungkan WhatsApp</RouterLink
+          >
+          atau
+          <RouterLink :to="{ name: 'email-accounts' }" class="font-medium underline"
+            >Akun Email</RouterLink
+          >
+        </template>
       </p>
 
       <section v-if="control.mode === 'simulation'" class="space-y-4" aria-label="Langkah Simulasi">

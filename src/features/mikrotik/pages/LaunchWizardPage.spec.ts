@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
@@ -45,11 +45,8 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: { template: '<i/>' } },
-      {
-        path: '/app/landing-pages/content',
-        name: 'landing-pages-content',
-        component: { template: '<i/>' },
-      },
+      { path: '/app/whatsapp', name: 'whatsapp', component: { template: '<i/>' } },
+      { path: '/app/email-accounts', name: 'email-accounts', component: { template: '<i/>' } },
     ],
   })
   const w = mount(LaunchWizardPage, {
@@ -252,8 +249,13 @@ describe('LaunchWizardPage', () => {
     // The mutation rejection can take more than one tick under a loaded test run.
     const alert = await vi.waitFor(() => w.get('[role="alert"]'))
     expect(alert.text()).toContain(
-      'Isi kontak CS (telepon atau email) di pengaturan Brand sebelum mengaktifkan.',
+      'Hubungkan WhatsApp atau akun email lebih dulu: nomor dan alamatnya menjadi kontak CS di halaman isolir.',
     )
-    expect(alert.findComponent(RouterLink).props('to')).toEqual({ name: 'landing-pages-content' })
+    // T13-E1: the old link pointed to a page without any contact field.
+    const links = alert.findAllComponents(RouterLink) as VueWrapper[]
+    expect(links.map((l) => (l.props() as { to: unknown }).to)).toEqual([
+      { name: 'whatsapp' },
+      { name: 'email-accounts' },
+    ])
   })
 })

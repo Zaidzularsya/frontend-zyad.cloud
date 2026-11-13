@@ -164,9 +164,10 @@ export function checkStatusLabel(status: string): string {
     : status
 }
 
-// Kontak CS diambil dari Brand (branding.contact) yang juga dipakai blok Bantuan /isolir.
+// Kontak CS untuk blok Bantuan /isolir: kontak Brand bila terisi, selain itu nomor sesi WhatsApp
+// default dan email mailbox pengirim invoice (temuan T13-E1). Pesan ini muncul bila keduanya kosong.
 export const TENANT_CONTACT_REQUIRED_MESSAGE =
-  'Isi kontak CS (telepon atau email) di pengaturan Brand sebelum mengaktifkan.'
+  'Hubungkan WhatsApp atau akun email lebih dulu: nomor dan alamatnya menjadi kontak CS di halaman isolir.'
 
 const CONTROL_ACTION_ERRORS: Record<string, string> = {
   MIKROTIK_TENANT_CONTACT_REQUIRED: TENANT_CONTACT_REQUIRED_MESSAGE,
