@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
@@ -50,6 +50,12 @@ describe('CandidateTable', () => {
   })
 
   it('menampilkan empat kolom spec dan dua angka besar', async () => {
+    // Label pengecualian dibandingkan dengan "hari ini" WIB: kunci tanggal agar fixture tidak kedaluwarsa.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-02T03:00:00Z')) // 02 Nov 10:00 WIB
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     setRows([
       previewItem(),
       previewItem({
