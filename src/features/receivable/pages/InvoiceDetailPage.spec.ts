@@ -27,6 +27,9 @@ vi.mock('@/features/email/api/email.api', () => ({
   emailApi: { listMailboxes: vi.fn().mockResolvedValue([]) },
 }))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => ({ can: () => true }) }))
+vi.mock('@/features/mikrotik/composables/useMikrotikEnabled', () => ({
+  useMikrotikEnabled: () => ({ value: false }),
+}))
 
 import InvoiceDetailPage from './InvoiceDetailPage.vue'
 
@@ -194,5 +197,22 @@ describe('InvoiceDetailPage', () => {
     ])
     expect(w.text()).toContain('Belum ada pengirim.')
     expect(labels(w)).toContain('Retry')
+  })
+
+  it('arrears invoice: shows the label and the isolation flag control', async () => {
+    const w = await open({
+      status: 'overdue',
+      invoice_number: 'INV-1',
+      arrears_recording_id: 'rec-1',
+      isolir_flag: false,
+    })
+    expect(w.text()).toContain('Tunggakan dicatat')
+    expect(w.find('input[name="isolir_flag"]').exists()).toBe(true)
+  })
+
+  it('normal invoice: no arrears label or flag control', async () => {
+    const w = await open({ status: 'overdue', invoice_number: 'INV-1' })
+    expect(w.text()).not.toContain('Tunggakan dicatat')
+    expect(w.find('input[name="isolir_flag"]').exists()).toBe(false)
   })
 })
