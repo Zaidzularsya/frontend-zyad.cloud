@@ -14,6 +14,7 @@ import {
   useEndContractMutation,
   useSetContractEndDateMutation,
 } from '@/features/receivable/api/receivable.queries'
+import RecordArrearsDialog from '@/features/receivable/components/RecordArrearsDialog.vue'
 import { CONTRACT_STATUS, contractErrorMessage } from '@/features/receivable/utils/contract'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -32,6 +33,9 @@ const endOpen = ref(false)
 const reason = ref('')
 const error = ref('')
 
+// Tunggakan (invoice mundur) can be recorded on any contract the customer has, also an ended one.
+const canRecordArrears = computed(() => auth.can('invoice.record_arrears'))
+const arrearsOpen = ref(false)
 const canManage = computed(() => auth.can('contract.manage') && contract.value?.status === 'active')
 const frequencyLabel = (v: string) => FREQUENCIES.find((f) => f.value === v)?.label ?? v
 const formatDate = (value?: string | null) =>
@@ -105,9 +109,14 @@ async function endContract() {
               >{{ CONTRACT_STATUS[contract.status].label }}</span
             >
           </div>
-          <BaseButton v-if="canManage" variant="danger" @click="endOpen = true"
-            >Hentikan</BaseButton
-          >
+          <div class="flex flex-wrap gap-2">
+            <BaseButton v-if="canRecordArrears" variant="secondary" @click="arrearsOpen = true"
+              >Catat tunggakan</BaseButton
+            >
+            <BaseButton v-if="canManage" variant="danger" @click="endOpen = true"
+              >Hentikan</BaseButton
+            >
+          </div>
         </div>
         <p class="text-sm text-gray-600">
           Mulai {{ formatDate(contract.start_date) }} · Berakhir {{ formatDate(contract.end_date) }}
@@ -202,6 +211,13 @@ async function endContract() {
         </div>
       </BaseCard>
       <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
+
+      <RecordArrearsDialog
+        :open="arrearsOpen"
+        :contract-id="contract.id"
+        :account-id="contract.account.id"
+        @close="arrearsOpen = false"
+      />
 
       <BaseModal :open="endOpen" title="Hentikan kontrak" @close="endOpen = false">
         <form class="space-y-4 text-sm" @submit.prevent="endContract">
