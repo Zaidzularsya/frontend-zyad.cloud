@@ -97,6 +97,10 @@ describe('ProductTriggerDialog', () => {
   it('sends the chosen effective_from', async () => {
     await mountDialog()
     await setDate('2026-08-01')
+    const ack = document.body.querySelector<HTMLInputElement>('input[name="backdate_ack"]')!
+    ack.checked = true
+    ack.dispatchEvent(new Event('change'))
+    await flushPromises()
     find('Aktifkan')?.click()
     await flushPromises()
     expect(mikrotikApi.products.setTrigger).toHaveBeenCalledWith('p1', true, '2026-08-01')
@@ -116,5 +120,23 @@ describe('ProductTriggerDialog', () => {
     )
     await mountDialog()
     expect(document.body.querySelector('input[name="effective_from"]')).toBeNull()
+  })
+
+  it('a back-dated start needs an explicit acknowledgement before Aktifkan', async () => {
+    await mountDialog()
+    await setDate('2026-08-01')
+    expect(document.body.textContent).toContain('invoice overdue lama')
+    expect(find('Aktifkan')?.disabled).toBe(true)
+    const ack = document.body.querySelector<HTMLInputElement>('input[name="backdate_ack"]')!
+    ack.checked = true
+    ack.dispatchEvent(new Event('change'))
+    await flushPromises()
+    expect(find('Aktifkan')?.disabled).toBe(false)
+  })
+
+  it('today or later needs no acknowledgement', async () => {
+    await mountDialog()
+    expect(document.body.querySelector('input[name="backdate_ack"]')).toBeNull()
+    expect(find('Aktifkan')?.disabled).toBe(false)
   })
 })

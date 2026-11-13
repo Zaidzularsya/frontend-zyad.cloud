@@ -27,10 +27,26 @@ const error = ref('')
 // F10: optional start date. Defaults to the preview date (today, WIB); only a different date is
 // sent, so leaving it untouched behaves exactly like before.
 const effectiveFrom = ref('')
+// A start before today makes old overdue invoices trigger isolation at once, beyond the preview
+// numbers (computed for today), so it needs an explicit acknowledgement.
+const backdateAck = ref(false)
+const backdated = computed(
+  () =>
+    !alreadyEnabled.value &&
+    !!preview.value &&
+    !!effectiveFrom.value &&
+    effectiveFrom.value < preview.value.effective_from,
+)
 watch(
   () => props.open,
-  () => (error.value = ''),
+  () => {
+    error.value = ''
+    backdateAck.value = false
+  },
 )
+watch(backdated, (v) => {
+  if (!v) backdateAck.value = false
+})
 watch(
   () => preview.value?.effective_from,
   (v) => (effectiveFrom.value = v ?? ''),
@@ -45,7 +61,7 @@ function formatDate(ymd: string) {
 }
 
 async function submit() {
-  if (!props.product || !preview.value) return
+  if (!props.product || !preview.value || (backdated.value && !backdateAck.value)) return
   const enabled = !alreadyEnabled.value
   error.value = ''
   try {
@@ -102,6 +118,17 @@ async function submit() {
             besar dari angka di atas.
           </span>
         </label>
+        <label
+          v-if="backdated"
+          class="flex items-start gap-2 rounded-lg bg-amber-100 p-3 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        >
+          <input v-model="backdateAck" type="checkbox" name="backdate_ack" class="mt-1" />
+          <span
+            >Saya paham: invoice overdue lama dengan jatuh tempo sejak
+            {{ formatDate(effectiveFrom) }} ikut memicu isolir, termasuk yang tidak terhitung di
+            angka dampak di atas.</span
+          >
+        </label>
       </template>
       <template v-else>
         <p>Produk ini sudah memicu isolir sejak {{ formatDate(preview.effective_from) }}.</p>
@@ -119,7 +146,7 @@ async function submit() {
       </BaseButton>
       <BaseButton
         :variant="alreadyEnabled ? 'danger' : 'primary'"
-        :disabled="!preview || mutation.isPending.value"
+        :disabled="!preview || mutation.isPending.value || (backdated && !backdateAck)"
         @click="submit"
       >
         {{

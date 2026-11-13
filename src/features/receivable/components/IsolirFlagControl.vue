@@ -20,8 +20,14 @@ const toast = useToast()
 const mikrotikOn = useMikrotikEnabled()
 const open = computed(() => props.invoice.status === 'issued' || props.invoice.status === 'overdue')
 const canChange = computed(() => open.value && auth.can('invoice.isolir_flag'))
-const control = useControlQuery(computed(() => canChange.value && mikrotikOn.value))
-const needsConfirm = computed(() => control.data.value?.mode === 'active' || control.isError.value)
+const controlEnabled = computed(() => canChange.value && mikrotikOn.value)
+const control = useControlQuery(controlEnabled)
+// Unknown mode (still loading or failed) is treated like active: ask before flagging.
+const needsConfirm = computed(
+  () =>
+    controlEnabled.value &&
+    (control.isPending.value || control.isError.value || control.data.value?.mode === 'active'),
+)
 
 const mutation = useSetIsolirFlagMutation()
 const confirmOpen = ref(false)

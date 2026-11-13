@@ -96,4 +96,13 @@ describe('IsolirFlagControl', () => {
       expect(toggle(w).exists()).toBe(false)
     }
   })
+
+  it('asks for confirmation while the tenant mode is still loading', async () => {
+    controlGet.mockReturnValue(new Promise(() => {}))
+    const w = mountControl()
+    await flushPromises()
+    await toggle(w).setValue(true)
+    expect(setIsolirFlag).not.toHaveBeenCalled()
+    expect(w.text()).toContain('bisa langsung terisolir')
+  })
 })

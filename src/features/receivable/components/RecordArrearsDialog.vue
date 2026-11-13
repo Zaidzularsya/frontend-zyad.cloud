@@ -43,8 +43,14 @@ const periodsQuery = useArrearsPeriodsQuery(contractId, open)
 const periods = computed<ArrearsPeriod[]>(() => periodsQuery.data.value?.periods ?? [])
 const hasTrigger = computed(() => periodsQuery.data.value?.has_trigger_product ?? false)
 // The tenant mode decides whether flagging needs a confirmation (active = isolation can run now).
-const control = useControlQuery(computed(() => open.value && canFlag.value && mikrotikOn.value))
-const needsConfirm = computed(() => control.data.value?.mode === 'active' || control.isError.value)
+const controlEnabled = computed(() => open.value && canFlag.value && mikrotikOn.value)
+const control = useControlQuery(controlEnabled)
+// Unknown mode (still loading or failed) is treated like active: ask before flagging.
+const needsConfirm = computed(
+  () =>
+    controlEnabled.value &&
+    (control.isPending.value || control.isError.value || control.data.value?.mode === 'active'),
+)
 
 const recordMutation = useRecordArrearsMutation()
 const resendMutation = useResendArrearsMutation()

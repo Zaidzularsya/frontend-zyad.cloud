@@ -211,4 +211,13 @@ describe('RecordArrearsDialog', () => {
     expect(w.find('[role="alert"]').text()).toContain('5 Agu 2026')
     expect(w.find('[role="alert"]').text()).toContain('sudah punya invoice')
   })
+
+  it('asks for confirmation while the tenant mode is still loading', async () => {
+    controlGet.mockReturnValue(new Promise(() => {}))
+    const w = mountDialog()
+    await flushPromises()
+    await selectPeriod(w, '2026-08-05')
+    await w.find('input[name="flag-2026-08-05"]').setValue(true)
+    expect(w.text()).toContain('bisa langsung terisolir')
+  })
 })
