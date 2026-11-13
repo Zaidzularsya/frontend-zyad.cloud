@@ -35,6 +35,14 @@ async function mountDialog() {
 const find = (label: string) =>
   Array.from(document.body.querySelectorAll('button')).find((b) => b.textContent?.trim() === label)
 
+// The dialog is teleported to <body>, so its inputs are reached through the document.
+async function setDate(value: string) {
+  const input = document.body.querySelector<HTMLInputElement>('input[name="effective_from"]')!
+  input.value = value
+  input.dispatchEvent(new Event('input'))
+  await flushPromises()
+}
+
 describe('ProductTriggerDialog', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
@@ -77,5 +85,36 @@ describe('ProductTriggerDialog', () => {
     find('Nonaktifkan')?.click()
     await flushPromises()
     expect(mikrotikApi.products.setTrigger).toHaveBeenCalledWith('p1', false)
+  })
+
+  it('offers an optional effective_from date (default: the preview date) with its rule', async () => {
+    await mountDialog()
+    const input = document.body.querySelector<HTMLInputElement>('input[name="effective_from"]')
+    expect(input?.value).toBe('2026-11-02')
+    expect(document.body.textContent).toContain('jatuh tempo pada atau sesudah tanggal ini')
+  })
+
+  it('sends the chosen effective_from', async () => {
+    await mountDialog()
+    await setDate('2026-08-01')
+    find('Aktifkan')?.click()
+    await flushPromises()
+    expect(mikrotikApi.products.setTrigger).toHaveBeenCalledWith('p1', true, '2026-08-01')
+  })
+
+  it('sends no date when the field is cleared', async () => {
+    await mountDialog()
+    await setDate('')
+    find('Aktifkan')?.click()
+    await flushPromises()
+    expect(mikrotikApi.products.setTrigger).toHaveBeenCalledWith('p1', true)
+  })
+
+  it('has no date input when the trigger is already enabled', async () => {
+    vi.mocked(mikrotikApi.products.triggerPreview).mockResolvedValue(
+      preview({ already_enabled: true }),
+    )
+    await mountDialog()
+    expect(document.body.querySelector('input[name="effective_from"]')).toBeNull()
   })
 })

@@ -171,9 +171,12 @@ export const mikrotikApi = {
       http
         .get<Envelope<TriggerPreview>>(`${BASE}/products/${productId}/trigger/preview`)
         .then((r) => r.data.data),
-    setTrigger: (productId: string, enabled: boolean) =>
+    /** effectiveFrom (YYYY-MM-DD, optional) only applies when enabling; omitted = today (WIB). */
+    setTrigger: (productId: string, enabled: boolean, effectiveFrom?: string) =>
       http
-        .put<Envelope<ProductTrigger>>(`${BASE}/products/${productId}/trigger`, { enabled })
+        .put<
+          Envelope<ProductTrigger>
+        >(`${BASE}/products/${productId}/trigger`, effectiveFrom ? { enabled, effective_from: effectiveFrom } : { enabled })
         .then((r) => r.data.data),
   },
 

@@ -88,3 +88,20 @@ describe('mikrotikApi control', () => {
     })
   })
 })
+
+describe('mikrotikApi.products.setTrigger', () => {
+  it('sends only enabled without a date', async () => {
+    mocked.put.mockResolvedValue({ data: { data: {} } })
+    await mikrotikApi.products.setTrigger('p1', true)
+    expect(mocked.put).toHaveBeenCalledWith('/app/mikrotik/products/p1/trigger', { enabled: true })
+  })
+
+  it('adds effective_from when given', async () => {
+    mocked.put.mockResolvedValue({ data: { data: {} } })
+    await mikrotikApi.products.setTrigger('p1', true, '2026-08-01')
+    expect(mocked.put).toHaveBeenCalledWith('/app/mikrotik/products/p1/trigger', {
+      enabled: true,
+      effective_from: '2026-08-01',
+    })
+  })
+})

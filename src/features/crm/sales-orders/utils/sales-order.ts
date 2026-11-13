@@ -106,18 +106,24 @@ export const canRetryBilling = (s: SalesOrderStatus, b: BillingStatus) =>
 export const pendingDeliveryItems = (items: SalesOrderItem[]) =>
   items.filter((i) => i.delivery_status === 'pending')
 
-export function soDraftFormFrom(so: {
-  start_date: string | null
-  bill_to_name: string
-  bill_to_company: string
-  bill_to_email: string
-  bill_to_phone: string
-  bill_to_address: string
-  channels: SalesOrderDraftForm['channels']
-  pic_user_id: string
-}): SalesOrderDraftForm {
+// A draft without a start date is prefilled with today (WIB): the field is required for
+// confirmation, so the user should not first discover it on "Konfirmasi SO" (F11).
+export function soDraftFormFrom(
+  so: {
+    status?: SalesOrderStatus
+    start_date: string | null
+    bill_to_name: string
+    bill_to_company: string
+    bill_to_email: string
+    bill_to_phone: string
+    bill_to_address: string
+    channels: SalesOrderDraftForm['channels']
+    pic_user_id: string
+  },
+  now: Date = new Date(),
+): SalesOrderDraftForm {
   return {
-    start_date: so.start_date ?? '',
+    start_date: so.start_date ?? (so.status === 'draft' ? todayISO(now) : ''),
     bill_to_name: so.bill_to_name,
     bill_to_company: so.bill_to_company,
     bill_to_email: so.bill_to_email,

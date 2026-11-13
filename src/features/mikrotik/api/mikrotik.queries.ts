@@ -281,8 +281,10 @@ export function useTriggerPreviewQuery(productId: Ref<string | undefined>) {
 export function useSetTriggerMutation() {
   const invalidate = useInvalidateMikrotik()
   return useMutation({
-    mutationFn: (v: { productId: string; enabled: boolean }) =>
-      mikrotikApi.products.setTrigger(v.productId, v.enabled),
+    mutationFn: (v: { productId: string; enabled: boolean; effectiveFrom?: string }) =>
+      v.effectiveFrom
+        ? mikrotikApi.products.setTrigger(v.productId, v.enabled, v.effectiveFrom)
+        : mikrotikApi.products.setTrigger(v.productId, v.enabled),
     onSuccess: invalidate,
   })
 }
