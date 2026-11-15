@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast'
@@ -110,8 +109,6 @@ async function confirmActivate() {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Peluncuran Isolir" description="Simulasi, uji pilot, lalu aktifkan." />
-
     <p v-if="controlQuery.isPending.value" class="text-sm text-gray-600" role="status">Memuat...</p>
     <p v-else-if="controlQuery.isError.value || !control" class="text-sm text-red-700" role="alert">
       Gagal memuat status peluncuran.
@@ -210,7 +207,7 @@ async function confirmActivate() {
           }}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Kelola jeda, pemulihan, dan log aktivitas di halaman Kendali Isolir.
+          Kelola jeda, pemulihan, dan log aktivitas di tab Kendali.
         </p>
       </section>
       <ConfirmDialog

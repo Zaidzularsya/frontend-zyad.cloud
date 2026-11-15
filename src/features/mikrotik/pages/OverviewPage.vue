@@ -14,7 +14,8 @@ import {
 import OnboardingChecklist, {
   type OnboardingStepKey,
 } from '@/features/mikrotik/components/OnboardingChecklist.vue'
-import ControlPage from '@/features/mikrotik/pages/ControlPage.vue'
+import ControlPanel from '@/features/mikrotik/components/ControlPanel.vue'
+import PendingRestoreBanner from '@/features/mikrotik/components/PendingRestoreBanner.vue'
 import type { TaskListParams } from '@/features/mikrotik/types'
 import { controlPermissions } from '@/features/mikrotik/utils/control-permissions'
 import { taskErrorAction } from '@/features/mikrotik/utils/errors'
@@ -63,6 +64,10 @@ function onNavigate(step: OnboardingStepKey) {
   void router.push({ name: STEP_ROUTE[step], query })
 }
 
+function showFailedTasks() {
+  void router.push({ name: 'mikrotik-isolation', query: { tab: 'tasks', status: 'failed' } })
+}
+
 const STATUS_LABELS: [string, string][] = [
   ['pending', 'Menunggu'],
   ['running', 'Berjalan'],
@@ -103,7 +108,15 @@ const pendingAgeMinutes = computed(() => {
       @navigate="onNavigate"
     />
 
-    <ControlPage v-else-if="status && showControl" />
+    <!-- Header dan banner ini dulu dirender oleh ControlPage yang disematkan. -->
+    <template v-else-if="status && showControl">
+      <PageHeader
+        title="Kendali Isolir"
+        description="Jeda, aktifkan, dan pantau isolir otomatis."
+      />
+      <PendingRestoreBanner />
+      <ControlPanel @show-failed-tasks="showFailedTasks" />
+    </template>
 
     <template v-else-if="status">
       <section
@@ -117,7 +130,7 @@ const pendingAgeMinutes = computed(() => {
           </p>
         </div>
         <RouterLink
-          :to="{ name: 'mikrotik-launch' }"
+          :to="{ name: 'mikrotik-isolation' }"
           class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
           >Buka Peluncuran Isolir</RouterLink
         >
@@ -129,7 +142,9 @@ const pendingAgeMinutes = computed(() => {
         role="alert"
       >
         Ada pelanggan sudah bayar tapi belum dibuka (tertua {{ pendingAgeMinutes }} menit).
-        <RouterLink :to="{ name: 'mikrotik-tasks' }" class="underline">Lihat tugas</RouterLink>
+        <RouterLink :to="{ name: 'mikrotik-isolation', query: { tab: 'tasks' } }" class="underline"
+          >Lihat tugas</RouterLink
+        >
       </div>
 
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -143,7 +158,7 @@ const pendingAgeMinutes = computed(() => {
         <div class="flex items-center justify-between">
           <h2 class="font-semibold">Tugas gagal terbaru</h2>
           <RouterLink
-            :to="{ name: 'mikrotik-tasks' }"
+            :to="{ name: 'mikrotik-isolation', query: { tab: 'tasks' } }"
             class="text-sm text-brand-600 hover:underline"
           >
             Semua tugas

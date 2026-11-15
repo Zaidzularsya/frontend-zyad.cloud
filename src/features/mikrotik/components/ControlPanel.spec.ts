@@ -22,7 +22,7 @@ vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
 }))
 
-import ControlPage from '@/features/mikrotik/pages/ControlPage.vue'
+import ControlPanel from '@/features/mikrotik/components/ControlPanel.vue'
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
 import { controlState, previewItem, previewSummary } from '@/features/mikrotik/testing/fixtures'
 import { CONTROL_OWNER_ONLY_TOOLTIP } from '@/features/mikrotik/utils/control-permissions'
@@ -45,7 +45,7 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
     ;(s as { user: unknown }).user = { id: 'u', name: 'A', email: 'a@x.test', permissions }
   })
   api.control.get.mockResolvedValue(controlState(control))
-  const w = mount(ControlPage, {
+  const w = mount(ControlPanel, {
     attachTo: document.body,
     global: {
       plugins: [
@@ -78,7 +78,7 @@ const setValue = async (sel: string, value: string) => {
   await flushPromises()
 }
 
-describe('ControlPage', () => {
+describe('ControlPanel', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     Object.values(api.control).forEach((f) => f.mockReset())
@@ -112,14 +112,12 @@ describe('ControlPage', () => {
     } as never)
   })
 
-  it('links the failed-task count to the filtered task list', async () => {
+  it('the failed-task count asks the page to show the failed tasks', async () => {
     const w = await mountPage({ mode: 'active' })
     const link = w.get('[data-testid="link-failed"]')
     expect(link.text()).toBe('Lihat tugas gagal')
-    expect(JSON.parse(link.attributes('data-to') as string)).toEqual({
-      name: 'mikrotik-tasks',
-      query: { status: 'failed' },
-    })
+    await link.trigger('click')
+    expect(w.emitted('show-failed-tasks')).toHaveLength(1)
   })
 
   it('Pulihkan Semua nonaktif saat mode active, dengan alasan yang terbaca', async () => {
@@ -281,7 +279,7 @@ describe('ControlPage', () => {
     expect(api.control.setGraceDays).toHaveBeenCalledWith(7)
   })
 
-  it('menampilkan log aktivitas, kartu angka, dan banner merah', async () => {
+  it('menampilkan log aktivitas dan kartu angka; banner merah ada di halaman, bukan panel', async () => {
     api.tasks.summary.mockResolvedValue({
       counts: { failed: 2 },
       oldest_pending_restore_at: new Date(Date.now() - 5 * 60_000).toISOString(),
@@ -292,9 +290,7 @@ describe('ControlPage', () => {
     )
     expect(document.body.querySelector('[data-testid=count-isolated]')!.textContent).toContain('9')
     expect(document.body.querySelector('[data-testid=count-failed]')!.textContent).toContain('2')
-    expect(document.body.querySelector('[role=alert]')!.textContent).toContain(
-      'sudah bayar tapi belum dibuka',
-    )
+    expect(document.body.textContent).not.toContain('sudah bayar tapi belum dibuka')
   })
 
   it('member: semua kontrol nonaktif dengan tooltip persis dan tanpa mutasi', async () => {
@@ -319,8 +315,11 @@ describe('ControlPage', () => {
   })
 
   it('mode simulation/pilot mengarahkan ke wizard', async () => {
-    await mountPage({ mode: 'pilot' })
+    const w = await mountPage({ mode: 'pilot' })
     expect(document.body.textContent).toContain('Isolir otomatis belum diaktifkan')
     expect(document.body.querySelector('[role=switch]')).toBeNull()
+    expect(JSON.parse(w.get('a').attributes('data-to') as string)).toEqual({
+      name: 'mikrotik-isolation',
+    })
   })
 })

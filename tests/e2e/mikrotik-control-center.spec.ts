@@ -7,6 +7,7 @@ import { expect, test, type Page, type Route } from '@playwright/test'
  *  b. owner: dashboard PAUSE -> "Pulihkan Semua" enabled and POSTs; reactivation with exemptions
  *     sends the exact payload;
  *  c. member (read only): controls disabled with the owner-only tooltip, no mutation request sent.
+ * All three live on the merged Isolir page (/app/mikrotik/isolation); the old /control URL redirects.
  *
  * No real backend is contacted: every `/api/v1/**` call is stubbed, and any call that is not
  * stubbed is recorded and fails the test. Needs Chromium once: `npx playwright install chromium`.
@@ -242,13 +243,30 @@ async function stubControl(page: Page, initial: ControlServer['state']['mode']) 
 test.skip(({ isMobile }) => Boolean(isMobile), 'Desktop layout only')
 
 test.describe('Mikrotik control center', () => {
+  test('old /app/mikrotik/control link lands on Isolir, Kendali tab', async ({ page }) => {
+    const { unmocked } = await stubSession(page, OWNER_PERMISSIONS)
+    await stubControl(page, 'active')
+
+    await page.goto('/app/mikrotik/control')
+
+    await expect(page).toHaveURL(/\/app\/mikrotik\/isolation\?tab=control$/)
+    await expect(page.getByRole('heading', { name: 'Isolir', level: 1 })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Kendali' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(page.getByRole('switch', { name: 'Isolir otomatis' })).toBeVisible()
+    expect(unmocked).toEqual([])
+  })
+
   test('a. owner: wizard simulation -> pilot -> refused then accepted activation', async ({
     page,
   }) => {
     const { unmocked } = await stubSession(page, OWNER_PERMISSIONS)
     const server = await stubControl(page, 'simulation')
 
-    await page.goto('/app/mikrotik/launch')
+    await page.goto('/app/mikrotik/isolation')
+    await expect(page.getByRole('heading', { name: 'Isolir', level: 1 })).toBeVisible()
 
     // Simulation: big numbers and the explicit "nothing is disconnected" banner.
     await expect(page.getByText('Simulasi, tidak ada koneksi yang diputus')).toBeVisible()
@@ -308,7 +326,12 @@ test.describe('Mikrotik control center', () => {
       .getByRole('dialog', { name: 'Aktifkan Isolir Otomatis?' })
       .getByRole('button', { name: 'Aktifkan', exact: true })
       .click()
-    await expect(page.getByText('Isolir otomatis aktif.')).toBeVisible()
+    // Isolir switches from the launch wizard to the Kendali tab once the mode is active.
+    await expect(page.getByRole('tab', { name: 'Kendali' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(page.getByTestId('mode-label')).toHaveText('ON')
     expect(server.modeBodies).toEqual([{ mode: 'pilot' }, { mode: 'active' }, { mode: 'active' }])
     expect(unmocked).toEqual([])
   })
@@ -320,7 +343,7 @@ test.describe('Mikrotik control center', () => {
     const server = await stubControl(page, 'active')
     server.state.pilot_verified_at = '2026-11-02T00:00:00Z'
 
-    await page.goto('/app/mikrotik/control')
+    await page.goto('/app/mikrotik/isolation')
 
     const toggle = page.getByRole('switch', { name: 'Isolir otomatis' })
     const restore = page.getByRole('button', { name: 'Pulihkan Semua' })
@@ -382,7 +405,7 @@ test.describe('Mikrotik control center', () => {
         mutations.push(`${req.method()} ${new URL(req.url()).pathname}`)
     })
 
-    await page.goto('/app/mikrotik/control')
+    await page.goto('/app/mikrotik/isolation')
 
     const toggle = page.getByRole('switch', { name: 'Isolir otomatis' })
     const restore = page.getByRole('button', { name: 'Pulihkan Semua' })

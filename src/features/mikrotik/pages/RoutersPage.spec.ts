@@ -39,7 +39,7 @@ async function mountPage(permissions: Permission[], url = '/mikrotik/routers') {
     history: createMemoryHistory(),
     routes: [
       { path: '/mikrotik/routers', name: 'mikrotik-routers', component: { template: '<i/>' } },
-      { path: '/mikrotik/tasks', name: 'mikrotik-tasks', component: { template: '<i/>' } },
+      { path: '/mikrotik/isolation', name: 'mikrotik-isolation', component: { template: '<i/>' } },
     ],
   })
   await router.push(url)
@@ -126,7 +126,10 @@ describe('RoutersPage', () => {
     await flushPromises()
     const alert = w.get('[role="alert"]')
     expect(alert.text()).toContain('masih punya secret terisolir')
-    expect(alert.findComponent(RouterLink).props('to')).toEqual({ name: 'mikrotik-tasks' })
+    expect(alert.findComponent(RouterLink).props('to')).toEqual({
+      name: 'mikrotik-isolation',
+      query: { tab: 'tasks' },
+    })
 
     // dismiss
     await alert.get('button').trigger('click')

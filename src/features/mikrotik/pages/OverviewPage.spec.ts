@@ -35,8 +35,7 @@ async function mountPage(permissions: Permission[] = ['mikrotik_control.read']) 
     'mikrotik',
     'mikrotik-routers',
     'mikrotik-accounts',
-    'mikrotik-tasks',
-    'mikrotik-launch',
+    'mikrotik-isolation',
     'crm-products',
     'billing-receivable-settings',
   ]
@@ -139,7 +138,7 @@ describe('OverviewPage', () => {
       expect(w.text()).toContain('Tugas gagal terbaru')
       const cta = w
         .findAllComponents(RouterLink)
-        .find((l) => (l.props('to') as { name?: string }).name === 'mikrotik-launch')
+        .find((l) => (l.props('to') as { name?: string }).name === 'mikrotik-isolation')
       expect(cta).toBeDefined()
     })
 

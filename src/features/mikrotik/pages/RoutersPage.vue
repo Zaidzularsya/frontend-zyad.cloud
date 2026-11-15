@@ -163,7 +163,10 @@ async function confirmDelete() {
     >
       {{ deleteBlocked }}
       <button type="button" class="ml-2 underline" @click="deleteBlocked = ''">Tutup</button>
-      <RouterLink :to="{ name: 'mikrotik-tasks' }" class="font-medium underline">
+      <RouterLink
+        :to="{ name: 'mikrotik-isolation', query: { tab: 'tasks' } }"
+        class="font-medium underline"
+      >
         Lihat tugas isolir
       </RouterLink>
     </div>

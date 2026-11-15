@@ -16,7 +16,7 @@ vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
 }))
 
-import LaunchWizardPage from '@/features/mikrotik/pages/LaunchWizardPage.vue'
+import LaunchPanel from '@/features/mikrotik/components/LaunchPanel.vue'
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
 import { controlState, pilotAccount, previewSummary } from '@/features/mikrotik/testing/fixtures'
 import { CONTROL_OWNER_ONLY_TOOLTIP } from '@/features/mikrotik/utils/control-permissions'
@@ -49,7 +49,7 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
       { path: '/app/email-accounts', name: 'email-accounts', component: { template: '<i/>' } },
     ],
   })
-  const w = mount(LaunchWizardPage, {
+  const w = mount(LaunchPanel, {
     attachTo: document.body,
     global: {
       plugins: [
@@ -76,7 +76,7 @@ const confirm = async (label: string) => {
   await flushPromises()
 }
 
-describe('LaunchWizardPage', () => {
+describe('LaunchPanel', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     api.control.previewSummary.mockResolvedValue(previewSummary())
@@ -240,7 +240,7 @@ describe('LaunchWizardPage', () => {
     expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
   })
 
-  it('LaunchWizardPage menampilkan pesan kontak CS saat API menjawab MIKROTIK_TENANT_CONTACT_REQUIRED', async () => {
+  it('LaunchPanel menampilkan pesan kontak CS saat API menjawab MIKROTIK_TENANT_CONTACT_REQUIRED', async () => {
     api.control.setMode.mockRejectedValue({
       response: { data: { code: 'MIKROTIK_TENANT_CONTACT_REQUIRED', message: 'raw' } },
     })
