@@ -211,4 +211,67 @@ describe('SetupPlanModal', () => {
     expect(btn).toBeDefined()
     expect(btn?.disabled).toBe(true)
   })
+
+  describe('checklist status', () => {
+    const act = (kind: string, path: string, match: Record<string, string> = {}) => ({
+      kind,
+      path,
+      match,
+      attrs: {},
+    })
+    const mixed = () => ({
+      hash: 'hash-mix',
+      actions: [
+        act('exists', '/ip/pool', { name: 'zyad-pool' }),
+        act('exists', '/ppp/profile', { name: 'zyad-isolir' }),
+        act('create', '/ip/firewall/nat'),
+        act('update', '/ip/firewall/address-list', { list: 'zyad-allow' }),
+      ],
+    })
+    const allExists = () => ({
+      hash: 'hash-ok',
+      actions: [act('exists', '/ip/pool', { name: 'zyad-pool' }), act('exists', '/ppp/profile')],
+    })
+
+    it('rencana campuran: ringkasan dan label status per baris', async () => {
+      vi.mocked(mikrotikApi.setup.preview).mockResolvedValue(mixed())
+      mountModal()
+      await flushPromises()
+      const text = document.body.textContent ?? ''
+      expect(text).toContain('2 sudah sesuai, 2 perlu dieksekusi')
+      expect(text.match(/Sudah sesuai/g)).toHaveLength(2)
+      expect(text).toContain('Akan dibuat')
+      expect(text).toContain('Akan diubah')
+      expect(text).toContain('IP pool isolir')
+      expect(text).toContain('Aturan NAT redirect')
+      expect(document.body.querySelectorAll('details').length).toBeGreaterThanOrEqual(4)
+      expect(text).toContain('Detail skrip')
+      expect(findButton('Terapkan')).toBeDefined()
+    })
+
+    it('semua exists dan router siap: tanpa tombol Terapkan', async () => {
+      vi.mocked(mikrotikApi.setup.preview).mockResolvedValue(allExists())
+      mountModal(routerFixture({ isolir_ready: true }))
+      await flushPromises()
+      expect(document.body.textContent).toContain('Router sudah siap, tidak ada perubahan.')
+      expect(findButton('Terapkan')).toBeUndefined()
+      expect(findButton('Tandai siap')).toBeUndefined()
+    })
+
+    it('semua exists tapi belum siap: Tandai siap memanggil apply dengan plan_hash', async () => {
+      vi.mocked(mikrotikApi.setup.preview).mockResolvedValue(allExists())
+      mountModal(routerFixture({ isolir_ready: false }))
+      await flushPromises()
+      expect(document.body.textContent).toContain(
+        'Semua objek sudah ada di router; ini hanya menandai router siap isolir.',
+      )
+      expect(findButton('Terapkan')).toBeUndefined()
+      findButton('Tandai siap')?.click()
+      await flushPromises()
+      expect(mikrotikApi.setup.apply).toHaveBeenCalledWith('r1', {
+        pool_cidr: '10.255.254.0/24',
+        plan_hash: 'hash-ok',
+      })
+    })
+  })
 })

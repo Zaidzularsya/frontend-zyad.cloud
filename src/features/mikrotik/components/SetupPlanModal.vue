@@ -11,6 +11,7 @@ import {
 import type { Router, SetupAction, SetupPayload, SetupPlan } from '@/features/mikrotik/types'
 import { DEFAULT_POOL_CIDR, poolCidrError } from '@/features/mikrotik/utils/cidr'
 import { apiErrorCode, routerActionError } from '@/features/mikrotik/utils/errors'
+import { setupActionTitle } from '@/features/mikrotik/utils/setup-action-label'
 
 const props = defineProps<{ open: boolean; router: Router }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'applied', router: Router): void }>()
@@ -79,12 +80,14 @@ watch(
   { immediate: true },
 )
 
-const KIND_SUMMARY: Record<string, string> = {
-  create: 'Objek ini akan dibuat di router.',
-  update: 'Objek ini sudah ada dan akan diperbarui.',
-  exists: 'Objek ini sudah sesuai; tidak ada perubahan.',
+// Kind tak dikenal diperlakukan sebagai "perlu dieksekusi" (aman: tidak menyembunyikan Terapkan).
+const KIND_STATUS: Record<string, string> = {
+  exists: 'Sudah sesuai',
+  create: 'Akan dibuat',
+  update: 'Akan diubah',
 }
-const kindSummary = (kind: string) => KIND_SUMMARY[kind] ?? 'Langkah setup di router.'
+const statusLabel = (kind: string) => KIND_STATUS[kind] ?? 'Perlu dieksekusi'
+const isOk = (a: SetupAction) => a.kind === 'exists'
 
 const pairs = (o: Record<string, string>) =>
   Object.entries(o)
@@ -97,6 +100,14 @@ const line = (a: SetupAction) =>
 const stale = computed(
   () => JSON.stringify(buildPayload()) !== JSON.stringify(previewedPayload.value),
 )
+
+const okCount = computed(() => plan.value?.actions.filter(isOk).length ?? 0)
+const pendingCount = computed(() => (plan.value?.actions.length ?? 0) - okCount.value)
+const allExist = computed(
+  () => !!plan.value && plan.value.actions.length > 0 && pendingCount.value === 0,
+)
+const alreadyReady = computed(() => allExist.value && props.router.isolir_ready)
+const markReadyOnly = computed(() => allExist.value && !props.router.isolir_ready)
 
 const busy = computed(() => previewMutation.isPending.value || applyMutation.isPending.value)
 
@@ -150,6 +161,10 @@ async function apply() {
         Membaca state router...
       </p>
 
+      <p v-if="plan?.actions.length" class="text-sm font-medium" data-testid="plan-summary">
+        {{ okCount }} sudah sesuai, {{ pendingCount }} perlu dieksekusi
+      </p>
+
       <ul v-if="plan" class="max-h-96 space-y-2 overflow-auto" data-testid="plan-actions">
         <li
           v-for="(action, i) in plan.actions"
@@ -157,15 +172,54 @@ async function apply() {
           class="rounded-lg border p-2 text-sm"
           :class="action.optional ? 'border-dashed' : ''"
         >
-          <p class="font-mono text-xs break-all">{{ line(action) }}</p>
-          <p class="mt-1 text-gray-600 dark:text-gray-300">
-            {{ kindSummary(action.kind) }}
-            <span v-if="action.optional" class="text-gray-500">(opsional)</span>
+          <div class="flex items-center gap-2">
+            <span class="font-medium">{{ setupActionTitle(action) }}</span>
+            <span
+              class="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+              :class="
+                isOk(action)
+                  ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200'
+                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+              "
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  v-if="isOk(action)"
+                  d="M3 8.5l3.5 3.5L13 4.5"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  v-else
+                  d="M8 3v6m0 3.5v.01"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              {{ statusLabel(action.kind) }}
+            </span>
+          </div>
+          <p v-if="action.optional || action.note" class="mt-1 text-gray-600 dark:text-gray-300">
+            <span v-if="action.optional" class="text-gray-500">opsional</span>
             <span v-if="action.note" class="text-gray-500"> {{ action.note }}</span>
           </p>
+          <details class="mt-1">
+            <summary class="cursor-pointer text-xs text-gray-500">Detail skrip</summary>
+            <p class="mt-1 font-mono text-xs break-all">{{ line(action) }}</p>
+          </details>
         </li>
         <li v-if="!plan.actions.length" class="text-sm text-gray-500">Tidak ada langkah.</li>
       </ul>
+
+      <p v-if="alreadyReady" class="text-sm text-green-700 dark:text-green-300" role="status">
+        Router sudah siap, tidak ada perubahan.
+      </p>
+      <p v-if="markReadyOnly" class="text-sm text-gray-600 dark:text-gray-300">
+        Semua objek sudah ada di router; ini hanya menandai router siap isolir.
+      </p>
 
       <p
         v-if="notice"
@@ -186,8 +240,18 @@ async function apply() {
 
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <BaseButton variant="outline" @click="$emit('close')">Tutup</BaseButton>
-        <BaseButton :disabled="!plan || busy || stale || !!poolError" @click="apply">
-          {{ applyMutation.isPending.value ? 'Menerapkan… (bisa sampai 1 menit)' : 'Terapkan' }}
+        <BaseButton
+          v-if="!alreadyReady"
+          :disabled="!plan || busy || stale || !!poolError"
+          @click="apply"
+        >
+          {{
+            applyMutation.isPending.value
+              ? 'Menerapkan… (bisa sampai 1 menit)'
+              : markReadyOnly
+                ? 'Tandai siap'
+                : 'Terapkan'
+          }}
         </BaseButton>
       </div>
     </div>
