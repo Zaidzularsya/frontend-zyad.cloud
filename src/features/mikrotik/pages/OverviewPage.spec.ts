@@ -105,6 +105,9 @@ describe('OverviewPage', () => {
     vi.mocked(mikrotikApi.routers.stats)
       .mockReset()
       .mockReturnValue(new Promise(() => {}))
+    vi.mocked(mikrotikApi.tasks.summary)
+      .mockReset()
+      .mockResolvedValue({ counts: {}, oldest_pending_restore_at: null })
     vi.mocked(mikrotikApi.tasks.list)
       .mockReset()
       .mockResolvedValue({
@@ -175,6 +178,26 @@ describe('OverviewPage', () => {
       .findAllComponents(RouterLink)
       .find((l) => (l.props('to') as { name?: string }).name === 'mikrotik-isolation')
     expect(link?.props('to')).toEqual({ name: 'mikrotik-isolation' })
+  })
+
+  it('shows the pending-restore banner with mikrotik_task.read', async () => {
+    vi.mocked(mikrotikApi.tasks.summary).mockResolvedValue({
+      counts: { pending: 3 },
+      oldest_pending_restore_at: new Date(Date.now() - 12 * 60000).toISOString(),
+    })
+    const { w } = await mountPage(['mikrotik_task.read'])
+    expect(w.text()).toMatch(/sudah bayar tapi belum dibuka/)
+    expect(w.text()).toMatch(/tertua 1[12] menit/)
+  })
+
+  it('skips the pending-restore banner and its query without mikrotik_task.read', async () => {
+    vi.mocked(mikrotikApi.tasks.summary).mockResolvedValue({
+      counts: { pending: 3 },
+      oldest_pending_restore_at: new Date().toISOString(),
+    })
+    const { w } = await mountPage(['mikrotik_control.read'])
+    expect(w.text()).not.toMatch(/sudah bayar tapi belum dibuka/)
+    expect(mikrotikApi.tasks.summary).not.toHaveBeenCalled()
   })
 
   it('never calls the control endpoint without mikrotik_control.read', async () => {

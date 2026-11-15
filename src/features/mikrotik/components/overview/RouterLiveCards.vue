@@ -36,7 +36,7 @@ const memory = computed(() => {
   return {
     used: formatBytes(used),
     total: formatBytes(total),
-    pct: Math.round((used / total) * 100),
+    pct: Math.min(100, Math.max(0, Math.round((used / total) * 100))),
   }
 })
 const model = computed(() =>

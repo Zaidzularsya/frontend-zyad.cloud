@@ -12,6 +12,7 @@ import {
 import OnboardingChecklist, {
   type OnboardingStepKey,
 } from '@/features/mikrotik/components/OnboardingChecklist.vue'
+import PendingRestoreBanner from '@/features/mikrotik/components/PendingRestoreBanner.vue'
 import IsolationStatusCard from '@/features/mikrotik/components/overview/IsolationStatusCard.vue'
 import RouterLiveCards from '@/features/mikrotik/components/overview/RouterLiveCards.vue'
 import RouterPicker from '@/features/mikrotik/components/overview/RouterPicker.vue'
@@ -48,6 +49,9 @@ function selectRouter(id: string) {
 
 const summaryQuery = useRouterSummaryQuery(selectedId)
 const summary = computed(() => summaryQuery.data.value)
+
+// Banner membaca ringkasan tugas tenant-wide; tanpa izin tugas komponennya tidak dipasang (tanpa 403).
+const canReadTasks = computed(() => auth.can('mikrotik_task.read'))
 
 // Mode isolir dibaca hanya setelah onboarding lengkap dan hanya oleh yang berhak.
 const showIsolationStatus = computed(
@@ -96,6 +100,8 @@ function onNavigate(step: OnboardingStepKey) {
       :status="status"
       @navigate="onNavigate"
     />
+
+    <PendingRestoreBanner v-if="canReadTasks" />
 
     <p v-if="routersQuery.isLoading.value" class="text-sm text-gray-500">Memuat router...</p>
     <p v-else-if="routersQuery.isError.value" class="text-sm text-red-600" role="alert">

@@ -102,6 +102,18 @@ describe('RouterStoredCards', () => {
     expect(linkTo(w, 'mikrotik-routers')).toBeUndefined()
   })
 
+  it('never checks allowlist health without mikrotik_router.setup', async () => {
+    vi.mocked(mikrotikApi.setup.allowlistHealth).mockClear()
+    await mountCards(['mikrotik_router.read'], routerFixture({ isolir_ready: true }))
+    expect(mikrotikApi.setup.allowlistHealth).not.toHaveBeenCalled()
+  })
+
+  it('checks allowlist health for a ready router with mikrotik_router.setup', async () => {
+    vi.mocked(mikrotikApi.setup.allowlistHealth).mockClear()
+    await mountCards(['mikrotik_router.setup'], routerFixture({ isolir_ready: true }))
+    expect(mikrotikApi.setup.allowlistHealth).toHaveBeenCalledWith('r1')
+  })
+
   it('shows secret counts from the summary', async () => {
     const w = await mountCards([])
     const card = w.get('[data-card="secrets"]')
