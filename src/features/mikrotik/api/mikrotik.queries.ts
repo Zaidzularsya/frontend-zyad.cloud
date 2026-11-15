@@ -320,8 +320,9 @@ export function useSetTriggerMutation() {
   })
 }
 
-export function useTasksQuery(params: Ref<TaskListParams>) {
+export function useTasksQuery(params: Ref<TaskListParams>, enabled: Ref<boolean> = ref(true)) {
   return useQuery({
+    enabled,
     queryKey: computed(() => mikrotikKeys.tasks(params.value)),
     queryFn: () => mikrotikApi.tasks.list(params.value),
     placeholderData: keepPreviousData,
