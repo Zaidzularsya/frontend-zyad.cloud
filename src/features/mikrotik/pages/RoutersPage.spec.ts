@@ -12,7 +12,14 @@ import type { Permission } from '@/types/auth'
 
 vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: {
-    routers: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), check: vi.fn() },
+    routers: {
+      list: vi.fn(),
+      get: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      check: vi.fn(),
+    },
     setup: { preview: vi.fn(), apply: vi.fn(), cleanup: vi.fn(), allowlistHealth: vi.fn() },
     secrets: { list: vi.fn() },
   },
@@ -62,6 +69,24 @@ async function mountPage(permissions: Permission[], url = '/mikrotik/routers') {
 
 const buttons = () => Array.from(document.body.querySelectorAll('button'))
 const find = (label: string) => buttons().find((b) => b.textContent?.trim() === label)
+// Aksi Ubah/Bersihkan/Hapus ada di menu "⋯"; buka menu baris pertama lalu klik itemnya.
+async function menuAction(label: string, routerName = 'Core-1') {
+  const trigger = document.body.querySelector<HTMLButtonElement>(
+    `button[aria-label="Aksi lain untuk ${routerName}"]`,
+  )
+  trigger?.click()
+  await flushPromises()
+  const item = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+    (e) => e.querySelector('span')?.textContent?.trim() === label,
+  )
+  item?.click()
+  await flushPromises()
+  return item
+}
+const menuLabels = () =>
+  Array.from(document.body.querySelectorAll('[role="menuitem"]')).map((e) =>
+    e.querySelector('span')?.textContent?.trim(),
+  )
 
 describe('RoutersPage', () => {
   beforeEach(() => {
@@ -82,9 +107,16 @@ describe('RoutersPage', () => {
 
   it('shows all actions with every permission and the secret count', async () => {
     await mountPage(ALL)
-    for (const l of ['Tambah Router', 'Ubah', 'Hapus', 'Setup isolir', 'Bersihkan']) {
+    for (const l of ['Tambah Router', 'Setup isolir', 'Cek koneksi']) {
       expect(find(l), l).toBeDefined()
     }
+    for (const l of ['Ubah', 'Hapus', 'Bersihkan']) expect(find(l), l).toBeUndefined()
+    document.body
+      .querySelector<HTMLButtonElement>('button[aria-label="Aksi lain untuk Core-1"]')
+      ?.click()
+    await flushPromises()
+    expect(menuLabels()).toEqual(['Ubah', 'Bersihkan', 'Hapus'])
+    expect(document.body.textContent).toContain('Ganti nama, host, port, atau kredensial router.')
     expect(document.body.textContent).toContain('7')
   })
 
@@ -96,13 +128,61 @@ describe('RoutersPage', () => {
     ['mikrotik_router.setup', 'Bersihkan'],
   ])('hides %s action %s without the permission', async (perm, label) => {
     await mountPage(ALL.filter((p) => p !== perm))
+    document.body
+      .querySelector<HTMLButtonElement>('button[aria-label="Aksi lain untuk Core-1"]')
+      ?.click()
+    await flushPromises()
     expect(find(label)).toBeUndefined()
+    expect(menuLabels()).not.toContain(label)
+  })
+
+  it('renders no row menu when no menu action is permitted', async () => {
+    await mountPage(['mikrotik_router.read', 'mikrotik_router.create'] as Permission[])
+    expect(document.body.querySelector('button[aria-haspopup="menu"]')).toBeNull()
+  })
+
+  it('labels the setup button "Periksa setup" for a ready router', async () => {
+    vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+      data: [routerFixture({ id: 'r1', name: 'Core-1', isolir_ready: true })],
+      meta: { total: 1 },
+    } as never)
+    await mountPage(ALL)
+    expect(find('Periksa setup')).toBeDefined()
+    expect(find('Setup isolir')).toBeUndefined()
+  })
+
+  it('paginates: shows DataPagination and requests page 2', async () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      routerFixture({ id: `p${i}`, name: `R-${i}` }),
+    )
+    vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+      data: many,
+      meta: { total: 25 },
+    } as never)
+    await mountPage(ALL)
+    expect(mikrotikApi.routers.list).toHaveBeenLastCalledWith({ page: 1, per_page: 20 })
+    expect(document.body.textContent).toContain('router')
+    document.body.querySelector<HTMLButtonElement>('button[aria-label*="berikutnya" i]')?.click()
+    await flushPromises()
+    expect(mikrotikApi.routers.list).toHaveBeenLastCalledWith({ page: 2, per_page: 20 })
+  })
+
+  it('fetches a router outside the current page via ?router_id and opens setup', async () => {
+    vi.mocked(mikrotikApi.routers.list).mockResolvedValue({
+      data: [R1, R2],
+      meta: { total: 30 },
+    } as never)
+    vi.mocked(mikrotikApi.routers.get)
+      .mockReset()
+      .mockResolvedValue(routerFixture({ id: 'x', name: 'Far-X' }))
+    await mountPage(ALL, '/mikrotik/routers?setup=1&router_id=x')
+    expect(mikrotikApi.routers.get).toHaveBeenCalledWith('x')
+    expect(document.body.textContent).toContain('Setup isolir: Far-X')
   })
 
   it('requires confirmation before cleanup', async () => {
     await mountPage(ALL)
-    find('Bersihkan')?.click()
-    await flushPromises()
+    await menuAction('Bersihkan')
     expect(mikrotikApi.setup.cleanup).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Hanya objek yang dikelola zyad')
     const confirm = buttons().filter((b) => b.textContent?.trim() === 'Bersihkan')
@@ -116,8 +196,7 @@ describe('RoutersPage', () => {
       response: { data: { code: 'MIKROTIK_ROUTER_HAS_ISOLATED_SECRETS', message: 'x' } },
     })
     const w = await mountPage(ALL)
-    find('Hapus')?.click()
-    await flushPromises()
+    await menuAction('Hapus')
     const confirmDelete = () =>
       buttons()
         .filter((b) => b.textContent?.trim() === 'Hapus')
@@ -139,13 +218,11 @@ describe('RoutersPage', () => {
     vi.mocked(mikrotikApi.routers.remove).mockRejectedValueOnce({
       response: { data: { code: 'MIKROTIK_ROUTER_HAS_ISOLATED_SECRETS', message: 'x' } },
     })
-    find('Hapus')?.click()
-    await flushPromises()
+    await menuAction('Hapus')
     confirmDelete()?.click()
     await flushPromises()
     expect(w.find('[role="alert"]').exists()).toBe(true)
-    find('Hapus')?.click()
-    await flushPromises()
+    await menuAction('Hapus')
     expect(w.find('[role="alert"]').exists()).toBe(false)
     confirmDelete()?.click()
     await flushPromises()

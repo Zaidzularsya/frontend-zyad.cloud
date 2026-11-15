@@ -7,14 +7,17 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import DataPagination from '@/components/ui/DataPagination.vue'
 import { useToast } from '@/components/ui/toast'
 import {
   useCheckRouterMutation,
   useDeleteRouterMutation,
+  useRouterQuery,
   useRoutersQuery,
   useSetupCleanupMutation,
 } from '@/features/mikrotik/api/mikrotik.queries'
 import AllowlistHealthWarning from '@/features/mikrotik/components/AllowlistHealthWarning.vue'
+import RowActionMenu, { type RowActionItem } from '@/features/mikrotik/components/RowActionMenu.vue'
 import RouterSecretCount from '@/features/mikrotik/components/RouterSecretCount.vue'
 import RouterFormModal from '@/features/mikrotik/components/RouterFormModal.vue'
 import SetupPlanModal from '@/features/mikrotik/components/SetupPlanModal.vue'
@@ -31,8 +34,44 @@ const canUpdate = computed(() => auth.can('mikrotik_router.update'))
 const canDelete = computed(() => auth.can('mikrotik_router.delete'))
 const canSetup = computed(() => auth.can('mikrotik_router.setup'))
 
-const listQuery = useRoutersQuery()
+const page = ref(1)
+const perPage = ref(20)
+watch(perPage, () => (page.value = 1))
+const params = computed(() => ({ page: page.value, per_page: perPage.value }))
+const listQuery = useRoutersQuery(params)
 const routers = computed(() => listQuery.data.value?.data ?? [])
+const total = computed(() => listQuery.data.value?.meta?.total ?? 0)
+
+const ACTION_DESCRIPTIONS = {
+  edit: 'Ganti nama, host, port, atau kredensial router.',
+  cleanup:
+    'Hapus profile, pool, address-list, dan aturan firewall isolir buatan Zyad dari router. Ditolak bila masih ada secret yang memakai profile isolir.',
+  delete:
+    'Hapus router dari Zyad. Konfigurasi di router tidak diubah. Ditolak bila masih ada secret terisolir.',
+}
+
+function menuItems(): RowActionItem[] {
+  const items: RowActionItem[] = []
+  if (canUpdate.value)
+    items.push({ key: 'edit', label: 'Ubah', description: ACTION_DESCRIPTIONS.edit })
+  if (canSetup.value)
+    items.push({ key: 'cleanup', label: 'Bersihkan', description: ACTION_DESCRIPTIONS.cleanup })
+  if (canDelete.value)
+    items.push({
+      key: 'delete',
+      label: 'Hapus',
+      description: ACTION_DESCRIPTIONS.delete,
+      destructive: true,
+    })
+  return items
+}
+const rowMenuItems = computed(menuItems)
+
+function onRowAction(r: Router, key: string) {
+  if (key === 'edit') openEdit(r)
+  else if (key === 'cleanup') cleanupTarget.value = r
+  else if (key === 'delete') openDelete(r)
+}
 
 const checkMutation = useCheckRouterMutation()
 const deleteMutation = useDeleteRouterMutation()
@@ -91,19 +130,47 @@ function onApplied() {
 }
 
 // Dari checklist (?setup=1[&router_id=]): buka dialog setup sekali saja setelah router dan izin siap.
+// Router yang tidak ada di halaman aktif diambil lewat GET /routers/:id.
 const setupHint = ref(false)
 let setupHandled = false
+const wantedId = computed(() =>
+  typeof route.query.router_id === 'string' ? route.query.router_id : '',
+)
+const fetchWanted = ref(false)
+const wantedQuery = useRouterQuery(wantedId, fetchWanted)
 watch(
-  [routers, canSetup, () => route.query.setup, () => route.query.router_id],
+  [
+    routers,
+    canSetup,
+    () => route.query.setup,
+    wantedId,
+    () => wantedQuery.data.value,
+    () => wantedQuery.isError.value,
+  ],
   () => {
     if (setupHandled || !route.query.setup || !canSetup.value || listQuery.isLoading.value) return
     if (!listQuery.data.value) return
+    const match = wantedId.value ? routers.value.find((r) => r.id === wantedId.value) : undefined
+    if (match) {
+      setupHandled = true
+      setupTarget.value = match
+      return
+    }
+    if (wantedId.value) {
+      if (wantedQuery.data.value) {
+        setupHandled = true
+        setupTarget.value = wantedQuery.data.value
+      } else if (wantedQuery.isError.value) {
+        setupHandled = true
+        setupHint.value = true
+      } else {
+        fetchWanted.value = true
+      }
+      return
+    }
     setupHandled = true
-    const wanted = route.query.router_id
-    const match = routers.value.find((r) => r.id === wanted)
-    const target = match ?? (routers.value.length === 1 ? routers.value[0] : undefined)
-    if (target) setupTarget.value = target
-    else setupHint.value = routers.value.length > 1
+    if (routers.value.length === 1 && total.value <= 1) setupTarget.value = routers.value[0]!
+    else setupHint.value = true
   },
   { immediate: true },
 )
@@ -218,7 +285,7 @@ async function confirmDelete() {
                   :disabled="checkingId === r.id"
                   @click="check(r)"
                 >
-                  {{ checkingId === r.id ? 'Mengecek...' : 'Cek' }}
+                  {{ checkingId === r.id ? 'Mengecek...' : 'Cek koneksi' }}
                 </BaseButton>
               </td>
               <td class="py-2 pr-4">{{ r.routeros_version || '-' }}</td>
@@ -242,41 +309,31 @@ async function confirmDelete() {
               <td class="py-2 text-right whitespace-nowrap">
                 <BaseButton
                   v-if="canSetup"
-                  variant="secondary"
+                  :variant="r.isolir_ready ? 'outline' : 'secondary'"
                   class="!px-2 !py-1 !text-xs"
                   @click="setupTarget = r"
                 >
-                  Setup isolir
+                  {{ r.isolir_ready ? 'Periksa setup' : 'Setup isolir' }}
                 </BaseButton>
-                <BaseButton
-                  v-if="canSetup"
-                  variant="outline"
-                  class="ml-1 !px-2 !py-1 !text-xs"
-                  @click="cleanupTarget = r"
-                >
-                  Bersihkan
-                </BaseButton>
-                <BaseButton
-                  v-if="canUpdate"
-                  variant="outline"
-                  class="ml-1 !px-2 !py-1 !text-xs"
-                  @click="openEdit(r)"
-                >
-                  Ubah
-                </BaseButton>
-                <BaseButton
-                  v-if="canDelete"
-                  variant="danger"
-                  class="ml-1 !px-2 !py-1 !text-xs"
-                  @click="openDelete(r)"
-                >
-                  Hapus
-                </BaseButton>
+                <RowActionMenu
+                  v-if="rowMenuItems.length"
+                  class="ml-1 align-middle"
+                  :items="rowMenuItems"
+                  :label="`Aksi lain untuk ${r.name}`"
+                  @select="(key) => onRowAction(r, key)"
+                />
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+      <DataPagination
+        v-if="!listQuery.isLoading.value && !listQuery.isError.value && routers.length"
+        v-model:page="page"
+        v-model:per-page="perPage"
+        :total="total"
+        item-label="router"
+      />
     </BaseCard>
 
     <RouterFormModal
