@@ -28,6 +28,8 @@ import type {
   ProductTrigger,
   RestoreAllResult,
   Router,
+  RouterStats,
+  RouterSummary,
   SecretDetail,
   SecretListParams,
   SecretSummary,
@@ -59,6 +61,10 @@ export const mikrotikApi = {
     },
     get: (id: string) =>
       http.get<Envelope<Router>>(`${BASE}/routers/${id}`).then((r) => r.data.data),
+    summary: (id: string) =>
+      http.get<Envelope<RouterSummary>>(`${BASE}/routers/${id}/summary`).then((r) => r.data.data),
+    stats: (id: string) =>
+      http.get<Envelope<RouterStats>>(`${BASE}/routers/${id}/stats`).then((r) => r.data.data),
     create: (payload: CreateRouterPayload) =>
       http.post<Envelope<Router>>(`${BASE}/routers`, payload).then((r) => r.data.data),
     update: (id: string, payload: UpdateRouterPayload) =>

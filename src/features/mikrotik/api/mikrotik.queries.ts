@@ -20,6 +20,9 @@ import type {
 export const mikrotikKeys = {
   all: ['mikrotik'] as const,
   routers: (params: object = {}) => [...mikrotikKeys.all, 'routers', params] as const,
+  router: (id: string) => [...mikrotikKeys.all, 'router', id] as const,
+  routerSummary: (id: string) => [...mikrotikKeys.all, 'router-summary', id] as const,
+  routerStats: (id: string) => [...mikrotikKeys.all, 'router-stats', id] as const,
   secrets: (params: object) => [...mikrotikKeys.all, 'secrets', params] as const,
   secretSummary: (params: object) => [...mikrotikKeys.all, 'secret-summary', params] as const,
   secretDetail: (id: string) => [...mikrotikKeys.all, 'secret-detail', id] as const,
@@ -57,6 +60,34 @@ export function useRoutersQuery(
     queryKey: computed(() => mikrotikKeys.routers(params.value)),
     queryFn: () => mikrotikApi.routers.list(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useRouterQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.router(id.value)),
+    queryFn: () => mikrotikApi.routers.get(id.value),
+  })
+}
+
+export function useRouterSummaryQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.routerSummary(id.value)),
+    queryFn: () => mikrotikApi.routers.summary(id.value),
+  })
+}
+
+// Stats memanggil RouterOS langsung: jangan diulang otomatis saat gagal atau fokus ulang.
+export function useRouterStatsQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.routerStats(id.value)),
+    queryFn: () => mikrotikApi.routers.stats(id.value),
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
   })
 }
 

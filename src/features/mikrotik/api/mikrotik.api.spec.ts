@@ -105,3 +105,23 @@ describe('mikrotikApi.products.setTrigger', () => {
     })
   })
 })
+
+describe('mikrotikApi.routers summary/stats', () => {
+  it('summary memanggil GET /routers/:id/summary dan membuka envelope', async () => {
+    mocked.get.mockResolvedValue({ data: { data: { secrets: { total: 3 }, tasks: {} } } })
+    await expect(mikrotikApi.routers.summary('r1')).resolves.toEqual({
+      secrets: { total: 3 },
+      tasks: {},
+    })
+    expect(mocked.get).toHaveBeenCalledWith('/app/mikrotik/routers/r1/summary')
+  })
+
+  it('stats memanggil GET /routers/:id/stats dan membuka envelope', async () => {
+    mocked.get.mockResolvedValue({ data: { data: { identity: 'rb', cpu_load: null } } })
+    await expect(mikrotikApi.routers.stats('r1')).resolves.toEqual({
+      identity: 'rb',
+      cpu_load: null,
+    })
+    expect(mocked.get).toHaveBeenCalledWith('/app/mikrotik/routers/r1/stats')
+  })
+})

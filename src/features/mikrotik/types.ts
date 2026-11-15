@@ -445,3 +445,28 @@ export interface SecretDetail {
   contract: { id: string; number: string } | null
   can_onboard: boolean
 }
+
+export interface RouterSummary {
+  secrets: {
+    total: number
+    paired: number
+    unpaired: number
+    missing: number
+    need_original_profile: number
+    isolated: number
+  }
+  tasks: Record<TaskStatus, number>
+}
+
+export interface RouterStats {
+  identity: string
+  board_name: string
+  version: string
+  architecture: string
+  uptime: string
+  cpu_load: number | null
+  memory_total: number | null
+  memory_free: number | null
+  ppp_active: number | null
+  fetched_at: string
+}
