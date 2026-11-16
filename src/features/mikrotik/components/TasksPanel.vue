@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
-import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import DataPagination from '@/components/ui/DataPagination.vue'
 import { useToast } from '@/components/ui/toast'
@@ -17,6 +16,8 @@ import type { IsolationTask, TaskListParams, TaskStatus } from '@/features/mikro
 import { routerActionError } from '@/features/mikrotik/utils/errors'
 import { useAuthStore } from '@/stores/auth.store'
 
+const props = defineProps<{ initialStatus?: TaskStatus; initialRouterId?: string }>()
+
 const auth = useAuthStore()
 const toast = useToast()
 const canRetry = computed(() => auth.can('mikrotik_task.retry'))
@@ -29,14 +30,29 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
   { value: 'cancelled', label: 'Dibatalkan' },
 ]
 
-// Tautan dari Ringkasan membawa ?status=failed; nilai di luar daftar diabaikan.
-// useRoute() bisa undefined bila halaman dipasang tanpa router (unit test).
-const queryStatus = useRoute()?.query.status
-const status = ref<TaskStatus | ''>(STATUSES.find((s) => s.value === queryStatus)?.value ?? '')
-const routerId = ref('')
+// Halaman meneruskan ?status=&router_id= sebagai nilai awal; status di luar daftar diabaikan.
+const status = ref<TaskStatus | ''>(
+  STATUSES.find((s) => s.value === props.initialStatus)?.value ?? '',
+)
+// Tanpa mikrotik_router.read pilihan router disembunyikan, jadi filter router dari URL diabaikan.
+const routerId = ref(auth.can('mikrotik_router.read') ? (props.initialRouterId ?? '') : '')
 const page = ref(1)
 const perPage = ref(20)
 watch([status, routerId, perPage], () => (page.value = 1))
+
+// Filter ditulis ke query string supaya bisa dibagikan/di-refresh; kunci lain (mis. tab) tetap.
+// useRoute()/useRouter() bisa undefined bila panel dipasang tanpa router (unit test).
+const route = useRoute()
+const router = useRouter()
+watch([status, routerId], ([s, r]) => {
+  if (!route || !router) return
+  const query = { ...route.query }
+  delete query.status
+  delete query.router_id
+  void router.replace({
+    query: { ...query, ...(s ? { status: s } : {}), ...(r ? { router_id: r } : {}) },
+  })
+})
 
 // Backend memakai limit/offset; DataPagination memakai page/per_page.
 const params = computed<TaskListParams>(() => ({
@@ -57,11 +73,6 @@ const routers = computed(() => routersQuery.data.value?.data ?? [])
 
 const summaryQuery = useTaskSummaryQuery()
 const counts = computed(() => summaryQuery.data.value?.counts ?? {})
-const oldestRestore = computed(() => summaryQuery.data.value?.oldest_pending_restore_at ?? null)
-const oldestMinutes = computed(() => {
-  if (!oldestRestore.value) return 0
-  return Math.max(0, Math.floor((Date.now() - new Date(oldestRestore.value).getTime()) / 60_000))
-})
 
 const retryMutation = useRetryTaskMutation()
 const retryingId = ref('')
@@ -81,40 +92,29 @@ async function retry(task: IsolationTask) {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Tugas Isolir" description="Antrean isolir dan pemulihan PPPoE.">
-      <div class="flex flex-wrap items-center gap-2">
-        <label class="text-sm">
-          <span class="sr-only">Status</span>
-          <select
-            v-model="status"
-            name="status"
-            class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
-          >
-            <option value="">Semua status</option>
-            <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-        </label>
-        <label v-if="canReadRouters" class="text-sm">
-          <span class="sr-only">Router</span>
-          <select
-            v-model="routerId"
-            name="router"
-            class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
-          >
-            <option value="">Semua router</option>
-            <option v-for="r in routers" :key="r.id" :value="r.id">{{ r.name }}</option>
-          </select>
-        </label>
-      </div>
-    </PageHeader>
-
-    <div
-      v-if="oldestRestore"
-      class="rounded-lg bg-red-100 p-4 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
-      role="alert"
-    >
-      Ada pemulihan yang tertunda: pelanggan sudah bayar tapi belum dibuka (tertua
-      {{ oldestMinutes }} menit).
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-sm">
+        <span class="sr-only">Status</span>
+        <select
+          v-model="status"
+          name="status"
+          class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
+        >
+          <option value="">Semua status</option>
+          <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
+        </select>
+      </label>
+      <label v-if="canReadRouters" class="text-sm">
+        <span class="sr-only">Router</span>
+        <select
+          v-model="routerId"
+          name="router"
+          class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
+        >
+          <option value="">Semua router</option>
+          <option v-for="r in routers" :key="r.id" :value="r.id">{{ r.name }}</option>
+        </select>
+      </label>
     </div>
 
     <ul class="flex flex-wrap gap-2 text-sm" data-testid="summary">

@@ -22,6 +22,7 @@ import {
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import LeadConvertDialog from '@/features/crm/components/LeadConvertDialog.vue'
 import DataPagination from '@/components/ui/DataPagination.vue'
 import { useToast } from '@/components/ui/toast'
 import type {
@@ -374,23 +375,15 @@ async function handleDelete(lead: Lead) {
   }
 }
 
-async function handleConvert(lead: Lead) {
-  if (
-    !confirm(
-      `Convert lead "${lead.contact_name}" menjadi contact${lead.company_name ? ' + company' : ''}?`,
-    )
-  ) {
-    return
-  }
-  try {
-    await convertMutation.mutateAsync({
-      id: lead.id,
-      payload: { create_company: Boolean(lead.company_name) },
-    })
-    toast.success('Lead dikonversi.')
-  } catch (error) {
-    toast.error(extractError(error))
-  }
+// Convert cepat memakai dialog yang sama dengan halaman detail: kontak yang cocok ditawarkan
+// dan kontak ganda ditolak dengan tawaran memakai kontak lama.
+const convertTarget = ref<Lead | null>(null)
+function handleConvert(lead: Lead) {
+  convertTarget.value = lead
+}
+function onConverted() {
+  convertTarget.value = null
+  toast.success('Lead dikonversi.')
 }
 
 function initials(name?: string) {
@@ -773,6 +766,8 @@ const sourceSuggestions = ['website', 'whatsapp', 'referral', 'instagram', 'even
       </button>
     </div>
   </Transition>
+
+  <LeadConvertDialog :lead="convertTarget" @close="convertTarget = null" @converted="onConverted" />
 
   <BaseModal :open="isAssignOpen" title="Assign owner" @close="isAssignOpen = false">
     <form class="space-y-4" @submit.prevent="submitAssign">

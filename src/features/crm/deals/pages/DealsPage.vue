@@ -22,6 +22,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import TextField from '@/components/form/TextField.vue'
+import DealContactField from '@/features/crm/components/DealContactField.vue'
 
 import { usePipelinesQuery } from '@/features/crm/pipelines/api/pipelines.queries'
 import type { Deal, DealPayload } from '@/features/crm/deals/api/deals.api'
@@ -220,6 +221,7 @@ const form = reactive<DealPayload>({
   stage_id: '',
   title: '',
   value: '',
+  contact_id: '',
 })
 
 function openCreateModal() {
@@ -227,6 +229,7 @@ function openCreateModal() {
   form.stage_id = stages.value[0]?.id ?? ''
   form.title = ''
   form.value = ''
+  form.contact_id = ''
   errorMessage.value = ''
   isModalOpen.value = true
 }
@@ -242,7 +245,7 @@ function extractError(error: unknown): string {
 async function submitForm() {
   errorMessage.value = ''
   try {
-    await createMutation.mutateAsync({ ...form })
+    await createMutation.mutateAsync({ ...form, contact_id: form.contact_id || undefined })
     isModalOpen.value = false
   } catch (error) {
     errorMessage.value = isQuotaExceededError(error)
@@ -462,6 +465,17 @@ async function submitForm() {
               <option v-for="s in stages" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </label>
+        </div>
+
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kontak</span>
+          <DealContactField
+            :model-value="form.contact_id ?? ''"
+            @update:model-value="(id) => (form.contact_id = id)"
+          />
+          <p class="text-xs text-gray-500">
+            Kontak dipakai sebagai pelanggan saat penawaran disetujui menjadi sales order.
+          </p>
         </div>
 
         <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>

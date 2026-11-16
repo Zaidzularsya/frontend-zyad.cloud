@@ -6,6 +6,7 @@ import type {
   ActivityParams,
   ApplySetupPayload,
   CreateRouterPayload,
+  OnboardPayload,
   PairBulkItem,
   PreviewParams,
   SecretListParams,
@@ -19,7 +20,12 @@ import type {
 export const mikrotikKeys = {
   all: ['mikrotik'] as const,
   routers: (params: object = {}) => [...mikrotikKeys.all, 'routers', params] as const,
+  router: (id: string) => [...mikrotikKeys.all, 'router', id] as const,
+  routerSummary: (id: string) => [...mikrotikKeys.all, 'router-summary', id] as const,
+  routerStats: (id: string) => [...mikrotikKeys.all, 'router-stats', id] as const,
   secrets: (params: object) => [...mikrotikKeys.all, 'secrets', params] as const,
+  secretSummary: (params: object) => [...mikrotikKeys.all, 'secret-summary', params] as const,
+  secretDetail: (id: string) => [...mikrotikKeys.all, 'secret-detail', id] as const,
   accountSearch: (q: string) => [...mikrotikKeys.all, 'account-search', q] as const,
   onboarding: () => [...mikrotikKeys.all, 'onboarding'] as const,
   customerStatus: (ids: string[]) => [...mikrotikKeys.all, 'customer-status', ids] as const,
@@ -35,12 +41,19 @@ export const mikrotikKeys = {
   pilot: () => [...mikrotikKeys.all, 'pilot'] as const,
   activity: (params: object) => [...mikrotikKeys.all, 'activity', params] as const,
   taskSummary: () => [...mikrotikKeys.all, 'task-summary'] as const,
+  allowlistHealth: (routerId: string) =>
+    [...mikrotikKeys.all, 'allowlist-health', routerId] as const,
 }
 
 // Router, secret, tugas, onboarding, dan status pelanggan saling terkait: mutation menyegarkan semuanya.
-function useInvalidateMikrotik() {
+export function useInvalidateMikrotik() {
   const queryClient = useQueryClient()
-  return () => void queryClient.invalidateQueries({ queryKey: mikrotikKeys.all })
+  // router-stats login langsung ke router (rate limit 10/menit): jangan ikut dipanggil ulang.
+  return () =>
+    void queryClient.invalidateQueries({
+      queryKey: mikrotikKeys.all,
+      predicate: (query) => query.queryKey[1] !== 'router-stats',
+    })
 }
 
 export function useRoutersQuery(
@@ -52,6 +65,34 @@ export function useRoutersQuery(
     queryKey: computed(() => mikrotikKeys.routers(params.value)),
     queryFn: () => mikrotikApi.routers.list(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useRouterQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.router(id.value)),
+    queryFn: () => mikrotikApi.routers.get(id.value),
+  })
+}
+
+export function useRouterSummaryQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.routerSummary(id.value)),
+    queryFn: () => mikrotikApi.routers.summary(id.value),
+  })
+}
+
+// Stats memanggil RouterOS langsung: jangan diulang otomatis saat gagal atau fokus ulang.
+export function useRouterStatsQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.routerStats(id.value)),
+    queryFn: () => mikrotikApi.routers.stats(id.value),
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -111,6 +152,43 @@ export function useSecretsQuery(params: Ref<SecretListParams>, enabled: Ref<bool
     queryKey: computed(() => mikrotikKeys.secrets(params.value)),
     queryFn: () => mikrotikApi.secrets.list(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useSecretSummaryQuery(
+  params: Ref<{ router_id?: string }>,
+  enabled: Ref<boolean> = ref(true),
+) {
+  return useQuery({
+    enabled,
+    queryKey: computed(() => mikrotikKeys.secretSummary(params.value)),
+    queryFn: () => mikrotikApi.secrets.summary(params.value),
+  })
+}
+
+export function useSecretDetailQuery(id: Ref<string>) {
+  return useQuery({
+    enabled: computed(() => Boolean(id.value)),
+    queryKey: computed(() => mikrotikKeys.secretDetail(id.value)),
+    queryFn: () => mikrotikApi.secrets.detail(id.value),
+  })
+}
+
+// Preview tidak menulis apa pun.
+export function useOnboardPreviewMutation() {
+  return useMutation({
+    mutationFn: (v: { secretId: string; payload: OnboardPayload }) =>
+      mikrotikApi.onboard.preview(v.secretId, v.payload),
+  })
+}
+
+// Berhasil atau gagal di tengah, tahap yang selesai sudah tersimpan: segarkan semuanya.
+export function useOnboardRunMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { secretId: string; payload: OnboardPayload }) =>
+      mikrotikApi.onboard.run(v.secretId, v.payload),
+    onSettled: invalidate,
   })
 }
 
@@ -239,14 +317,17 @@ export function useTriggerPreviewQuery(productId: Ref<string | undefined>) {
 export function useSetTriggerMutation() {
   const invalidate = useInvalidateMikrotik()
   return useMutation({
-    mutationFn: (v: { productId: string; enabled: boolean }) =>
-      mikrotikApi.products.setTrigger(v.productId, v.enabled),
+    mutationFn: (v: { productId: string; enabled: boolean; effectiveFrom?: string }) =>
+      v.effectiveFrom
+        ? mikrotikApi.products.setTrigger(v.productId, v.enabled, v.effectiveFrom)
+        : mikrotikApi.products.setTrigger(v.productId, v.enabled),
     onSuccess: invalidate,
   })
 }
 
-export function useTasksQuery(params: Ref<TaskListParams>) {
+export function useTasksQuery(params: Ref<TaskListParams>, enabled: Ref<boolean> = ref(true)) {
   return useQuery({
+    enabled,
     queryKey: computed(() => mikrotikKeys.tasks(params.value)),
     queryFn: () => mikrotikApi.tasks.list(params.value),
     placeholderData: keepPreviousData,
@@ -369,5 +450,18 @@ export function useActivityQuery(params: Ref<ActivityParams> = ref({})) {
     queryKey: computed(() => mikrotikKeys.activity(params.value)),
     queryFn: () => mikrotikApi.control.activity(params.value),
     placeholderData: keepPreviousData,
+  })
+}
+
+// Each call logs in to the router and counts against the per-organization
+// probe limit (20/min), so it is cached for minutes and never refetched on focus.
+export function useAllowlistHealthQuery(routerId: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.allowlistHealth(routerId.value)),
+    queryFn: () => mikrotikApi.setup.allowlistHealth(routerId.value),
+    enabled,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
   })
 }

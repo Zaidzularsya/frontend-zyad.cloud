@@ -286,11 +286,14 @@ const inputClass = 'w-full rounded-lg border bg-white px-3 py-2 dark:bg-gray-950
             <h2 class="font-semibold">Penagihan</h2>
             <form class="grid gap-3 text-sm sm:grid-cols-2" @submit.prevent="save">
               <label class="space-y-1">
-                <span class="font-medium">Tanggal mulai</span>
+                <span class="font-medium"
+                  >Tanggal mulai <span class="text-red-600" aria-hidden="true">*</span></span
+                >
                 <input
                   v-model="form.start_date"
                   type="date"
                   name="start_date"
+                  required
                   :disabled="!draft"
                   :class="inputClass"
                 />

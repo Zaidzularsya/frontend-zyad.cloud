@@ -97,6 +97,8 @@ export type Permission =
   | 'invoice.mark_paid'
   | 'invoice.cancel'
   | 'invoice.void'
+  | 'invoice.record_arrears'
+  | 'invoice.isolir_flag'
   | 'sales_order.read'
   | 'sales_order.manage'
   | 'sales_order.confirm'

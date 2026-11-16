@@ -16,9 +16,9 @@ function findButton(label: string) {
   )
 }
 
-function mountModal() {
+function mountModal(router = routerFixture()) {
   return mount(SetupPlanModal, {
-    props: { open: true, router: routerFixture() },
+    props: { open: true, router },
     global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
     attachTo: document.body,
   })
@@ -34,7 +34,7 @@ describe('SetupPlanModal', () => {
   it('renders plan actions verbatim and applies with the preview plan_hash', async () => {
     const w = mountModal()
     await flushPromises()
-    expect(mikrotikApi.setup.preview).toHaveBeenCalledWith('r1', {})
+    expect(mikrotikApi.setup.preview).toHaveBeenCalledWith('r1', { pool_cidr: '10.255.254.0/24' })
     const text = document.body.textContent ?? ''
     expect(text).toContain('/ppp/profile')
     expect(text).toContain('name=zyad-isolir')
@@ -45,7 +45,10 @@ describe('SetupPlanModal', () => {
     )
     apply?.click()
     await flushPromises()
-    expect(mikrotikApi.setup.apply).toHaveBeenCalledWith('r1', { plan_hash: 'hash-abc' })
+    expect(mikrotikApi.setup.apply).toHaveBeenCalledWith('r1', {
+      pool_cidr: '10.255.254.0/24',
+      plan_hash: 'hash-abc',
+    })
     expect(w.emitted('applied')).toHaveLength(1)
   })
 
@@ -78,7 +81,10 @@ describe('SetupPlanModal', () => {
     await flushPromises()
     findButton('Terapkan')?.click()
     await flushPromises()
-    expect(vi.mocked(mikrotikApi.setup.apply).mock.calls[1]?.[1]).toEqual({ plan_hash: 'hash-new' })
+    expect(vi.mocked(mikrotikApi.setup.apply).mock.calls[1]?.[1]).toEqual({
+      pool_cidr: '10.255.254.0/24',
+      plan_hash: 'hash-new',
+    })
   })
 
   it('keeps Terapkan disabled until a preview exists', async () => {
@@ -97,12 +103,16 @@ describe('SetupPlanModal', () => {
     const input = document.body.querySelector('input[name="profile_name"]') as HTMLInputElement
     input.value = 'isolir-x'
     input.dispatchEvent(new Event('input'))
-    const hosts = document.body.querySelector('input[name="doku_hosts"]') as HTMLInputElement
-    hosts.value = 'a.doku.com, b.doku.com'
-    hosts.dispatchEvent(new Event('input'))
+    const rate = document.body.querySelector('input[name="rate_limit"]') as HTMLInputElement
+    rate.value = '512k/512k'
+    rate.dispatchEvent(new Event('input'))
     findButton('Pratinjau ulang')?.click()
     await flushPromises()
-    const expected = { profile_name: 'isolir-x', doku_hosts: ['a.doku.com', 'b.doku.com'] }
+    const expected = {
+      profile_name: 'isolir-x',
+      pool_cidr: '10.255.254.0/24',
+      rate_limit: '512k/512k',
+    }
     expect(mikrotikApi.setup.preview).toHaveBeenLastCalledWith('r1', expected)
     findButton('Terapkan')?.click()
     await flushPromises()
@@ -128,5 +138,140 @@ describe('SetupPlanModal', () => {
     await flushPromises()
     expect(findButton('Terapkan')?.disabled).toBe(false)
     expect(document.body.textContent).not.toContain('Pratinjau ulang dulu')
+  })
+
+  it('membuka wizard memuat pool_cidr default dan memanggil preview dengan payload tanpa host', async () => {
+    mountModal()
+    await flushPromises()
+    const pool = document.body.querySelector('input[name="pool_cidr"]') as HTMLInputElement
+    expect(pool.value).toBe('10.255.254.0/24')
+    expect(pool.closest('details')).toBeNull()
+    expect(document.body.textContent).toContain(
+      'Rentang IP sementara untuk pelanggan terisolir. Aman dibiarkan default.',
+    )
+    const payload = vi.mocked(mikrotikApi.setup.preview).mock.calls[0]?.[1] ?? {}
+    for (const key of ['platform_host', 'doku_hosts', 'tenant_isolir_host']) {
+      expect(payload).not.toHaveProperty(key)
+    }
+    for (const name of ['platform_host', 'doku_hosts', 'tenant_isolir_host']) {
+      expect(document.body.querySelector(`input[name="${name}"]`)).toBeNull()
+    }
+  })
+
+  it.each(['10.0.0.1/24', 'abc', '8.8.8.0/24'])(
+    'Pool CIDR tidak valid (%s) menampilkan galat kolom dan tidak memanggil preview',
+    async (value) => {
+      mountModal()
+      await flushPromises()
+      vi.mocked(mikrotikApi.setup.preview).mockClear()
+      const pool = document.body.querySelector('input[name="pool_cidr"]') as HTMLInputElement
+      pool.value = value
+      pool.dispatchEvent(new Event('input'))
+      await flushPromises()
+      findButton('Pratinjau ulang')?.click()
+      await flushPromises()
+      expect(mikrotikApi.setup.preview).not.toHaveBeenCalled()
+      expect(document.body.textContent).toContain(
+        'Pool CIDR harus alamat jaringan privat, mis. 10.255.254.0/24',
+      )
+      expect(findButton('Terapkan')?.disabled).toBe(true)
+    },
+  )
+
+  it('router.setup.pool_cidr terisi ulang', async () => {
+    mountModal(
+      routerFixture({
+        setup: {
+          profile_name: 'zyad-isolir',
+          pool_cidr: '10.99.0.0/24',
+          rate_limit: '1M/1M',
+          redirect_url: '',
+        },
+      }),
+    )
+    await flushPromises()
+    const pool = document.body.querySelector('input[name="pool_cidr"]') as HTMLInputElement
+    expect(pool.value).toBe('10.99.0.0/24')
+    expect(mikrotikApi.setup.preview).toHaveBeenCalledWith('r1', {
+      profile_name: 'zyad-isolir',
+      pool_cidr: '10.99.0.0/24',
+      rate_limit: '1M/1M',
+    })
+  })
+
+  it('tombol Terapkan nonaktif dan berlabel progres selama apply', async () => {
+    vi.mocked(mikrotikApi.setup.apply)
+      .mockReset()
+      .mockReturnValue(new Promise(() => {}))
+    mountModal()
+    await flushPromises()
+    findButton('Terapkan')?.click()
+    await flushPromises()
+    const btn = findButton('Menerapkan… (bisa sampai 1 menit)')
+    expect(btn).toBeDefined()
+    expect(btn?.disabled).toBe(true)
+  })
+
+  describe('checklist status', () => {
+    const act = (kind: string, path: string, match: Record<string, string> = {}) => ({
+      kind,
+      path,
+      match,
+      attrs: {},
+    })
+    const mixed = () => ({
+      hash: 'hash-mix',
+      actions: [
+        act('exists', '/ip/pool', { name: 'zyad-pool' }),
+        act('exists', '/ppp/profile', { name: 'zyad-isolir' }),
+        act('create', '/ip/firewall/nat'),
+        act('update', '/ip/firewall/address-list', { list: 'zyad-allow' }),
+      ],
+    })
+    const allExists = () => ({
+      hash: 'hash-ok',
+      actions: [act('exists', '/ip/pool', { name: 'zyad-pool' }), act('exists', '/ppp/profile')],
+    })
+
+    it('rencana campuran: ringkasan dan label status per baris', async () => {
+      vi.mocked(mikrotikApi.setup.preview).mockResolvedValue(mixed())
+      mountModal()
+      await flushPromises()
+      const text = document.body.textContent ?? ''
+      expect(text).toContain('2 sudah sesuai, 2 perlu dieksekusi')
+      expect(text.match(/Sudah sesuai/g)).toHaveLength(2)
+      expect(text).toContain('Akan dibuat')
+      expect(text).toContain('Akan diubah')
+      expect(text).toContain('IP pool isolir')
+      expect(text).toContain('Aturan NAT redirect')
+      expect(document.body.querySelectorAll('details').length).toBeGreaterThanOrEqual(4)
+      expect(text).toContain('Detail skrip')
+      expect(findButton('Terapkan')).toBeDefined()
+    })
+
+    it('semua exists dan router siap: tanpa tombol Terapkan', async () => {
+      vi.mocked(mikrotikApi.setup.preview).mockResolvedValue(allExists())
+      mountModal(routerFixture({ isolir_ready: true }))
+      await flushPromises()
+      expect(document.body.textContent).toContain('Router sudah siap, tidak ada perubahan.')
+      expect(findButton('Terapkan')).toBeUndefined()
+      expect(findButton('Tandai siap')).toBeUndefined()
+    })
+
+    it('semua exists tapi belum siap: Tandai siap memanggil apply dengan plan_hash', async () => {
+      vi.mocked(mikrotikApi.setup.preview).mockResolvedValue(allExists())
+      mountModal(routerFixture({ isolir_ready: false }))
+      await flushPromises()
+      expect(document.body.textContent).toContain(
+        'Semua objek sudah ada di router; ini hanya menandai router siap isolir.',
+      )
+      expect(findButton('Terapkan')).toBeUndefined()
+      findButton('Tandai siap')?.click()
+      await flushPromises()
+      expect(mikrotikApi.setup.apply).toHaveBeenCalledWith('r1', {
+        pool_cidr: '10.255.254.0/24',
+        plan_hash: 'hash-ok',
+      })
+    })
   })
 })

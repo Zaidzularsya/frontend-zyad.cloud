@@ -241,6 +241,8 @@ export interface ConvertDealInput {
 
 export interface ConvertLeadPayload {
   owner_user_id?: string
+  /** Tanpa contact = kontak baru dari lead (ditolak 409 CONTACT_DUPLICATE bila email/WA sudah dipakai). */
+  contact?: { mode: 'new' | 'existing'; contact_id?: string }
   company?: ConvertCompanyInput
   deal?: ConvertDealInput
   create_company?: boolean
@@ -353,6 +355,12 @@ export const leadsApi = {
     }>(`/app/crm/leads/${id}/events`, { params })
     return { data: response.data.data, meta: response.data.meta }
   },
+
+  /** Kontak yang email/WA-nya sama dengan lead (dinormalkan di backend). */
+  contactMatches: (id: string) =>
+    http
+      .get<{ success: boolean; data: Contact[] }>(`/app/crm/leads/${id}/contact-matches`)
+      .then((response) => response.data.data),
 
   convert: (id: string, payload: ConvertLeadPayload) =>
     http

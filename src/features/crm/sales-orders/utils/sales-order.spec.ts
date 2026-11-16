@@ -4,7 +4,7 @@ import type {
   SalesOrderDraftForm,
   SalesOrderItem,
 } from '@/features/crm/sales-orders/api/sales-orders.api'
-import { groupSalesOrderItems, validateSalesOrderDraft } from './sales-order'
+import { groupSalesOrderItems, soDraftFormFrom, validateSalesOrderDraft } from './sales-order'
 
 const item = (over: Partial<SalesOrderItem>): SalesOrderItem => ({
   id: 'i',
@@ -94,5 +94,33 @@ describe('validateSalesOrderDraft', () => {
   it('requires at least one channel and a name', () => {
     const errors = validateSalesOrderDraft(form({ channels: [], bill_to_name: ' ' }), true, NOW)
     expect(errors).toHaveLength(2)
+  })
+})
+
+describe('soDraftFormFrom start date (F11)', () => {
+  const so = (over: Record<string, unknown> = {}) => ({
+    status: 'draft' as const,
+    start_date: null as string | null,
+    bill_to_name: 'Budi',
+    bill_to_company: '',
+    bill_to_email: 'budi@example.com',
+    bill_to_phone: '',
+    bill_to_address: '',
+    channels: ['email' as const],
+    pic_user_id: '',
+    ...over,
+  })
+
+  it('defaults an empty draft start date to today (WIB)', () => {
+    expect(soDraftFormFrom(so(), NOW).start_date).toBe('2026-10-05')
+    expect(soDraftFormFrom(so(), new Date('2026-10-05T18:00:00Z')).start_date).toBe('2026-10-06')
+  })
+
+  it('keeps a saved start date', () => {
+    expect(soDraftFormFrom(so({ start_date: '2026-09-20' }), NOW).start_date).toBe('2026-09-20')
+  })
+
+  it('does not invent a date for a confirmed order', () => {
+    expect(soDraftFormFrom(so({ status: 'confirmed' }), NOW).start_date).toBe('')
   })
 })

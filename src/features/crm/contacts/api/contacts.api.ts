@@ -31,6 +31,14 @@ export interface Contact {
   deleted_at?: string | null
 }
 
+/** Ringkasan kontak untuk pemilih dan galat CONTACT_DUPLICATE (`data.existing`). */
+export interface ContactRef {
+  id: string
+  name: string
+  email: string
+  phone: string
+}
+
 export interface ContactPayload {
   company_id?: string
   first_name: string

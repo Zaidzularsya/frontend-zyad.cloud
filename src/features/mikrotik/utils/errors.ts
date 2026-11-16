@@ -164,7 +164,13 @@ export function checkStatusLabel(status: string): string {
     : status
 }
 
+// Kontak CS untuk blok Bantuan /isolir: kontak Brand bila terisi, selain itu nomor sesi WhatsApp
+// default dan email mailbox pengirim invoice (temuan T13-E1). Pesan ini muncul bila keduanya kosong.
+export const TENANT_CONTACT_REQUIRED_MESSAGE =
+  'Hubungkan WhatsApp atau akun email lebih dulu: nomor dan alamatnya menjadi kontak CS di halaman isolir.'
+
 const CONTROL_ACTION_ERRORS: Record<string, string> = {
+  MIKROTIK_TENANT_CONTACT_REQUIRED: TENANT_CONTACT_REQUIRED_MESSAGE,
   MIKROTIK_PILOT_REQUIRED:
     'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.',
   MIKROTIK_NOT_PAUSED: 'Pulihkan Semua hanya bisa dipakai saat mode dijeda. Jeda isolir dulu.',

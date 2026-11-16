@@ -123,6 +123,12 @@ describe('SalesOrderDetailPage', () => {
       'sales_order.confirm',
     ])
     expect(wrapper.find('input[name="start_date"]').exists()).toBe(true)
+    // F11: an empty draft start date is prefilled and the field is marked required up front.
+    expect((wrapper.find('input[name="start_date"]').element as HTMLInputElement).value).not.toBe(
+      '',
+    )
+    expect(wrapper.find('input[name="start_date"]').attributes('required')).toBeDefined()
+    expect(wrapper.text()).toContain('Tanggal mulai *')
     expect(wrapper.text()).toContain('Konfirmasi SO')
     expect(wrapper.text()).toContain('Sekali bayar · Prabayar')
   })

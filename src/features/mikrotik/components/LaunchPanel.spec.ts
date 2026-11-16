@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
 
 vi.mock('@/features/mikrotik/api/mikrotik.api', () => ({
   mikrotikApi: {
@@ -15,7 +16,7 @@ vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
 }))
 
-import LaunchWizardPage from '@/features/mikrotik/pages/LaunchWizardPage.vue'
+import LaunchPanel from '@/features/mikrotik/components/LaunchPanel.vue'
 import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
 import { controlState, pilotAccount, previewSummary } from '@/features/mikrotik/testing/fixtures'
 import { CONTROL_OWNER_ONLY_TOOLTIP } from '@/features/mikrotik/utils/control-permissions'
@@ -40,11 +41,20 @@ async function mountPage(control: Partial<ControlState>, permissions: Permission
     ;(s as { user: unknown }).user = { id: 'u', name: 'A', email: 'a@x.test', permissions }
   })
   api.control.get.mockResolvedValue(controlState(control))
-  const w = mount(LaunchWizardPage, {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: { template: '<i/>' } },
+      { path: '/app/whatsapp', name: 'whatsapp', component: { template: '<i/>' } },
+      { path: '/app/email-accounts', name: 'email-accounts', component: { template: '<i/>' } },
+    ],
+  })
+  const w = mount(LaunchPanel, {
     attachTo: document.body,
     global: {
       plugins: [
         pinia,
+        router,
         [
           VueQueryPlugin,
           { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
@@ -66,7 +76,7 @@ const confirm = async (label: string) => {
   await flushPromises()
 }
 
-describe('LaunchWizardPage', () => {
+describe('LaunchPanel', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     api.control.previewSummary.mockResolvedValue(previewSummary())
@@ -114,6 +124,27 @@ describe('LaunchWizardPage', () => {
     await confirm('Aktifkan')
     expect(w.find('[role="alert"]').text()).toBe(PILOT_MSG)
   })
+
+  it('mode pilot: Kembali ke Simulasi mengirim SetMode simulation (temuan T13-B1)', async () => {
+    const w = await mountPage({ mode: 'pilot' })
+    await btn(w, 'Kembali ke Simulasi')!.trigger('click')
+    await flushPromises()
+    expect(api.control.setMode).toHaveBeenCalledWith({ mode: 'simulation' })
+  })
+
+  it.each([[{ test_active_count: 1 }], [{ isolated_secrets: 2 }]])(
+    'Kembali ke Simulasi terkunci selama uji berjalan atau ada akun terisolir (%o)',
+    async (over) => {
+      const w = await mountPage({ mode: 'pilot', ...over })
+      const b = btn(w, 'Kembali ke Simulasi')!
+      expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(
+        'Hentikan uji dan pulihkan akun yang terisolir lebih dulu.',
+      )
+      await b.trigger('click')
+      await flushPromises()
+      expect(api.control.setMode).not.toHaveBeenCalled()
+    },
+  )
 
   it('Aktif nonaktif tanpa verifikasi: aria-describedby menjelaskan alasan', async () => {
     const w = await mountPage({ mode: 'pilot' })
@@ -207,5 +238,24 @@ describe('LaunchWizardPage', () => {
     expect(b.attributes('aria-disabled')).toBe('true')
     expect(b.attributes('title')).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
     expect(w.find(`#${b.attributes('aria-describedby')}`).text()).toBe(CONTROL_OWNER_ONLY_TOOLTIP)
+  })
+
+  it('LaunchPanel menampilkan pesan kontak CS saat API menjawab MIKROTIK_TENANT_CONTACT_REQUIRED', async () => {
+    api.control.setMode.mockRejectedValue({
+      response: { data: { code: 'MIKROTIK_TENANT_CONTACT_REQUIRED', message: 'raw' } },
+    })
+    const w = await mountPage({ mode: 'simulation' })
+    await btn(w, 'Lanjut ke Pilot')!.trigger('click')
+    // The mutation rejection can take more than one tick under a loaded test run.
+    const alert = await vi.waitFor(() => w.get('[role="alert"]'))
+    expect(alert.text()).toContain(
+      'Hubungkan WhatsApp atau akun email lebih dulu: nomor dan alamatnya menjadi kontak CS di halaman isolir.',
+    )
+    // T13-E1: the old link pointed to a page without any contact field.
+    const links = alert.findAllComponents(RouterLink) as VueWrapper[]
+    expect(links.map((l) => (l.props() as { to: unknown }).to)).toEqual([
+      { name: 'whatsapp' },
+      { name: 'email-accounts' },
+    ])
   })
 })

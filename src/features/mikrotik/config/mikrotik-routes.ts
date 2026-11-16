@@ -26,22 +26,37 @@ export function buildMikrotikRoutes(
       meta: { title: 'Akun PPPoE', permissions: ['mikrotik_secret.read'] },
     },
     {
+      path: `${pathPrefix}/secrets/:id`,
+      name: `${namePrefix}-secret-detail`,
+      component: () => import('@/features/mikrotik/pages/SecretDetailPage.vue'),
+      meta: { title: 'Detail Secret', permissions: ['mikrotik_secret.read'] },
+    },
+    {
+      path: `${pathPrefix}/isolation`,
+      name: `${namePrefix}-isolation`,
+      component: () => import('@/features/mikrotik/pages/IsolationPage.vue'),
+      // Halaman sendiri memeriksa mikrotik_control.read sebelum memuat kendali.
+      meta: { title: 'Isolir', permissions: ['mikrotik_task.read'] },
+    },
+    // Halaman Tugas, Kendali, dan Peluncuran digabung ke Isolir. Nama lama dipertahankan pada
+    // record redirect supaya tautan atau bookmark lama tetap mendarat di tab yang setara.
+    {
       path: `${pathPrefix}/tasks`,
       name: `${namePrefix}-tasks`,
-      component: () => import('@/features/mikrotik/pages/TasksPage.vue'),
-      meta: { title: 'Tugas Isolir', permissions: ['mikrotik_task.read'] },
+      redirect: (to) => ({
+        name: `${namePrefix}-isolation`,
+        query: { ...to.query, tab: 'tasks' },
+      }),
     },
     {
       path: `${pathPrefix}/control`,
       name: `${namePrefix}-control`,
-      component: () => import('@/features/mikrotik/pages/ControlPage.vue'),
-      meta: { title: 'Kendali Isolir', permissions: ['mikrotik_control.read'] },
+      redirect: { name: `${namePrefix}-isolation`, query: { tab: 'control' } },
     },
     {
       path: `${pathPrefix}/launch`,
       name: `${namePrefix}-launch`,
-      component: () => import('@/features/mikrotik/pages/LaunchWizardPage.vue'),
-      meta: { title: 'Peluncuran Isolir', permissions: ['mikrotik_control.read'] },
+      redirect: { name: `${namePrefix}-isolation` },
     },
   ]
 }

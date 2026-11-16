@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { Search } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -13,8 +13,8 @@ import {
   useAnalyzeMutation,
   useImportSecretsMutation,
   usePairBulkMutation,
-  usePairNewCustomerMutation,
   useRoutersQuery,
+  useSecretSummaryQuery,
   useSecretsQuery,
   useSetOriginalProfileMutation,
   useUnpairMutation,
@@ -23,12 +23,7 @@ import PairConfirmFooter from '@/features/mikrotik/components/PairConfirmFooter.
 import PairResultModal from '@/features/mikrotik/components/PairResultModal.vue'
 import SecretTable from '@/features/mikrotik/components/SecretTable.vue'
 import { usePairSelection } from '@/features/mikrotik/composables/usePairSelection'
-import type {
-  AccountRef,
-  PairBulkItemResult,
-  PppSecret,
-  SecretListParams,
-} from '@/features/mikrotik/types'
+import type { PairBulkItemResult, PppSecret, SecretListParams } from '@/features/mikrotik/types'
 import { secretActionError } from '@/features/mikrotik/utils/errors'
 import {
   buildListParams,
@@ -46,6 +41,7 @@ type Tab = PairingTab
 
 const auth = useAuthStore()
 const toast = useToast()
+const router = useRouter()
 const canPair = computed(() => auth.can('mikrotik_secret.pair'))
 const canImport = computed(() => auth.can('mikrotik_secret.import'))
 const canUnpair = computed(() => auth.can('mikrotik_secret.unpair'))
@@ -78,13 +74,23 @@ watch([tab, search, perPage, routerId], () => {
   page.value = 1
 })
 
-const tabs: { value: Tab; label: string }[] = [
-  { value: 'all', label: 'Semua' },
-  { value: 'suggested', label: 'Diusulkan' },
-  { value: 'needs_decision', label: 'Butuh keputusan' },
-  { value: 'needs_profile', label: 'Perlu profile asli' },
-  { value: 'paired', label: 'Terpasang' },
-]
+const tabs = computed<{ value: Tab; label: string }[]>(() => [
+  { value: 'all', label: `Semua belum terpasang (${summary.value.unpaired})` },
+  { value: 'suggested', label: `Diusulkan (${summary.value.suggested})` },
+  { value: 'needs_decision', label: `Butuh keputusan (${summary.value.decision})` },
+  { value: 'needs_profile', label: `Perlu profile asli (${summary.value.needsProfile})` },
+  { value: 'paired', label: `Terpasang (${summary.value.paired})` },
+])
+
+// --- kartu aktif/nonaktif (flag disabled di router) ---
+const statusSummary = useSecretSummaryQuery(
+  computed(() => ({ router_id: routerId.value || undefined })),
+  computed(() => Boolean(routerId.value)),
+)
+
+function openSecret(row: PppSecret) {
+  void router.push({ name: 'mikrotik-secret-detail', params: { id: row.id } })
+}
 
 const listParams = computed<SecretListParams>(() =>
   buildListParams({
@@ -209,10 +215,6 @@ watch(
 function onToggle(row: PppSecret) {
   selection.toggleRow(row)
 }
-function onPick(row: PppSecret, account: AccountRef) {
-  accountNames.value[account.id] = account.name
-  selection.setAccount(row.id, account.id)
-}
 
 // --- konfirmasi pairing (bertahap ≤200) ---
 const failures = ref<Record<string, string>>({})
@@ -250,26 +252,19 @@ async function confirmPair() {
 }
 
 // --- aksi per baris ---
-type Pending = { kind: 'new-customer' | 'unpair'; row: PppSecret }
+// Membuat pelanggan baru kini lewat onboarding di halaman detail (kontak + kontrak), bukan dari baris.
+type Pending = { kind: 'unpair'; row: PppSecret }
 const pending = ref<Pending | null>(null)
-const newCustomerMutation = usePairNewCustomerMutation()
 const unpairMutation = useUnpairMutation()
 const profileMutation = useSetOriginalProfileMutation()
-const pendingBusy = computed(
-  () => newCustomerMutation.isPending.value || unpairMutation.isPending.value,
-)
+const pendingBusy = computed(() => unpairMutation.isPending.value)
 
 async function runPending() {
   const p = pending.value
   if (!p) return
   try {
-    if (p.kind === 'new-customer') {
-      await newCustomerMutation.mutateAsync(p.row.id)
-      toast.success(`Pelanggan baru dibuat dan dipasangkan ke ${p.row.name}.`)
-    } else {
-      await unpairMutation.mutateAsync(p.row.id)
-      toast.success(`Pasangan ${p.row.name} dilepas.`)
-    }
+    await unpairMutation.mutateAsync(p.row.id)
+    toast.success(`Pasangan ${p.row.name} dilepas.`)
     delete failures.value[p.row.id]
     selection.prune([p.row.id])
     pending.value = null
@@ -287,15 +282,10 @@ async function setProfile(row: PppSecret, profile: string) {
   }
 }
 
-const pendingTitle = computed(() =>
-  pending.value?.kind === 'unpair' ? 'Lepas pasangan?' : 'Buat pelanggan baru?',
+const pendingMessage = computed(
+  () =>
+    `Secret ${pending.value?.row.name ?? ''} tidak lagi terhubung ke pelanggan dan tidak ikut diisolir.`,
 )
-const pendingMessage = computed(() => {
-  const name = pending.value?.row.name ?? ''
-  return pending.value?.kind === 'unpair'
-    ? `Secret ${name} tidak lagi terhubung ke pelanggan dan tidak ikut diisolir.`
-    : `Pelanggan baru akan dibuat dari secret ${name} dan langsung dipasangkan.`
-})
 
 function closeResult() {
   resultOpen.value = false
@@ -350,30 +340,35 @@ function closeResult() {
     </BaseCard>
 
     <template v-else-if="routerId">
-      <p class="text-sm text-gray-600 dark:text-gray-300" data-testid="summary">
-        {{ summary.unpaired + summary.paired }} ditemukan | {{ summary.suggested }} diusulkan |
-        {{ summary.decision }} butuh keputusan | {{ summary.needsProfile }} perlu profile asli |
-        {{ summary.paired }} terpasang
-      </p>
+      <div class="grid gap-3 sm:grid-cols-2" data-testid="secret-summary">
+        <BaseCard class="flex items-baseline justify-between">
+          <span class="text-sm text-gray-600 dark:text-gray-300">Aktif</span>
+          <span class="text-2xl font-semibold text-green-700 dark:text-green-400">{{
+            statusSummary.data.value?.active ?? '–'
+          }}</span>
+        </BaseCard>
+        <BaseCard class="flex items-baseline justify-between">
+          <span class="text-sm text-gray-600 dark:text-gray-300">Nonaktif</span>
+          <span class="text-2xl font-semibold text-gray-700 dark:text-gray-200">{{
+            statusSummary.data.value?.inactive ?? '–'
+          }}</span>
+        </BaseCard>
+      </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b">
-        <div class="flex gap-2 overflow-x-auto">
-          <button
-            v-for="t in tabs"
-            :key="t.value"
-            type="button"
-            class="border-b-2 px-4 py-2 text-sm font-medium whitespace-nowrap"
-            :class="
-              tab === t.value
-                ? 'border-brand-500 text-brand-600 font-semibold'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            "
-            @click="tab = t.value"
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <label class="block text-sm">
+          <span class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300"
+            >Status pemetaan</span
           >
-            {{ t.label }}
-          </button>
-        </div>
-        <label class="relative mb-2 block w-full max-w-xs text-sm">
+          <select
+            v-model="tab"
+            name="mapping_status"
+            class="rounded-lg border bg-white px-3 py-2 text-sm dark:bg-gray-950"
+          >
+            <option v-for="t in tabs" :key="t.value" :value="t.value">{{ t.label }}</option>
+          </select>
+        </label>
+        <label class="relative block w-full max-w-xs text-sm">
           <span class="sr-only">Cari secret atau pelanggan</span>
           <Search class="pointer-events-none absolute left-3 top-2.5 size-4 text-gray-400" />
           <input
@@ -421,15 +416,13 @@ function closeResult() {
             :selected="selection.selected"
             :account-names="accountNames"
             :failures="failures"
-            :search-text="search"
             :can-pair="canPair"
             :can-unpair="canUnpair"
             @toggle="onToggle"
-            @pick="onPick"
             @clear="(r) => selection.clear(r.id)"
-            @new-customer="(r) => (pending = { kind: 'new-customer', row: r })"
             @set-profile="setProfile"
             @unpair="(r) => (pending = { kind: 'unpair', row: r })"
+            @open="openSecret"
           />
         </div>
         <PairConfirmFooter
@@ -456,10 +449,10 @@ function closeResult() {
     />
     <ConfirmDialog
       :open="pending !== null"
-      :title="pendingTitle"
+      title="Lepas pasangan?"
       :message="pendingMessage"
-      :confirm-label="pending?.kind === 'unpair' ? 'Lepas' : 'Buat pelanggan'"
-      :tone="pending?.kind === 'unpair' ? 'danger' : 'default'"
+      confirm-label="Lepas"
+      tone="danger"
       :loading="pendingBusy"
       @confirm="runPending"
       @cancel="pending = null"

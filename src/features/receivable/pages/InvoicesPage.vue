@@ -176,6 +176,9 @@ function formatDate(value?: string | null) {
                 <RouterLink :to="`${base}/invoices/${inv.id}`" class="font-medium text-brand-600">{{
                   inv.invoice_number ?? 'Draft'
                 }}</RouterLink>
+                <span v-if="inv.arrears_recording_id" class="block text-xs text-amber-700"
+                  >Tunggakan dicatat<template v-if="inv.isolir_flag"> · Ikut isolir</template></span
+                >
               </td>
               <td class="px-5 py-3">
                 {{ inv.account.name }}

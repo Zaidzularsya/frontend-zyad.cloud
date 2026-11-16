@@ -19,6 +19,8 @@ export interface Router {
   isolir_ready_at?: string
   isolir_profile_name?: string
   isolir_redirect_url?: string
+  /** Last successfully applied setup input (no hosts), or null before the first apply. */
+  setup?: RouterSetupSnapshot | null
   last_check_at?: string
   last_check_status?: string
   routeros_version?: string
@@ -39,6 +41,14 @@ export interface CreateRouterPayload {
 // Update parsial: field yang tidak dikirim tidak berubah.
 export type UpdateRouterPayload = Partial<CreateRouterPayload>
 
+export interface RouterSetupSnapshot {
+  profile_name: string
+  pool_cidr: string
+  rate_limit: string
+  redirect_url: string
+}
+
+/** Hosts (platform, tenant, DOKU) are derived by the backend and never sent from the UI. */
 export interface SetupPayload {
   profile_name?: string
   pool_cidr?: string
@@ -47,6 +57,12 @@ export interface SetupPayload {
   tenant_isolir_host?: string
   doku_hosts?: string[]
   redirect_url?: string
+}
+
+/** Counts only: operators never see the allowlist hosts. */
+export interface AllowlistHealth {
+  total: number
+  unresolved: number
 }
 
 export interface ApplySetupPayload extends SetupPayload {
@@ -97,14 +113,24 @@ export interface PppSecret {
   suggestion: SecretSuggestion | null
 }
 
+/** Status pemetaan (dulu lima tab); backend menerjemahkannya ke filter list. */
+export type MappingStatus = 'all' | 'suggested' | 'needs_decision' | 'needs_profile' | 'paired'
+
 export interface SecretListParams {
   router_id?: string
   paired?: boolean
   q?: string
   suggestion?: SuggestionFilter
   needs_original_profile?: boolean
+  mapping_status?: MappingStatus
   page?: number
   per_page?: number
+}
+
+/** Jumlah secret yang masih ada di router menurut flag disabled di router. */
+export interface SecretSummary {
+  active: number
+  inactive: number
 }
 
 export interface PairBulkItem {
@@ -353,4 +379,94 @@ export interface ActivityMeta {
   limit: number
   offset: number
   total: number
+}
+
+// --- Onboarding pelanggan dari secret (Gelombang 2) ---
+
+export interface OnboardContactRef {
+  id: string
+  name: string
+  email: string
+  phone: string
+}
+
+export interface OnboardPayload {
+  /** contact_id = kontak CRM yang ada; new = kontak baru. */
+  customer: { contact_id?: string; new?: { name: string; phone: string; email: string } }
+  product_id: string
+  quantity?: string
+  /** Kosong = harga katalog. */
+  unit_price?: string
+  billing_day: number
+  create_initial_invoice: boolean
+  channels?: string[]
+}
+
+export interface OnboardPlan {
+  secret_name: string
+  contact_action: 'existing' | 'new'
+  contact: OnboardContactRef
+  product_name: string
+  quantity: string
+  unit_price: string
+  deal_title: string
+  /** YYYY-MM-DD, awal siklus tagih berjalan. */
+  contract_start_date: string
+  initial_invoice: boolean
+  channels: string[]
+  duplicate_of: OnboardContactRef | null
+}
+
+export type OnboardStage =
+  | ''
+  | 'contact'
+  | 'deal'
+  | 'quotation'
+  | 'sales_order'
+  | 'confirmed'
+  | 'paired'
+
+export interface OnboardState {
+  secret_id: string
+  stage: OnboardStage
+  contact_id: string
+  deal_id: string
+  quotation_id: string
+  sales_order_id: string
+  contract_id: string
+  account_id: string
+  last_error: string
+  updated_at: string | null
+}
+
+export interface SecretDetail {
+  secret: PppSecret
+  onboarding: OnboardState | null
+  contract: { id: string; number: string } | null
+  can_onboard: boolean
+}
+
+export interface RouterSummary {
+  secrets: {
+    total: number
+    paired: number
+    unpaired: number
+    missing: number
+    need_original_profile: number
+    isolated: number
+  }
+  tasks: Record<TaskStatus, number>
+}
+
+export interface RouterStats {
+  identity: string
+  board_name: string
+  version: string
+  architecture: string
+  uptime: string
+  cpu_load: number | null
+  memory_total: number | null
+  memory_free: number | null
+  ppp_active: number | null
+  fetched_at: string
 }

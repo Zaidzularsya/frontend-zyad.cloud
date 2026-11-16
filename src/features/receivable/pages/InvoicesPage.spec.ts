@@ -161,3 +161,24 @@ describe('InvoicesPage isolation badge', () => {
     expect(w.text()).not.toContain('Terisolir')
   })
 })
+
+describe('InvoicesPage arrears label', () => {
+  beforeEach(() => {
+    summary.mockResolvedValue([])
+  })
+
+  it('labels recorded arrears and their isolation flag', async () => {
+    invoicesList.mockResolvedValue({
+      data: [
+        { ...invoice, id: 'i1', arrears_recording_id: 'rec-1', isolir_flag: true },
+        { ...invoice, id: 'i2', invoice_number: 'INV-002' },
+      ],
+      meta: { total: 2 },
+    })
+    const w = await mountPage()
+    const rows = w.findAll('tbody tr')
+    expect(rows[0]!.text()).toContain('Tunggakan dicatat')
+    expect(rows[0]!.text()).toContain('Ikut isolir')
+    expect(rows[1]!.text()).not.toContain('Tunggakan dicatat')
+  })
+})

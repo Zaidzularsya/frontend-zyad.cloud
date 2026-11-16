@@ -39,6 +39,7 @@ vi.mock('@/features/crm/deals/api/deals.api', () => ({
       },
       source_lead: { id: 'l1', contact_name: 'Budi' },
     }),
+    update: vi.fn().mockResolvedValue({ id: 'd1' }),
   },
 }))
 vi.mock('@/features/crm/components/EntityTimeline.vue', () => ({
@@ -46,6 +47,8 @@ vi.mock('@/features/crm/components/EntityTimeline.vue', () => ({
 }))
 
 import DealDetailPage from './DealDetailPage.vue'
+import { dealsApi } from '@/features/crm/deals/api/deals.api'
+import { useAuthStore } from '@/stores/auth.store'
 
 describe('DealDetailPage', () => {
   it('shows deal summary, requirements, stage track and source lead', async () => {
@@ -70,5 +73,39 @@ describe('DealDetailPage', () => {
     expect(w.text()).toContain('Bu Rina')
     expect(w.text()).toContain('Budi')
     expect(w.find('[aria-current="step"]').text()).toContain('s2')
+  })
+
+  it('ubah kontak deal mengirim contact_id', async () => {
+    const pinia = createPinia()
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/crm/deals/:id', component: DealDetailPage }],
+    })
+    await router.push('/crm/deals/d1')
+    const PickerStub = {
+      emits: ['pick'],
+      template:
+        "<button data-testid=\"picker\" @click=\"$emit('pick', { id: 'c7', name: 'Sari', email: '', phone: '' })\">pick</button>",
+    }
+    const w = mount(DealDetailPage, {
+      global: {
+        plugins: [pinia, router, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+        stubs: { ContactPicker: PickerStub },
+      },
+    })
+    useAuthStore(pinia).$patch((state) => {
+      ;(state as { user: unknown }).user = {
+        id: 'u',
+        name: 'A',
+        email: 'a@x.test',
+        permissions: ['deal.read', 'deal.update'],
+      }
+    })
+    await flushPromises()
+    await w.get('button[data-testid="edit-deal-contact"]').trigger('click')
+    await w.get('[data-testid="picker"]').trigger('click')
+    await w.get('button[data-testid="save-deal-contact"]').trigger('click')
+    await flushPromises()
+    expect(dealsApi.update).toHaveBeenCalledWith('d1', { contact_id: 'c7' })
   })
 })

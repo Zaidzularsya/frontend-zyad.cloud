@@ -39,6 +39,7 @@ describe('ReceivableSettingsPage', () => {
       payment_terms_days: 14,
       default_channels: ['email'],
       default_sender_user_id: 'u1',
+      default_billing_day: 10,
     })
     senders.mockResolvedValue([{ user_id: 'u1', name: 'Sari', email: 'sari@example.com' }])
   })
@@ -88,7 +89,38 @@ describe('ReceivableSettingsPage', () => {
       payment_terms_days: 30,
       default_channels: ['email', 'whatsapp'],
       default_sender_user_id: 'u1',
+      // PUT mengganti semua field: default yang tersimpan harus ikut terkirim agar tidak terhapus.
+      default_billing_day: 10,
     })
+  })
+
+  it('menyimpan default tanggal tagih dan menolak di luar 1–31', async () => {
+    update.mockResolvedValue({})
+    const w = await mountPage()
+    const day = w.get('input[name="default_billing_day"]')
+    expect((day.element as HTMLInputElement).value).toBe('10')
+
+    for (const bad of ['0', '32', '2.5']) {
+      await day.setValue(bad)
+      await w.get('form').trigger('submit')
+      await flushPromises()
+      expect(w.text()).toContain('Default tanggal tagih harus 1–31.')
+    }
+    expect(update).not.toHaveBeenCalled()
+
+    await day.setValue('31')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ default_billing_day: 31 }))
+  })
+
+  it('mengosongkan default tanggal tagih mengirim null', async () => {
+    update.mockResolvedValue({})
+    const w = await mountPage()
+    await w.get('input[name="default_billing_day"]').setValue('')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ default_billing_day: null }))
   })
 
   it('is read-only without receivable.settings', async () => {

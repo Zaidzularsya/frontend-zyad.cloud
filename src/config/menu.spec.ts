@@ -87,9 +87,7 @@ describe('grup menu Jaringan', () => {
       'Ringkasan',
       'Router',
       'Akun PPPoE',
-      'Tugas',
-      'Kendali',
-      'Peluncuran',
+      'Isolir',
     ])
     for (const item of group?.items ?? []) expect(item.feature).toBe('mikrotik.enabled')
   })
@@ -99,9 +97,7 @@ describe('grup menu Jaringan', () => {
       'Ringkasan',
       'Router',
       'Akun PPPoE',
-      'Tugas',
-      'Kendali',
-      'Peluncuran',
+      'Isolir',
     ])
   })
 
@@ -114,10 +110,10 @@ describe('grup menu Jaringan', () => {
   })
 
   it('hanya item yang permission-nya terpenuhi', () => {
-    expect(jaringanLabels(['mikrotik_task.read'], [])).toEqual(['Tugas'])
+    expect(jaringanLabels(['mikrotik_task.read'], [])).toEqual(['Isolir'])
   })
 
-  it('Kendali dan Peluncuran butuh mikrotik_control.read', () => {
-    expect(jaringanLabels(['mikrotik_control.read'], [])).toEqual(['Kendali', 'Peluncuran'])
+  it('Isolir butuh mikrotik_task.read; mikrotik_control.read saja tidak cukup', () => {
+    expect(jaringanLabels(['mikrotik_control.read'], [])).toBeUndefined()
   })
 })

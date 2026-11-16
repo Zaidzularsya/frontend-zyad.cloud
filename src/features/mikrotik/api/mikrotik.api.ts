@@ -2,6 +2,7 @@ import { http } from '@/lib/http'
 import type { PaginatedResponse } from '@/types/api'
 
 import type {
+  AllowlistHealth,
   AccountRef,
   ActivityItem,
   ActivityMeta,
@@ -27,7 +28,14 @@ import type {
   ProductTrigger,
   RestoreAllResult,
   Router,
+  RouterStats,
+  RouterSummary,
+  SecretDetail,
   SecretListParams,
+  SecretSummary,
+  OnboardPayload,
+  OnboardPlan,
+  OnboardState,
   SetModePayload,
   SetPolicyPayload,
   SetupPayload,
@@ -53,6 +61,10 @@ export const mikrotikApi = {
     },
     get: (id: string) =>
       http.get<Envelope<Router>>(`${BASE}/routers/${id}`).then((r) => r.data.data),
+    summary: (id: string) =>
+      http.get<Envelope<RouterSummary>>(`${BASE}/routers/${id}/summary`).then((r) => r.data.data),
+    stats: (id: string) =>
+      http.get<Envelope<RouterStats>>(`${BASE}/routers/${id}/stats`).then((r) => r.data.data),
     create: (payload: CreateRouterPayload) =>
       http.post<Envelope<Router>>(`${BASE}/routers`, payload).then((r) => r.data.data),
     update: (id: string, payload: UpdateRouterPayload) =>
@@ -75,6 +87,21 @@ export const mikrotikApi = {
       http
         .post<Envelope<Router>>(`${BASE}/routers/${routerId}/setup/cleanup`, {})
         .then((r) => r.data.data),
+    allowlistHealth: (routerId: string) =>
+      http
+        .get<Envelope<AllowlistHealth>>(`${BASE}/routers/${routerId}/setup/allowlist-health`)
+        .then((r) => r.data.data),
+  },
+
+  onboard: {
+    preview: (secretId: string, payload: OnboardPayload) =>
+      http
+        .post<Envelope<OnboardPlan>>(`${BASE}/secrets/${secretId}/onboard/preview`, payload)
+        .then((r) => r.data.data),
+    run: (secretId: string, payload: OnboardPayload) =>
+      http
+        .post<Envelope<OnboardState>>(`${BASE}/secrets/${secretId}/onboard`, payload)
+        .then((r) => r.data.data),
   },
 
   secrets: {
@@ -82,6 +109,12 @@ export const mikrotikApi = {
       const r = await http.get<Paged<PppSecret>>(`${BASE}/secrets`, { params })
       return { data: r.data.data, meta: r.data.meta }
     },
+    summary: (params: { router_id?: string } = {}) =>
+      http
+        .get<Envelope<SecretSummary>>(`${BASE}/secrets/summary`, { params })
+        .then((r) => r.data.data),
+    detail: (id: string) =>
+      http.get<Envelope<SecretDetail>>(`${BASE}/secrets/${id}`).then((r) => r.data.data),
     import: (routerId: string) =>
       http
         .post<Envelope<ImportResult>>(`${BASE}/routers/${routerId}/secrets/import`)
@@ -144,9 +177,12 @@ export const mikrotikApi = {
       http
         .get<Envelope<TriggerPreview>>(`${BASE}/products/${productId}/trigger/preview`)
         .then((r) => r.data.data),
-    setTrigger: (productId: string, enabled: boolean) =>
+    /** effectiveFrom (YYYY-MM-DD, optional) only applies when enabling; omitted = today (WIB). */
+    setTrigger: (productId: string, enabled: boolean, effectiveFrom?: string) =>
       http
-        .put<Envelope<ProductTrigger>>(`${BASE}/products/${productId}/trigger`, { enabled })
+        .put<
+          Envelope<ProductTrigger>
+        >(`${BASE}/products/${productId}/trigger`, effectiveFrom ? { enabled, effective_from: effectiveFrom } : { enabled })
         .then((r) => r.data.data),
   },
 

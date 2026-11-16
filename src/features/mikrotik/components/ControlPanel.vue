@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast'
@@ -25,6 +24,9 @@ import { useAuthStore } from '@/stores/auth.store'
 const ENGINE_OFF_TOOLTIP = 'Mesin isolir dinonaktifkan operator'
 const NOT_PAUSED_TOOLTIP = 'Pulihkan Semua hanya bisa dipakai saat isolir otomatis dijeda (PAUSE).'
 
+// Halaman Isolir memindahkan tab ke antrean tugas gagal; panel tidak tahu rutenya.
+const emit = defineEmits<{ 'show-failed-tasks': [] }>()
+
 const auth = useAuthStore()
 const toast = useToast()
 const perms = computed(() => controlPermissions(auth.user?.permissions ?? []))
@@ -43,12 +45,6 @@ const switchMode = computed<'active' | 'paused'>(() =>
 )
 const engineOff = computed(() => !!control.value && control.value.engine !== 'on')
 const failedTasks = computed(() => taskSummary.data.value?.counts?.failed ?? 0)
-
-const oldestRestore = computed(() => taskSummary.data.value?.oldest_pending_restore_at ?? null)
-const oldestMinutes = computed(() => {
-  if (!oldestRestore.value) return 0
-  return Math.max(0, Math.floor((Date.now() - new Date(oldestRestore.value).getTime()) / 60_000))
-})
 
 const errorText = ref('')
 const reactivateOpen = ref(false)
@@ -117,17 +113,6 @@ function openReactivate() {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Kendali Isolir" description="Jeda, aktifkan, dan pantau isolir otomatis." />
-
-    <div
-      v-if="oldestRestore"
-      class="rounded-lg bg-red-100 p-4 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
-      role="alert"
-    >
-      Ada pemulihan yang tertunda: pelanggan sudah bayar tapi belum dibuka (tertua
-      {{ oldestMinutes }} menit).
-    </div>
-
     <p v-if="controlQuery.isPending.value" class="text-sm text-gray-600" role="status">Memuat...</p>
     <p v-else-if="controlQuery.isError.value || !control" class="text-sm text-red-700" role="alert">
       Gagal memuat status kendali.
@@ -143,7 +128,7 @@ function openReactivate() {
       <p class="text-sm text-gray-600 dark:text-gray-400">
         Selesaikan simulasi dan uji pilot di wizard peluncuran terlebih dahulu.
       </p>
-      <RouterLink class="text-sm font-medium underline" :to="{ name: 'mikrotik-launch' }">
+      <RouterLink class="text-sm font-medium underline" :to="{ name: 'mikrotik-isolation' }">
         Buka Peluncuran Isolir
       </RouterLink>
     </section>
@@ -184,12 +169,14 @@ function openReactivate() {
           >
             {{ failedTasks }}
           </dd>
-          <RouterLink
-            :to="{ name: 'mikrotik-tasks', query: { status: 'failed' } }"
+          <button
+            type="button"
             class="mt-1 inline-block text-sm font-medium underline"
             data-testid="link-failed"
-            >Lihat tugas gagal</RouterLink
+            @click="emit('show-failed-tasks')"
           >
+            Lihat tugas gagal
+          </button>
         </div>
       </dl>
 

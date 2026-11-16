@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import PageHeader from '@/components/common/PageHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast'
@@ -15,7 +14,7 @@ import LaunchStepper from '@/features/mikrotik/components/LaunchStepper.vue'
 import PilotPanel from '@/features/mikrotik/components/PilotPanel.vue'
 import { engineBlockReason } from '@/features/mikrotik/utils/engine'
 import { controlPermissions } from '@/features/mikrotik/utils/control-permissions'
-import { controlActionError } from '@/features/mikrotik/utils/errors'
+import { apiErrorCode, controlActionError } from '@/features/mikrotik/utils/errors'
 import { useAuthStore } from '@/stores/auth.store'
 
 const auth = useAuthStore()
@@ -31,16 +30,25 @@ const engineReason = computed(() =>
   control.value ? engineBlockReason(control.value.engine) : null,
 )
 const errorText = ref('')
+const needsContact = ref(false)
 const PILOT_REQUIRED_HINT =
   'Selesaikan minimal satu uji pilot yang berhasil sebelum mengaktifkan isolir otomatis.'
 
-async function changeMode(mode: 'pilot' | 'active') {
+async function changeMode(mode: 'simulation' | 'pilot' | 'active') {
   errorText.value = ''
+  needsContact.value = false
   try {
     await setMode.mutateAsync({ mode })
-    toast.success(mode === 'pilot' ? 'Mode Pilot dimulai.' : 'Isolir otomatis diaktifkan.')
+    toast.success(
+      mode === 'pilot'
+        ? 'Mode Pilot dimulai.'
+        : mode === 'simulation'
+          ? 'Kembali ke mode Simulasi.'
+          : 'Isolir otomatis diaktifkan.',
+    )
   } catch (error) {
     errorText.value = controlActionError(error)
+    needsContact.value = apiErrorCode(error) === 'MIKROTIK_TENANT_CONTACT_REQUIRED'
   }
 }
 
@@ -56,6 +64,20 @@ const activateReason = computed(() => {
   if (setMode.isPending.value) return 'Sedang memproses...'
   return null
 })
+
+// Simulasi tidak memulihkan akun, jadi kembali ke sana hanya saat tak ada uji berjalan dan
+// tak ada akun terisolir (temuan T13-B1: sebelumnya tidak ada jalan kembali dari UI).
+const simulationReason = computed(() => {
+  if (pilotReason.value) return pilotReason.value
+  const c = control.value
+  if (c && (c.test_active_count > 0 || c.isolated_secrets > 0))
+    return 'Hentikan uji dan pulihkan akun yang terisolir lebih dulu.'
+  return null
+})
+function goSimulation() {
+  if (simulationReason.value) return
+  void changeMode('simulation')
+}
 
 // aria-disabled tidak memblokir klik/Enter, jadi dijaga di handler.
 function goPilot() {
@@ -87,8 +109,6 @@ async function confirmActivate() {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Peluncuran Isolir" description="Simulasi, uji pilot, lalu aktifkan." />
-
     <p v-if="controlQuery.isPending.value" class="text-sm text-gray-600" role="status">Memuat...</p>
     <p v-else-if="controlQuery.isError.value || !control" class="text-sm text-red-700" role="alert">
       Gagal memuat status peluncuran.
@@ -111,6 +131,15 @@ async function confirmActivate() {
       </p>
       <p v-if="errorText" class="rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
         {{ errorText }}
+        <template v-if="needsContact">
+          <RouterLink :to="{ name: 'whatsapp' }" class="ml-1 font-medium underline"
+            >Hubungkan WhatsApp</RouterLink
+          >
+          atau
+          <RouterLink :to="{ name: 'email-accounts' }" class="font-medium underline"
+            >Akun Email</RouterLink
+          >
+        </template>
       </p>
 
       <section v-if="control.mode === 'simulation'" class="space-y-4" aria-label="Langkah Simulasi">
@@ -154,6 +183,21 @@ async function confirmActivate() {
             Tombol ini aktif setelah minimal satu uji pilot berhasil.
           </p>
         </div>
+        <div class="space-y-1 border-t pt-4">
+          <BaseButton
+            variant="outline"
+            :aria-disabled="simulationReason ? 'true' : undefined"
+            :aria-describedby="simulationReason ? 'hint-simulation' : undefined"
+            :title="simulationReason ?? undefined"
+            :class="simulationReason ? 'cursor-not-allowed opacity-60' : ''"
+            @click="goSimulation"
+          >
+            Kembali ke Simulasi
+          </BaseButton>
+          <span v-if="simulationReason" id="hint-simulation" class="sr-only">{{
+            simulationReason
+          }}</span>
+        </div>
       </section>
 
       <section v-else class="space-y-2 rounded-xl border p-4" aria-label="Langkah Aktif">
@@ -163,7 +207,7 @@ async function confirmActivate() {
           }}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Kelola jeda, pemulihan, dan log aktivitas di halaman Kendali Isolir.
+          Kelola jeda, pemulihan, dan log aktivitas di tab Kendali.
         </p>
       </section>
       <ConfirmDialog

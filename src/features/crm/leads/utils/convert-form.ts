@@ -14,6 +14,9 @@ export interface DealForm {
 }
 
 export interface ConvertForm {
+  /** existing = pakai kontak yang sudah ada (contactId), new = buat dari lead. */
+  contactMode: 'new' | 'existing'
+  contactId: string
   companyMode: 'none' | 'existing' | 'new'
   companyId: string
   companyName: string
@@ -70,6 +73,8 @@ export function prefillConvertForm(lead: Lead, pipelines: Pipeline[]): ConvertFo
   const deal = prefillDealForm(lead, pipelines)
   const companyName = (lead.company_name ?? '').trim()
   return {
+    contactMode: 'new',
+    contactId: '',
     companyMode: companyName ? 'new' : 'none',
     companyId: '',
     companyName,
@@ -112,6 +117,8 @@ export function buildDealInput(form: DealForm): ConvertDealInput {
 
 export function buildConvertPayload(form: ConvertForm): ConvertLeadPayload {
   const payload: ConvertLeadPayload = {}
+  if (form.contactMode === 'existing' && form.contactId)
+    payload.contact = { mode: 'existing', contact_id: form.contactId }
   if (form.companyMode === 'existing')
     payload.company = { mode: 'existing', company_id: form.companyId }
   else if (form.companyMode === 'new')
