@@ -106,4 +106,49 @@ describe('RouterLiveCards', () => {
     const w = await mountCards()
     expect(w.find('[data-state="loading"]').exists()).toBe(true)
   })
+
+  describe('Segarkan', () => {
+    function refreshButton(w: Awaited<ReturnType<typeof mountCards>>) {
+      return w.findAll('button').find((b) => /Segarkan|Memuat/.test(b.text()))!
+    }
+
+    it('is disabled within 60s of fetched_at and does not refetch', async () => {
+      vi.mocked(mikrotikApi.routers.stats).mockResolvedValue(stats())
+      const w = await mountCards()
+      const btn = refreshButton(w)
+      expect(btn.attributes('aria-disabled')).toBe('true')
+      expect(w.get('[data-testid="refresh-hint"]').text()).toMatch(
+        /Data terbaru tersedia dalam \d+ detik/,
+      )
+      await btn.trigger('click')
+      await flushPromises()
+      expect(mikrotikApi.routers.stats).toHaveBeenCalledTimes(1)
+    })
+
+    it('is enabled after 60s and refetches', async () => {
+      vi.mocked(mikrotikApi.routers.stats).mockResolvedValue(
+        stats({ fetched_at: new Date(Date.now() - 61_000).toISOString() }),
+      )
+      const w = await mountCards()
+      const btn = refreshButton(w)
+      expect(btn.attributes('aria-disabled')).toBeUndefined()
+      expect(w.find('[data-testid="refresh-hint"]').exists()).toBe(false)
+      await btn.trigger('click')
+      await flushPromises()
+      expect(mikrotikApi.routers.stats).toHaveBeenCalledTimes(2)
+    })
+
+    it('keeps the last good values with a notice when a refresh fails', async () => {
+      vi.mocked(mikrotikApi.routers.stats).mockResolvedValueOnce(
+        stats({ fetched_at: new Date(Date.now() - 61_000).toISOString() }),
+      )
+      const w = await mountCards()
+      vi.mocked(mikrotikApi.routers.stats).mockRejectedValue(httpError(502, 'MIKROTIK_UNREACHABLE'))
+      await refreshButton(w).trigger('click')
+      await flushPromises()
+      expect(w.find('[data-state="error"]').exists()).toBe(false)
+      expect(w.text()).toContain('142 online dari 180 secret')
+      expect(w.get('[data-testid="refresh-error"]').text()).toContain('Menampilkan data terakhir')
+    })
+  })
 })

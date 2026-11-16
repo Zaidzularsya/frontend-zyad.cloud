@@ -46,9 +46,14 @@ export const mikrotikKeys = {
 }
 
 // Router, secret, tugas, onboarding, dan status pelanggan saling terkait: mutation menyegarkan semuanya.
-function useInvalidateMikrotik() {
+export function useInvalidateMikrotik() {
   const queryClient = useQueryClient()
-  return () => void queryClient.invalidateQueries({ queryKey: mikrotikKeys.all })
+  // router-stats login langsung ke router (rate limit 10/menit): jangan ikut dipanggil ulang.
+  return () =>
+    void queryClient.invalidateQueries({
+      queryKey: mikrotikKeys.all,
+      predicate: (query) => query.queryKey[1] !== 'router-stats',
+    })
 }
 
 export function useRoutersQuery(

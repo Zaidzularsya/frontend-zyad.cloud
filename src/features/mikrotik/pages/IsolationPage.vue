@@ -55,6 +55,12 @@ function showFailedTasks() {
   void router.push({ query: { tab: 'tasks', status: 'failed' } })
 }
 
+// Klik tab yang sedang aktif mempertahankan query (status, router_id) agar filter TasksPanel tetap sinkron dengan URL.
+function tabTarget(key: 'control' | 'tasks') {
+  if (key === tab.value) return { name: 'mikrotik-isolation', query: { ...route.query, tab: key } }
+  return { name: 'mikrotik-isolation', query: { tab: key } }
+}
+
 const TABS = [
   { key: 'control', label: 'Kendali' },
   { key: 'tasks', label: 'Tugas' },
@@ -110,13 +116,12 @@ const TABS = [
     </template>
 
     <template v-else>
-      <nav role="tablist" aria-label="Isolir" class="flex gap-1 border-b">
+      <nav aria-label="Isolir" class="flex gap-1 border-b">
         <RouterLink
           v-for="t in TABS"
           :key="t.key"
-          role="tab"
-          :aria-selected="tab === t.key ? 'true' : 'false'"
-          :to="{ name: 'mikrotik-isolation', query: { tab: t.key } }"
+          :aria-current="tab === t.key ? 'page' : undefined"
+          :to="tabTarget(t.key)"
           class="-mb-px inline-flex min-h-11 items-center border-b-2 px-4 text-sm font-medium"
           :class="
             tab === t.key
@@ -126,7 +131,7 @@ const TABS = [
           >{{ t.label }}</RouterLink
         >
       </nav>
-      <div role="tabpanel" :aria-label="tab === 'tasks' ? 'Tugas' : 'Kendali'">
+      <div>
         <TasksPanel
           v-if="tab === 'tasks'"
           :initial-status="initialStatus"

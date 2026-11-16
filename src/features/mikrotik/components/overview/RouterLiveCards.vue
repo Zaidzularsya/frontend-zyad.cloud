@@ -21,7 +21,7 @@ const errorReason = computed(() => routerActionError(query.error.value))
 
 // "Diperbarui X detik lalu" harus tetap jujur selama halaman terbuka.
 const now = ref(Date.now())
-const ticker = setInterval(() => (now.value = Date.now()), 10_000)
+const ticker = setInterval(() => (now.value = Date.now()), 1_000)
 onBeforeUnmount(() => clearInterval(ticker))
 const updated = computed(() =>
   stats.value ? relativeTime(stats.value.fetched_at, Math.max(now.value, Date.now())) : '',
@@ -43,7 +43,21 @@ const model = computed(() =>
   [stats.value?.board_name, stats.value?.architecture].filter(Boolean).join(' · '),
 )
 
+// Backend menyimpan stats 60 detik per router dan rate limit (10/menit) berjalan sebelum cache,
+// jadi segarkan sebelum itu hanya menghabiskan token dan mengembalikan data yang sama.
+const CACHE_SECONDS = 60
+const cooldownLeft = computed(() => {
+  if (!stats.value) return 0
+  const fetchedAt = new Date(stats.value.fetched_at).getTime()
+  if (Number.isNaN(fetchedAt)) return 0
+  return Math.max(0, Math.ceil((fetchedAt + CACHE_SECONDS * 1000 - now.value) / 1000))
+})
+const refreshHint = computed(() =>
+  cooldownLeft.value > 0 ? `Data terbaru tersedia dalam ${cooldownLeft.value} detik` : '',
+)
+
 function refresh() {
+  if (query.isFetching.value || cooldownLeft.value > 0) return
   void query.refetch()
 }
 </script>
@@ -52,12 +66,26 @@ function refresh() {
   <BaseCard class="sm:col-span-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h3 class="font-semibold">Kondisi router saat ini</h3>
-      <div v-if="stats && !query.isError.value" class="flex items-center gap-3">
+      <div v-if="stats" class="flex items-center gap-3">
         <span class="text-xs text-gray-500 dark:text-gray-400">Diperbarui {{ updated }}</span>
-        <BaseButton variant="outline" :disabled="query.isFetching.value" @click="refresh">
+        <BaseButton
+          variant="outline"
+          :disabled="query.isFetching.value"
+          :aria-disabled="cooldownLeft > 0 ? 'true' : undefined"
+          :title="refreshHint || undefined"
+          :class="cooldownLeft > 0 ? 'cursor-not-allowed opacity-60' : ''"
+          @click="refresh"
+        >
           {{ query.isFetching.value ? 'Memuat...' : 'Segarkan' }}
         </BaseButton>
       </div>
+      <p
+        v-if="stats && cooldownLeft > 0"
+        data-testid="refresh-hint"
+        class="w-full text-right text-xs text-gray-500 dark:text-gray-400"
+      >
+        {{ refreshHint }}
+      </p>
     </div>
 
     <div
@@ -78,7 +106,7 @@ function refresh() {
     </div>
 
     <div
-      v-else-if="query.isError.value"
+      v-else-if="query.isError.value && !stats"
       data-state="error"
       class="mt-4 rounded-lg bg-red-50 p-4 text-sm dark:bg-red-950"
       role="alert"
@@ -103,6 +131,18 @@ function refresh() {
     </div>
 
     <div v-else-if="stats" data-state="ready" class="mt-4">
+      <p
+        v-if="query.isError.value"
+        data-testid="refresh-error"
+        class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
+        role="alert"
+      >
+        {{
+          rateLimited
+            ? 'Terlalu sering, coba lagi sebentar.'
+            : `Gagal memperbarui. ${errorReason} Menampilkan data terakhir.`
+        }}
+      </p>
       <p class="text-sm text-gray-500 dark:text-gray-400">Sesi PPPoE aktif</p>
       <p class="mt-1 text-gray-700 dark:text-gray-300">
         <span class="text-4xl font-bold tabular-nums text-gray-900 dark:text-white">{{

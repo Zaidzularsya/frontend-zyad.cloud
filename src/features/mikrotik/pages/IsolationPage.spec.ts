@@ -144,10 +144,11 @@ describe('IsolationPage', () => {
     const { w } = await mountPage({ mode: 'active' })
     expect(w.text()).toContain('Jeda, pulihkan, dan pantau isolir otomatis.')
     expect(w.get('[data-testid="mode-badge"]').text()).toBe('Aktif')
-    const tabs = w.findAll('[role="tab"]')
+    const tabs = w.findAll('nav[aria-label="Isolir"] a')
     expect(tabs.map((t) => t.text())).toEqual(['Kendali', 'Tugas'])
-    expect(tabs[0]!.attributes('aria-selected')).toBe('true')
-    expect(tabs[1]!.attributes('aria-selected')).toBe('false')
+    expect(tabs[0]!.attributes('aria-current')).toBe('page')
+    expect(tabs[1]!.attributes('aria-current')).toBeUndefined()
+    expect(w.find('[role="tab"]').exists()).toBe(false)
     expect(w.findComponent(ControlPanel).exists()).toBe(true)
     expect(w.findComponent(TasksPanel).exists()).toBe(false)
     expect(w.findComponent(LaunchPanel).exists()).toBe(false)
@@ -159,7 +160,7 @@ describe('IsolationPage', () => {
       { url: '/mikrotik/isolation?tab=tasks&status=failed' },
     )
     expect(w.get('[data-testid="mode-badge"]').text()).toBe('Dijeda')
-    expect(w.findAll('[role="tab"]')[1]!.attributes('aria-selected')).toBe('true')
+    expect(w.findAll('nav[aria-label="Isolir"] a')[1]!.attributes('aria-current')).toBe('page')
     expect(w.findComponent(TasksPanel).exists()).toBe(true)
     expect(w.findComponent(ControlPanel).exists()).toBe(false)
     expect(api.tasks.list).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
@@ -167,10 +168,24 @@ describe('IsolationPage', () => {
 
   it('clicking the Tugas tab switches to the queue', async () => {
     const { w, router } = await mountPage({ mode: 'active' })
-    await w.findAll('[role="tab"]')[1]!.trigger('click')
+    await w.findAll('nav[aria-label="Isolir"] a')[1]!.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.tab).toBe('tasks')
     expect(w.findComponent(TasksPanel).exists()).toBe(true)
+  })
+
+  it('clicking the already-active Tugas link keeps status and router_id', async () => {
+    const { w, router } = await mountPage(
+      { mode: 'active' },
+      { url: '/mikrotik/isolation?tab=tasks&status=failed&router_id=r9' },
+    )
+    await w.findAll('nav[aria-label="Isolir"] a')[1]!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({
+      tab: 'tasks',
+      status: 'failed',
+      router_id: 'r9',
+    })
   })
 
   it('show-failed-tasks from ControlPanel pushes tab=tasks&status=failed', async () => {

@@ -47,7 +47,7 @@ const ACTION_DESCRIPTIONS = {
   cleanup:
     'Hapus profile, pool, address-list, dan aturan firewall isolir buatan Zyad dari router. Ditolak bila masih ada secret yang memakai profile isolir.',
   delete:
-    'Hapus router dari Zyad. Konfigurasi di router tidak diubah. Ditolak bila masih ada secret terisolir.',
+    'Hapus router dari Zyad. Konfigurasi di router tidak diubah. Ditolak bila masih ada secret terisolir atau tugas isolir yang berjalan.',
 }
 
 function menuItems(): RowActionItem[] {
