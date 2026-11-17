@@ -24,6 +24,14 @@ export function useMailboxesQuery(enabled: Ref<boolean> = computed(() => true)) 
   })
 }
 
+export function useMicrosoftOAuthStatusQuery() {
+  return useQuery({
+    queryKey: [...emailKeys.all, 'oauth', 'microsoft'] as const,
+    queryFn: emailApi.microsoftOAuthStatus,
+    staleTime: 5 * 60_000,
+  })
+}
+
 function useInvalidateMailboxes() {
   const queryClient = useQueryClient()
   return () => queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() })

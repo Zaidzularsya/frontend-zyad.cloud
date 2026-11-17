@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Mail, Plus } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -14,6 +14,7 @@ import {
   useTestMailboxMutation,
 } from '@/features/email/api/email.queries'
 import MailboxFormModal from '@/features/email/components/MailboxFormModal.vue'
+import { useMicrosoftMailboxConnect } from '@/features/email/composables/useMicrosoftMailboxConnect'
 import type { Mailbox } from '@/features/email/types'
 import { emailErrorMessage } from '@/features/email/utils/errors'
 import { formatDate } from '@/lib/utils'
@@ -29,6 +30,10 @@ const testMutation = useTestMailboxMutation()
 const deleteMutation = useDeleteMailboxMutation()
 const syncMutation = useSyncMailboxMutation()
 const syncingID = ref('')
+const microsoft = useMicrosoftMailboxConnect()
+watch(microsoft.error, (message) => {
+  if (message) toast.error(message)
+})
 
 const statusStyles: Record<Mailbox['status'], { label: string; className: string }> = {
   active: { label: 'Terhubung', className: 'bg-emerald-50 text-emerald-700' },
@@ -136,6 +141,10 @@ async function confirmDelete() {
           </span>
         </div>
         <dl class="grid grid-cols-[5rem_1fr] gap-y-1 text-sm">
+          <dt class="text-gray-500">Login</dt>
+          <dd>
+            {{ mailbox.auth_method === 'microsoft_oauth' ? 'Akun Microsoft (OAuth)' : 'Password' }}
+          </dd>
           <dt class="text-gray-500">SMTP</dt>
           <dd class="break-all">
             {{ mailbox.smtp_host }}:{{ mailbox.smtp_port }} ·
@@ -181,6 +190,13 @@ async function confirmDelete() {
             @click="test(mailbox)"
           >
             Tes koneksi
+          </BaseButton>
+          <BaseButton
+            v-if="mailbox.auth_method === 'microsoft_oauth' && mailbox.status === 'error'"
+            :disabled="microsoft.redirecting.value"
+            @click="microsoft.connect({ mailbox_id: mailbox.id })"
+          >
+            Hubungkan ulang
           </BaseButton>
           <BaseButton variant="outline" @click="openEdit(mailbox)">Edit</BaseButton>
           <BaseButton variant="secondary" @click="deleting = mailbox">Hapus</BaseButton>

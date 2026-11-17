@@ -6,8 +6,10 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import {
   useCreateMailboxMutation,
+  useMicrosoftOAuthStatusQuery,
   useUpdateMailboxMutation,
 } from '@/features/email/api/email.queries'
+import { useMicrosoftMailboxConnect } from '@/features/email/composables/useMicrosoftMailboxConnect'
 import type { MailSecurity, Mailbox, MailboxPayload } from '@/features/email/types'
 import { emailErrorMessage } from '@/features/email/utils/errors'
 
@@ -51,7 +53,9 @@ const providers: Record<Exclude<ProviderKey, 'custom'>, Provider> = {
     smtp_security: 'starttls',
     imap_host: 'outlook.office365.com',
     imap_port: 993,
-    hint: 'Admin Microsoft 365 harus mengaktifkan "Authenticated SMTP" untuk akun ini.',
+    // Shown only when the server has no Microsoft app registration: password
+    // login is the fallback, and Microsoft is retiring it.
+    hint: 'Microsoft sudah menghentikan login password untuk SMTP. Cara ini hanya berfungsi bila admin Microsoft 365 masih mengaktifkan "Authenticated SMTP" dengan basic auth.',
   },
   zoho: {
     label: 'Zoho Mail',
@@ -82,6 +86,15 @@ const form = reactive({
   imap_host: '',
   imap_port: 993,
 })
+
+const microsoftStatus = useMicrosoftOAuthStatusQuery()
+const microsoft = useMicrosoftMailboxConnect()
+const isOAuthMailbox = computed(() => props.mailbox?.auth_method === 'microsoft_oauth')
+/** Outlook goes through "Masuk dengan Microsoft" when the server supports it. */
+const useMicrosoftSignIn = computed(
+  () =>
+    isOAuthMailbox.value || (provider.value === 'outlook' && microsoftStatus.data.value === true),
+)
 
 function applyProvider(key: ProviderKey) {
   if (key === 'custom') return
@@ -120,7 +133,8 @@ watch(
         imap_host: mailbox.imap_host,
         imap_port: mailbox.imap_port || 993,
       })
-      provider.value = detectProvider(mailbox.smtp_host)
+      provider.value =
+        mailbox.auth_method === 'microsoft_oauth' ? 'outlook' : detectProvider(mailbox.smtp_host)
     } else {
       Object.assign(form, { email_address: '', display_name: '', username: '', password: '' })
       provider.value = 'gmail'
@@ -131,13 +145,30 @@ watch(
 )
 
 watch(provider, (key) => {
+  if (isOAuthMailbox.value) return
   if (!props.mailbox || key !== detectProvider(props.mailbox.smtp_host)) applyProvider(key)
 })
 
-const hint = computed(() => (provider.value === 'custom' ? '' : providers[provider.value].hint))
+const hint = computed(() =>
+  provider.value === 'custom' || useMicrosoftSignIn.value ? '' : providers[provider.value].hint,
+)
+
+function connectMicrosoft() {
+  errorMessage.value = ''
+  void microsoft.connect({
+    mailbox_id: props.mailbox?.id,
+    display_name: form.display_name.trim() || undefined,
+  })
+}
 
 async function submit() {
   errorMessage.value = ''
+  // A new Outlook mailbox, or switching a password one to OAuth, needs the
+  // Microsoft redirect; an OAuth mailbox only saves its display name here.
+  if (useMicrosoftSignIn.value && !isOAuthMailbox.value) {
+    connectMicrosoft()
+    return
+  }
   if (!isEdit.value && !form.password) {
     errorMessage.value = 'Password wajib diisi.'
     return
@@ -185,7 +216,7 @@ const selectClass =
         <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Penyedia email
         </span>
-        <select v-model="provider" :class="selectClass">
+        <select v-model="provider" :class="selectClass" :disabled="isOAuthMailbox">
           <option v-for="(item, key) in providers" :key="key" :value="key">{{ item.label }}</option>
           <option value="custom">Server lain (manual)</option>
         </select>
@@ -197,7 +228,26 @@ const selectClass =
         {{ hint }}
       </p>
 
+      <div
+        v-if="useMicrosoftSignIn"
+        class="space-y-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-300"
+      >
+        <p v-if="isOAuthMailbox">
+          Terhubung lewat login Microsoft sebagai
+          <span class="font-medium text-gray-900 dark:text-white">{{ mailbox?.email_address }}</span
+          >. Password tidak disimpan. Jika status bermasalah, hubungkan ulang.
+        </p>
+        <p v-else>
+          Anda akan diarahkan ke halaman login Microsoft. Alamat email diambil dari akun yang Anda
+          pilih, dan password tidak disimpan di Zyad.
+        </p>
+        <p class="text-xs text-gray-500">
+          Akun Microsoft 365 kantor: admin harus mengizinkan "Authenticated SMTP" untuk mailbox ini.
+        </p>
+      </div>
+
       <TextField
+        v-if="!useMicrosoftSignIn"
         v-model="form.email_address"
         name="email_address"
         type="email"
@@ -211,78 +261,100 @@ const selectClass =
         label="Nama pengirim (opsional)"
         placeholder="Contoh: Lisa - Zyad Technovation"
       />
-      <TextField
-        v-model="form.password"
-        name="password"
-        type="password"
-        :label="
-          isEdit
-            ? 'Password / App Password (kosongkan jika tidak diganti)'
-            : 'Password / App Password'
-        "
-        autocomplete="new-password"
-      />
+      <template v-if="!useMicrosoftSignIn">
+        <TextField
+          v-model="form.password"
+          name="password"
+          type="password"
+          :label="
+            isEdit
+              ? 'Password / App Password (kosongkan jika tidak diganti)'
+              : 'Password / App Password'
+          "
+          autocomplete="new-password"
+        />
 
-      <details :open="provider === 'custom'" class="rounded-lg border p-3 dark:border-gray-800">
-        <summary class="cursor-pointer text-sm font-medium">Pengaturan server</summary>
-        <div class="mt-3 space-y-3">
-          <TextField
-            v-model="form.username"
-            name="username"
-            label="Username (kosongkan bila sama dengan alamat email)"
-            autocomplete="off"
-          />
-          <div class="grid gap-3 sm:grid-cols-[1fr_6rem_8rem]">
-            <TextField v-model="form.smtp_host" name="smtp_host" label="SMTP host" />
-            <label class="block">
-              <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Port
-              </span>
-              <select v-model.number="form.smtp_port" :class="selectClass">
-                <option :value="465">465</option>
-                <option :value="587">587</option>
-                <option :value="25">25</option>
-                <option :value="2525">2525</option>
-              </select>
-            </label>
-            <label class="block">
-              <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Keamanan
-              </span>
-              <select v-model="form.smtp_security" :class="selectClass">
-                <option value="ssl">SSL/TLS</option>
-                <option value="starttls">STARTTLS</option>
-              </select>
-            </label>
-          </div>
-          <div class="grid gap-3 sm:grid-cols-[1fr_6rem]">
+        <details :open="provider === 'custom'" class="rounded-lg border p-3 dark:border-gray-800">
+          <summary class="cursor-pointer text-sm font-medium">Pengaturan server</summary>
+          <div class="mt-3 space-y-3">
             <TextField
-              v-model="form.imap_host"
-              name="imap_host"
-              label="IMAP host (untuk inbox, opsional)"
+              v-model="form.username"
+              name="username"
+              label="Username (kosongkan bila sama dengan alamat email)"
+              autocomplete="off"
             />
-            <label class="block">
-              <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Port
-              </span>
-              <select v-model.number="form.imap_port" :class="selectClass">
-                <option :value="993">993</option>
-                <option :value="143">143</option>
-              </select>
-            </label>
+            <div class="grid gap-3 sm:grid-cols-[1fr_6rem_8rem]">
+              <TextField v-model="form.smtp_host" name="smtp_host" label="SMTP host" />
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Port
+                </span>
+                <select v-model.number="form.smtp_port" :class="selectClass">
+                  <option :value="465">465</option>
+                  <option :value="587">587</option>
+                  <option :value="25">25</option>
+                  <option :value="2525">2525</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Keamanan
+                </span>
+                <select v-model="form.smtp_security" :class="selectClass">
+                  <option value="ssl">SSL/TLS</option>
+                  <option value="starttls">STARTTLS</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-[1fr_6rem]">
+              <TextField
+                v-model="form.imap_host"
+                name="imap_host"
+                label="IMAP host (untuk inbox, opsional)"
+              />
+              <label class="block">
+                <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Port
+                </span>
+                <select v-model.number="form.imap_port" :class="selectClass">
+                  <option :value="993">993</option>
+                  <option :value="143">143</option>
+                </select>
+              </label>
+            </div>
           </div>
-        </div>
-      </details>
+        </details>
 
-      <p class="text-xs text-gray-500">
-        Koneksi diuji saat disimpan. Password disimpan terenkripsi dan hanya dipakai untuk mengirim
-        email Anda sendiri.
+        <p class="text-xs text-gray-500">
+          Koneksi diuji saat disimpan. Password disimpan terenkripsi dan hanya dipakai untuk
+          mengirim email Anda sendiri.
+        </p>
+      </template>
+      <p v-if="errorMessage || microsoft.error.value" class="text-sm text-red-600" role="alert">
+        {{ errorMessage || microsoft.error.value }}
       </p>
-      <p v-if="errorMessage" class="text-sm text-red-600" role="alert">{{ errorMessage }}</p>
 
-      <div class="flex justify-end gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
         <BaseButton variant="secondary" type="button" @click="$emit('close')">Batal</BaseButton>
-        <BaseButton type="submit" :disabled="pending">
+        <BaseButton
+          v-if="isOAuthMailbox"
+          variant="outline"
+          type="button"
+          :disabled="microsoft.redirecting.value"
+          @click="connectMicrosoft"
+        >
+          {{ microsoft.redirecting.value ? 'Mengarahkan...' : 'Hubungkan ulang' }}
+        </BaseButton>
+        <BaseButton
+          v-if="useMicrosoftSignIn && !isOAuthMailbox"
+          type="submit"
+          :disabled="microsoft.redirecting.value"
+        >
+          {{
+            microsoft.redirecting.value ? 'Mengarahkan ke Microsoft...' : 'Masuk dengan Microsoft'
+          }}
+        </BaseButton>
+        <BaseButton v-else type="submit" :disabled="pending">
           {{ pending ? 'Menguji koneksi...' : isEdit ? 'Simpan' : 'Hubungkan' }}
         </BaseButton>
       </div>
