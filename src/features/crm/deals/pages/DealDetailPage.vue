@@ -18,7 +18,9 @@ import {
   useCloseDealWonMutation,
   useDealQuery,
   useMoveDealStageMutation,
+  useUpdateDealMutation,
 } from '@/features/crm/deals/api/deals.queries'
+import DealContactField from '@/features/crm/components/DealContactField.vue'
 import DealQuotationsPanel from '@/features/crm/quotations/components/DealQuotationsPanel.vue'
 import EntityEmailPanel from '@/features/email/components/EntityEmailPanel.vue'
 import ConversationPanel from '@/features/whatsapp/components/ConversationPanel.vue'
@@ -48,6 +50,28 @@ const moveStage = useMoveDealStageMutation()
 const closeWon = useCloseDealWonMutation()
 const closeLost = useCloseDealLostMutation()
 const actionError = ref('')
+
+// --- Ubah kontak deal (F5): SO/kontrak butuh kontak pada deal. ---
+const updateMutation = useUpdateDealMutation()
+const editingContact = ref(false)
+const draftContactId = ref('')
+function startEditContact() {
+  draftContactId.value = deal.value?.contact_id ?? ''
+  editingContact.value = true
+}
+async function saveContact() {
+  if (!deal.value) return
+  actionError.value = ''
+  try {
+    await updateMutation.mutateAsync({
+      id: deal.value.id,
+      payload: { contact_id: draftContactId.value },
+    })
+    editingContact.value = false
+  } catch {
+    actionError.value = 'Kontak deal gagal disimpan.'
+  }
+}
 const canMove = computed(() => auth.can('deal.move_stage') && deal.value?.status === 'open')
 
 async function onSelectStage(stageId: string) {
@@ -167,9 +191,32 @@ const closeDate = computed(() =>
       <div class="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
         <BaseCard class="space-y-4 !p-5 text-sm">
           <section class="space-y-2">
-            <h2 class="font-semibold">Kontak</h2>
+            <div class="flex items-center justify-between">
+              <h2 class="font-semibold">Kontak</h2>
+              <button
+                v-if="auth.can('deal.update') && !editingContact"
+                type="button"
+                class="text-xs text-brand-600"
+                data-testid="edit-deal-contact"
+                @click="startEditContact"
+              >
+                {{ contact ? 'Ubah' : 'Pilih kontak' }}
+              </button>
+            </div>
+            <div v-if="editingContact" class="space-y-2">
+              <DealContactField v-model="draftContactId" :contact-name="contactName" />
+              <div class="flex gap-2">
+                <BaseButton
+                  data-testid="save-deal-contact"
+                  :disabled="updateMutation.isPending.value"
+                  @click="saveContact"
+                  >Simpan</BaseButton
+                >
+                <BaseButton variant="secondary" @click="editingContact = false">Batal</BaseButton>
+              </div>
+            </div>
             <RouterLink
-              v-if="contact"
+              v-else-if="contact"
               :to="`${base}contacts/${contact.id}`"
               class="flex items-center gap-2 text-brand-600"
             >

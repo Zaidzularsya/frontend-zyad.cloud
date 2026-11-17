@@ -6,15 +6,34 @@
     <meta name="theme-color" content="#465fff" />
     <link rel="icon" type="image/svg+xml" href="/branding/favicon.svg" />
     <title>Zyad Cloud</title>
-    <!-- External Web Fonts and Icons -->
+    <!--
+      External web fonts and icons, loaded NON-blocking: media="print" keeps them
+      off the critical path and src/app/async-stylesheets.ts switches them to "all"
+      once loaded (CSP forbids inline onload handlers). An isolated PPPoE session
+      drops packets to other origins; a blocking stylesheet would keep /isolir blank.
+    -->
     <link
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
       rel="stylesheet"
+      media="print"
+      data-async-stylesheet
     />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
       rel="stylesheet"
+      media="print"
+      data-async-stylesheet
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet"
+      />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
   <body>
     <div id="app"></div>

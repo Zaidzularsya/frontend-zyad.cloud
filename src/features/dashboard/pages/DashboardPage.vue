@@ -5,7 +5,12 @@ import { ChevronRight, CreditCard, FileClock, FileText, Waypoints } from 'lucide
 
 import BaseCard from '@/components/ui/BaseCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import { selfServeApi, type SubscriptionView } from '@/features/customer/api/self-serve.api'
+import {
+  selfServeApi,
+  type BillsView,
+  type SubscriptionView,
+} from '@/features/customer/api/self-serve.api'
+import { useHiddenFeatures } from '@/features/entitlements/composables/useHiddenFeatures'
 import {
   formatDay,
   invoiceStatusLabel,
@@ -15,25 +20,45 @@ import {
 import { formatCurrency } from '@/lib/utils'
 
 const view = ref<SubscriptionView | null>(null)
+const bills = ref<BillsView | null>(null)
 const loading = ref(true)
 const failed = ref(false)
 
+// Tile CRM mengarah ke /app/crm yang ditolak backend tanpa crm.enabled (mis. workspace pembeli
+// reseller yang hanya membawa landing.page_activation).
+const isFeatureHidden = useHiddenFeatures()
+const showCrmTile = computed(() => !isFeatureHidden('crm.enabled'))
+
 onMounted(async () => {
+  // Tagihan dari penjual hanya pelengkap: kegagalannya tidak boleh merusak dashboard.
+  const billsRequest = selfServeApi.bills().catch(() => null)
   try {
     view.value = await selfServeApi.subscription()
   } catch {
     failed.value = true
-  } finally {
-    loading.value = false
   }
+  bills.value = await billsRequest
+  loading.value = false
 })
 
+// Workspace yang dibeli lewat penjual tenant tidak punya langganan platform (status free, tanpa invoice);
+// tagihannya ada di org penjual.
+const sellerName = computed(() => {
+  const hasPlatformInvoices = (view.value?.invoices.length ?? 0) > 0
+  const hasSellerBills = (bills.value?.invoices.length ?? 0) > 0
+  return !hasPlatformInvoices && hasSellerBills ? (bills.value?.seller?.name ?? '') : ''
+})
 const planName = computed(() => {
   if (!view.value) return '—'
+  if (sellerName.value) return `Paket ${sellerName.value}`
   return view.value.product?.name ?? 'Paket Free'
 })
-const planStatus = computed(() => (view.value ? statusBanner(view.value).title : ''))
-const invoices = computed(() => view.value?.invoices ?? [])
+const planStatus = computed(() =>
+  view.value && !sellerName.value ? statusBanner(view.value).title : '',
+)
+const invoices = computed(() =>
+  sellerName.value ? (bills.value?.invoices ?? []) : (view.value?.invoices ?? []),
+)
 const totalInvoices = computed(() => invoices.value.length)
 const openInvoices = computed(() => invoices.value.filter((i) => isPayable(i.status)).length)
 const recentInvoices = computed(() => invoices.value.slice(0, 5))
@@ -154,6 +179,7 @@ const statusTone: Record<string, string> = {
     </BaseCard>
 
     <RouterLink
+      v-if="showCrmTile"
       :to="{ name: 'crm-deals' }"
       class="flex items-center gap-3 rounded-xl border bg-white p-5 shadow-sm transition hover:border-brand-300 hover:bg-brand-50/50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
     >

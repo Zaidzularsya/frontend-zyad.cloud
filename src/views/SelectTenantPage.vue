@@ -14,6 +14,7 @@ const tenantStore = useTenantStore()
 async function select(tenantId: string) {
   try {
     await tenantStore.select(tenantId)
+    await auth.refreshPermissions()
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/app'
     await router.replace(redirect)
   } catch (err) {

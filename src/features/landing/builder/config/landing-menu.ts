@@ -4,6 +4,7 @@ import {
   CheckSquare2,
   FileText,
   Inbox,
+  ReceiptText,
   Folders,
   LayoutTemplate,
   Globe2,
@@ -40,6 +41,8 @@ export interface LandingMenuPageDefinition {
   hiddenFromMenu?: boolean
   /** Hanya untuk menu/route prefix `platform-` (mis. kelola Galeri Template). */
   platformOnly?: boolean
+  /** Hanya untuk workspace (bukan prefix `platform-`): mis. invoice halaman yang dijual reseller. */
+  workspaceOnly?: boolean
   permission?: Permission
 }
 
@@ -212,6 +215,31 @@ export const landingMenuPages: LandingMenuPageDefinition[] = [
       },
     ],
   },
+  {
+    key: 'invoices',
+    routeNameSuffix: 'invoices',
+    label: 'Invoice Halaman',
+    description:
+      'Invoice halaman yang Anda jual ke pelanggan: salin dan kirim ulang link, perbarui link preview.',
+    icon: ReceiptText,
+    tone: 'emerald',
+    permission: 'landing.page.update',
+    workspaceOnly: true,
+    stats: [
+      { label: 'Status', value: '4' },
+      { label: 'Per halaman', value: '20' },
+    ],
+    sections: [
+      {
+        title: 'Invoice',
+        items: ['Pelanggan', 'Halaman', 'Harga', 'Status pembayaran'],
+      },
+      {
+        title: 'Aksi',
+        items: ['Salin link bayar', 'Kirim tagihan via WhatsApp', 'Perbarui link preview'],
+      },
+    ],
+  },
 ]
 
 const toneRoute = {
@@ -230,7 +258,9 @@ export function getLandingMenuToneClasses(tone: LandingMenuTone) {
 
 function pagesForPrefix(routePrefix: string) {
   const isPlatformRoute = routePrefix.startsWith('platform-')
-  return landingMenuPages.filter((page) => isPlatformRoute || !page.platformOnly)
+  return landingMenuPages.filter((page) =>
+    isPlatformRoute ? !page.workspaceOnly : !page.platformOnly,
+  )
 }
 
 export function buildLandingManagementMenuItems(routePrefix: string) {
@@ -265,7 +295,9 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                 ? () => import('../pages/LandingSubmissionsPage.vue')
                 : page.key === 'page-templates'
                   ? () => import('../pages/LandingPageTemplatesPage.vue')
-                  : () => import('../pages/LandingMenuDetailPage.vue'),
+                  : page.key === 'invoices'
+                    ? () => import('@/features/landing/activation/pages/ActivationInvoicesPage.vue')
+                    : () => import('../pages/LandingMenuDetailPage.vue'),
     props:
       page.key === 'pages'
         ? {
@@ -301,7 +333,9 @@ export function buildLandingManagementRoutes(routePrefix: string): RouteRecordRa
                   mode: isPlatformRoute ? 'platform' : 'workspace',
                   parentRouteName: routePrefix,
                 }
-              : page.key === 'submissions' || page.key === 'page-templates'
+              : page.key === 'submissions' ||
+                  page.key === 'page-templates' ||
+                  page.key === 'invoices'
                 ? {}
                 : {
                     definition: page,

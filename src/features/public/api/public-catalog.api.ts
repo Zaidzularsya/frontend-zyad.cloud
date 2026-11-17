@@ -49,4 +49,15 @@ export const publicCatalogApi = {
     )
     return response.data.data?.categories ?? []
   },
+
+  /**
+   * GET /app/catalog/listings — kartu produk publik milik org yang sedang login. Dipakai editor
+   * landing (berjalan di host platform) untuk pratinjau + panel blok Pricing Katalog tenant;
+   * /public/tenant-catalog tidak bisa karena tenant-nya ditentukan dari host.
+   */
+  listOwnListings: async (): Promise<PublicListingCategory[]> => {
+    const response =
+      await http.get<ApiEnvelope<{ categories: PublicListingCategory[] }>>('/app/catalog/listings')
+    return response.data.data?.categories ?? []
+  },
 }

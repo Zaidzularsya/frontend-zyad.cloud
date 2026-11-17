@@ -5,8 +5,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { PublicInvoice } from '../api/public-invoice.api'
 
-const { get, checkout, status, redirectTo } = vi.hoisted(() => ({
+const { get, checkout, status, provisioning, redirectTo } = vi.hoisted(() => ({
   get: vi.fn(),
+  provisioning: vi.fn(),
   checkout: vi.fn(),
   status: vi.fn(),
   redirectTo: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('../api/public-invoice.api', () => ({
     get,
     checkout,
     status,
+    provisioning,
     pdfUrl: (t: string) => `/api/v1/public/invoices/${t}/pdf`,
   },
 }))
@@ -86,6 +88,8 @@ describe('PublicInvoicePage', () => {
     get.mockReset()
     checkout.mockReset()
     status.mockReset()
+    provisioning.mockReset()
+    provisioning.mockResolvedValue({ applicable: false })
     redirectTo.mockReset()
     document.body.innerHTML = ''
     document.head.querySelectorAll('meta[name="robots"]').forEach((m) => m.remove())
@@ -246,6 +250,227 @@ describe('PublicInvoicePage', () => {
         await vi.advanceTimersByTimeAsync(60000)
         expect(status).not.toHaveBeenCalled()
       })
+    })
+  })
+
+  describe('tahap pemulihan (provisioning)', () => {
+    const paid = () => invoice({ status: 'paid', state: 'paid', balance: '0.00' })
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('shows no block when not applicable', async () => {
+      get.mockResolvedValue(paid())
+      const w = await mountPage()
+      expect(provisioning).toHaveBeenCalledWith('tok123')
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(false)
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows restoring text then switches to active and stops polling', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockResolvedValueOnce({ applicable: true, stage: 'received' })
+        .mockResolvedValueOnce({ applicable: true, stage: 'restoring' })
+        .mockResolvedValue({ applicable: true, stage: 'active' })
+      const w = await mountPage()
+      expect(w.text()).toContain(
+        'Pembayaran diterima. Kami sedang menyiapkan pengaktifan internet Anda.',
+      )
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(w.text()).toContain('Sedang mengaktifkan internet. Biasanya 1–2 menit.')
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(w.text()).toContain('Internet Anda sudah aktif.')
+      expect(buttons(w)).toContain('Muat ulang')
+      const calls = provisioning.mock.calls.length
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(calls)
+    })
+
+    it('needs_help stops polling and shows help text', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({ applicable: true, stage: 'needs_help' })
+      const w = await mountPage()
+      expect(w.text()).toContain(
+        'Pembayaran sudah kami terima, tetapi aktivasi tertunda. Hubungi kami agar segera dibantu.',
+      )
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(1)
+    })
+
+    it('needs_help with contact shows tel, wa.me and mailto links', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({
+        applicable: true,
+        stage: 'needs_help',
+        contact: { name: 'ISP Maju', phone: '0812-3456-7890', email: 'cs@isp.id' },
+      })
+      const w = await mountPage()
+      const block = w.find('[data-testid="provisioning-status"]')
+      expect(block.find('a[href="tel:081234567890"]').exists()).toBe(true)
+      expect(block.find('a[href="https://wa.me/6281234567890"]').exists()).toBe(true)
+      expect(block.find('a[href="mailto:cs@isp.id"]').exists()).toBe(true)
+      expect(block.text()).toContain('ISP Maju')
+    })
+
+    it('needs_help without contact shows plain text only', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({ applicable: true, stage: 'needs_help' })
+      const w = await mountPage()
+      const block = w.find('[data-testid="provisioning-status"]')
+      expect(block.text()).toContain('Hubungi kami agar segera dibantu.')
+      expect(block.find('a').exists()).toBe(false)
+    })
+
+    it('needs_help with partial contact hides missing channels', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({
+        applicable: true,
+        stage: 'needs_help',
+        contact: { email: 'cs@isp.id' },
+      })
+      const w = await mountPage()
+      const block = w.find('[data-testid="provisioning-status"]')
+      expect(block.findAll('a')).toHaveLength(1)
+      expect(block.find('a[href="mailto:cs@isp.id"]').exists()).toBe(true)
+    })
+
+    it('status region is present before any answer arrives', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockReturnValue(new Promise(() => {}))
+      const w = await mountPage()
+      const region = w.find('[data-testid="provisioning-region"]')
+      expect(region.exists()).toBe(true)
+      expect(region.attributes('role')).toBe('status')
+      expect(region.text()).toBe('')
+    })
+
+    it('Muat ulang reloads the page', async () => {
+      const reload = vi.fn()
+      vi.stubGlobal('location', { ...window.location, reload })
+      try {
+        get.mockResolvedValue(paid())
+        provisioning.mockResolvedValue({ applicable: true, stage: 'active' })
+        const w = await mountPage()
+        await w
+          .findAll('button')
+          .find((b) => b.text() === 'Muat ulang')!
+          .trigger('click')
+        expect(reload).toHaveBeenCalledTimes(1)
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+
+    it('other_invoices stops polling', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({ applicable: true, stage: 'other_invoices' })
+      const w = await mountPage()
+      expect(w.text()).toContain(
+        'Pembayaran diterima. Internet aktif setelah semua tagihan yang menunggak lunas.',
+      )
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(1)
+    })
+
+    it('no provisioning call for open invoice', async () => {
+      get.mockResolvedValue(invoice())
+      await mountPage()
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).not.toHaveBeenCalled()
+    })
+
+    it('stops polling on unmount', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({ applicable: true, stage: 'restoring' })
+      const w = await mountPage()
+      await vi.advanceTimersByTimeAsync(5000)
+      const calls = provisioning.mock.calls.length
+      w.unmount()
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(calls)
+    })
+
+    it('stops polling when it becomes not applicable', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockResolvedValueOnce({ applicable: true, stage: 'restoring' })
+        .mockResolvedValue({ applicable: false })
+      const w = await mountPage()
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(false)
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(2)
+    })
+
+    it('a 404 hides the block and stops polling', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockResolvedValueOnce({ applicable: true, stage: 'restoring' })
+        .mockRejectedValue({ response: { status: 404 } })
+      const w = await mountPage()
+      expect(w.text()).toContain('Sedang mengaktifkan internet')
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(false)
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(2)
+    })
+
+    it('a 429 keeps the last stage and keeps polling with backoff', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockResolvedValueOnce({ applicable: true, stage: 'restoring' })
+        .mockRejectedValueOnce({ response: { status: 429 } })
+        .mockRejectedValueOnce({ response: { status: 429 } })
+        .mockResolvedValue({ applicable: true, stage: 'active' })
+      const w = await mountPage()
+      await vi.advanceTimersByTimeAsync(5000) // 2nd call: 429
+      expect(provisioning).toHaveBeenCalledTimes(2)
+      expect(w.text()).toContain('Sedang mengaktifkan internet')
+      // backoff: the next try waits longer than the normal 5 s interval.
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(provisioning).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(5000) // 3rd call after 10 s: 429 again
+      expect(provisioning).toHaveBeenCalledTimes(3)
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(true)
+      await vi.advanceTimersByTimeAsync(20000) // 4th call after 20 s: active
+      expect(provisioning).toHaveBeenCalledTimes(4)
+      expect(w.text()).toContain('Internet Anda sudah aktif.')
+      await vi.advanceTimersByTimeAsync(60000)
+      expect(provisioning).toHaveBeenCalledTimes(4)
+    })
+
+    it('a network error before any answer keeps polling without showing a block', async () => {
+      get.mockResolvedValue(paid())
+      provisioning
+        .mockRejectedValueOnce(new Error('Network Error'))
+        .mockResolvedValue({ applicable: true, stage: 'received' })
+      const w = await mountPage()
+      expect(w.find('[data-testid="provisioning-status"]').exists()).toBe(false)
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(provisioning).toHaveBeenCalledTimes(2)
+      expect(w.text()).toContain('Pembayaran diterima.')
+    })
+
+    it('repeated 429s still respect the 60-attempt cap', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockRejectedValue({ response: { status: 429 } })
+      await mountPage()
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60000)
+      expect(provisioning).toHaveBeenCalledTimes(60)
+    })
+
+    it('gives up after 60 attempts', async () => {
+      get.mockResolvedValue(paid())
+      provisioning.mockResolvedValue({ applicable: true, stage: 'restoring' })
+      await mountPage()
+      await vi.advanceTimersByTimeAsync(10 * 60000)
+      expect(provisioning).toHaveBeenCalledTimes(60)
     })
   })
 })

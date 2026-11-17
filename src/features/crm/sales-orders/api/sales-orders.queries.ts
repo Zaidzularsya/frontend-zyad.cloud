@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
 import { computed, type Ref } from 'vue'
 
 import { dealKeys } from '@/features/crm/deals/api/deals.queries'
@@ -100,9 +101,13 @@ export function useRetryBillingMutation() {
 
 export function useCancelSalesOrderMutation() {
   const invalidate = useInvalidateOrders()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => salesOrdersApi.cancel(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      invalidateEntitlements()
+    },
   })
 }
 

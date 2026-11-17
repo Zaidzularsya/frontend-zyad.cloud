@@ -15,6 +15,8 @@ export interface PlatformFeature {
   unit?: string
   reset_strategy: PlatformFeatureResetStrategy
   is_active: boolean
+  tenant_offerable: boolean
+  tenant_max: number | null
   created_at: string
   updated_at: string
 }
@@ -36,6 +38,8 @@ export interface CreatePlatformFeaturePayload {
   unit?: string
   reset_strategy?: PlatformFeatureResetStrategy
   is_active?: boolean
+  tenant_offerable?: boolean
+  tenant_max?: number | null
 }
 
 export interface UpdatePlatformFeaturePayload {
@@ -46,6 +50,8 @@ export interface UpdatePlatformFeaturePayload {
   unit?: string
   reset_strategy?: PlatformFeatureResetStrategy
   is_active?: boolean
+  tenant_offerable?: boolean
+  tenant_max?: number | null
 }
 
 export const platformFeaturesApi = {

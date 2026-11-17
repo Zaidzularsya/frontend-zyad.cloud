@@ -53,8 +53,17 @@ export interface SubscriptionView {
   invoices: SubscriptionInvoice[]
 }
 
+/** Respons GET /app/self-serve/bills: tagihan yang diterima workspace dari penjualnya (platform atau tenant). */
+export interface BillsView {
+  /** null bila workspace tidak tertaut ke penjual mana pun. */
+  seller: { name: string } | null
+  invoices: SubscriptionInvoice[]
+}
+
 export const selfServeApi = {
   subscription: () => apiClient.get<SubscriptionView>('/app/self-serve/subscription'),
+
+  bills: () => apiClient.get<BillsView>('/app/self-serve/bills'),
 
   /** Idempoten: memanggil ulang untuk produk yang sama mengembalikan link invoice yang sama. */
   checkout: (productId: string) =>

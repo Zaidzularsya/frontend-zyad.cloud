@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ClipboardList, Search } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import DataPagination from '@/components/ui/DataPagination.vue'
 import type { SalesOrderStatus } from '@/features/crm/sales-orders/api/sales-orders.api'
@@ -59,6 +60,7 @@ const tabs: { value: SalesOrderStatus | 'all'; label: string }[] = [
       title="Sales Orders"
       description="Order hasil penawaran yang disetujui: lengkapi data penagihan lalu konfirmasi."
     />
+    <QuotaLimitBanner feature-key="crm.max_sales_orders_per_month" noun="sales order" />
     <div class="flex gap-2 overflow-x-auto border-b">
       <button
         v-for="tab in tabs"

@@ -24,3 +24,21 @@ describe('publicCatalogApi.listListings', () => {
     expect(await publicCatalogApi.listListings()).toEqual([])
   })
 })
+
+describe('publicCatalogApi.listOwnListings', () => {
+  beforeEach(() => get.mockReset())
+
+  it('membaca listing org yang sedang login lewat endpoint ber-auth', async () => {
+    get.mockResolvedValue({
+      data: { data: { categories: [{ id: 'c9', name: 'Paket', position: 1, listings: [] }] } },
+    })
+    const result = await publicCatalogApi.listOwnListings()
+    expect(get).toHaveBeenCalledWith('/app/catalog/listings')
+    expect(result.map((c) => c.id)).toEqual(['c9'])
+  })
+
+  it('data kosong → array kosong', async () => {
+    get.mockResolvedValue({ data: {} })
+    expect(await publicCatalogApi.listOwnListings()).toEqual([])
+  })
+})

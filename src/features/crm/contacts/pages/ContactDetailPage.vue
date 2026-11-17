@@ -21,6 +21,7 @@ import {
   useUpdateContactMutation,
   useUploadContactAttachmentMutation,
 } from '@/features/crm/contacts/api/contacts.queries'
+import ContactNetworkStatus from '@/features/mikrotik/components/ContactNetworkStatus.vue'
 import { useDealsQuery } from '@/features/crm/deals/api/deals.queries'
 import EntityEmailPanel from '@/features/email/components/EntityEmailPanel.vue'
 import { useEmailCompose } from '@/features/email/composables/useEmailCompose'
@@ -647,6 +648,8 @@ async function removeAttachment(attachment: AttachmentItem) {
             </li>
           </ul>
         </BaseCard>
+
+        <ContactNetworkStatus :contact-id="contactId" :contact-name="fullName" />
 
         <AttachmentCard
           :attachments="attachments"

@@ -8,6 +8,7 @@ import { priceSuffix } from '@/features/catalog/utils/pricing'
 import { formatRupiah } from '@/features/crm/quotations/utils/quotation-editor'
 
 import { publicInvoiceApi } from '../api/public-invoice.api'
+import ProvisioningStatus from '../components/ProvisioningStatus.vue'
 import { redirectTo } from '../utils/redirect'
 
 const route = useRoute()
@@ -251,6 +252,8 @@ onBeforeUnmount(() => {
             </template>
           </dl>
         </section>
+
+        <ProvisioningStatus v-if="data.state === 'paid'" :key="token" :token="token" />
 
         <div
           v-if="paymentReceived"

@@ -36,11 +36,22 @@ export function buildGrapesChrome(result: RawRecord, fallbackTitle: string): Gra
 function forms(result: RawRecord): GrapesChromeForm[] {
   return pickArray(result, 'Forms', 'forms').map((form) => {
     const redirect = pickString(form, 'RedirectURL', 'redirect_url')
+    const redirectUrl = redirectTarget(redirect)?.url ?? ''
+    const rawAfter = pickString(form, 'AfterSubmit', 'after_submit')
+    const afterSubmit =
+      rawAfter === 'message' || rawAfter === 'redirect' || rawAfter === 'whatsapp'
+        ? rawAfter
+        : redirectUrl
+          ? 'redirect'
+          : 'message'
     return {
       id: pickString(form, 'ID', 'id'),
       submitLabel: pickString(form, 'SubmitLabel', 'submit_label'),
       successMessage: pickString(form, 'SuccessMessage', 'success_message'),
-      redirectUrl: redirectTarget(redirect)?.url ?? '',
+      redirectUrl,
+      afterSubmit,
+      whatsappNumber: pickString(form, 'WhatsAppNumber', 'whatsapp_number'),
+      whatsappMessage: pickString(form, 'WhatsAppMessage', 'whatsapp_message'),
       fields: pickArray(form, 'Fields', 'fields')
         .sort(
           (a, b) =>

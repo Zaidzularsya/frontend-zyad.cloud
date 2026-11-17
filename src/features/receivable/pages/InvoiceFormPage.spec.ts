@@ -147,6 +147,18 @@ describe('InvoiceFormPage', () => {
     expect(router.currentRoute.value.path).toBe('/app/billing/invoices/new')
   })
 
+  it('shows the quota message on a 409 QUOTA_EXCEEDED', async () => {
+    create.mockRejectedValue({ response: { status: 409, data: { code: 'QUOTA_EXCEEDED' } } })
+    const { w } = await mountForm('/app/billing/invoices/new')
+    await w.get('[role="option"]').trigger('click')
+    await button(w, 'Baris bebas')!.trigger('click')
+    await w.get('input[name="item-description"]').setValue('Instalasi')
+    await w.get('input[aria-label="Harga item 1"]').setValue('1000')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.text()).toContain('Kuota invoice paket Anda sudah penuh')
+  })
+
   it('refuses to edit an invoice that is no longer a draft', async () => {
     get.mockResolvedValue({
       id: 'inv-9',

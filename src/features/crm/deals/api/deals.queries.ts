@@ -2,6 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { computed, type Ref } from 'vue'
 
 import { dealsApi, type DealListParams, type DealPayload } from '@/features/crm/deals/api/deals.api'
+import { useInvalidateEntitlements } from '@/features/entitlements/api/entitlements.queries'
+import { isQuotaExceededError } from '@/features/entitlements/utils/quota-error'
 
 export const dealKeys = {
   all: ['crm', 'deals'] as const,
@@ -29,10 +31,15 @@ export function useDealsQuery(params: Ref<DealListParams>) {
 
 export function useCreateDealMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (payload: DealPayload) => dealsApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
+    },
+    onError: (error: unknown) => {
+      if (isQuotaExceededError(error)) invalidateEntitlements()
     },
   })
 }
@@ -50,10 +57,12 @@ export function useUpdateDealMutation() {
 
 export function useDeleteDealMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => dealsApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
     },
   })
 }
@@ -71,21 +80,25 @@ export function useMoveDealStageMutation() {
 
 export function useCloseDealWonMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: (id: string) => dealsApi.closeWon(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
     },
   })
 }
 
 export function useCloseDealLostMutation() {
   const queryClient = useQueryClient()
+  const invalidateEntitlements = useInvalidateEntitlements()
   return useMutation({
     mutationFn: ({ id, lostReason }: { id: string; lostReason?: string }) =>
       dealsApi.closeLost(id, lostReason),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all })
+      invalidateEntitlements()
     },
   })
 }

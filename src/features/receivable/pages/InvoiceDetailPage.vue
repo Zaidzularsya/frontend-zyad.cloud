@@ -17,6 +17,7 @@ import {
   useIssueInvoiceMutation,
 } from '@/features/receivable/api/receivable.queries'
 import InvoiceSendHistory from '@/features/receivable/components/InvoiceSendHistory.vue'
+import IsolirFlagControl from '@/features/receivable/components/IsolirFlagControl.vue'
 import RecordPaymentDialog from '@/features/receivable/components/RecordPaymentDialog.vue'
 import SendInvoiceDialog from '@/features/receivable/components/SendInvoiceDialog.vue'
 import VoidInvoiceDialog from '@/features/receivable/components/VoidInvoiceDialog.vue'
@@ -183,12 +184,19 @@ async function downloadPdf() {
             }}<span v-if="invoice.account.company_name"> · {{ invoice.account.company_name }}</span>
           </p>
         </div>
-        <span
-          v-if="status"
-          class="rounded-full px-3 py-1 text-xs font-semibold"
-          :class="toneClass[status.tone]"
-          >{{ status.label }}</span
-        >
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-if="invoice.arrears_recording_id"
+            class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800"
+            >Tunggakan dicatat</span
+          >
+          <span
+            v-if="status"
+            class="rounded-full px-3 py-1 text-xs font-semibold"
+            :class="toneClass[status.tone]"
+            >{{ status.label }}</span
+          >
+        </div>
       </header>
 
       <div class="flex flex-wrap gap-2">
@@ -266,6 +274,10 @@ async function downloadPdf() {
                 <dd>
                   {{ formatDate(invoice.period_start) }} – {{ formatDate(invoice.period_end) }}
                 </dd>
+              </div>
+              <div v-if="invoice.arrears_recording_id">
+                <dt class="text-gray-500">Isolir</dt>
+                <dd><IsolirFlagControl :invoice="invoice" /></dd>
               </div>
             </dl>
           </BaseCard>

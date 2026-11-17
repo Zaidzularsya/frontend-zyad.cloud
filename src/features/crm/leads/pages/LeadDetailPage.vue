@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  isQuotaExceededError,
+  quotaExceededGenericMessage,
+} from '@/features/entitlements/utils/quota-error'
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Building2, Mail, Pencil, Phone, Plus } from 'lucide-vue-next'
@@ -78,6 +82,7 @@ function initials(name: string) {
 }
 
 function extractError(error: unknown): string {
+  if (isQuotaExceededError(error)) return quotaExceededGenericMessage()
   if (error && typeof error === 'object' && 'response' in error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
     if (response?.data?.message) return response.data.message

@@ -1,0 +1,467 @@
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { computed, ref, type Ref } from 'vue'
+
+import { mikrotikApi } from '@/features/mikrotik/api/mikrotik.api'
+import type {
+  ActivityParams,
+  ApplySetupPayload,
+  CreateRouterPayload,
+  OnboardPayload,
+  PairBulkItem,
+  PreviewParams,
+  SecretListParams,
+  SetModePayload,
+  SetPolicyPayload,
+  SetupPayload,
+  TaskListParams,
+  UpdateRouterPayload,
+} from '@/features/mikrotik/types'
+
+export const mikrotikKeys = {
+  all: ['mikrotik'] as const,
+  routers: (params: object = {}) => [...mikrotikKeys.all, 'routers', params] as const,
+  router: (id: string) => [...mikrotikKeys.all, 'router', id] as const,
+  routerSummary: (id: string) => [...mikrotikKeys.all, 'router-summary', id] as const,
+  routerStats: (id: string) => [...mikrotikKeys.all, 'router-stats', id] as const,
+  secrets: (params: object) => [...mikrotikKeys.all, 'secrets', params] as const,
+  secretSummary: (params: object) => [...mikrotikKeys.all, 'secret-summary', params] as const,
+  secretDetail: (id: string) => [...mikrotikKeys.all, 'secret-detail', id] as const,
+  accountSearch: (q: string) => [...mikrotikKeys.all, 'account-search', q] as const,
+  onboarding: () => [...mikrotikKeys.all, 'onboarding'] as const,
+  customerStatus: (ids: string[]) => [...mikrotikKeys.all, 'customer-status', ids] as const,
+  policy: (accountId: string) => [...mikrotikKeys.all, 'policy', accountId] as const,
+  unmarkedProducts: () => [...mikrotikKeys.all, 'products', 'unmarked'] as const,
+  triggers: () => [...mikrotikKeys.all, 'products', 'triggers'] as const,
+  triggerPreview: (productId: string) =>
+    [...mikrotikKeys.all, 'products', 'preview', productId] as const,
+  tasks: (params: object) => [...mikrotikKeys.all, 'tasks', params] as const,
+  control: () => [...mikrotikKeys.all, 'control'] as const,
+  previewSummary: () => [...mikrotikKeys.all, 'preview-summary'] as const,
+  preview: (params: object) => [...mikrotikKeys.all, 'preview', params] as const,
+  pilot: () => [...mikrotikKeys.all, 'pilot'] as const,
+  activity: (params: object) => [...mikrotikKeys.all, 'activity', params] as const,
+  taskSummary: () => [...mikrotikKeys.all, 'task-summary'] as const,
+  allowlistHealth: (routerId: string) =>
+    [...mikrotikKeys.all, 'allowlist-health', routerId] as const,
+}
+
+// Router, secret, tugas, onboarding, dan status pelanggan saling terkait: mutation menyegarkan semuanya.
+export function useInvalidateMikrotik() {
+  const queryClient = useQueryClient()
+  // router-stats login langsung ke router (rate limit 10/menit): jangan ikut dipanggil ulang.
+  return () =>
+    void queryClient.invalidateQueries({
+      queryKey: mikrotikKeys.all,
+      predicate: (query) => query.queryKey[1] !== 'router-stats',
+    })
+}
+
+export function useRoutersQuery(
+  params: Ref<{ page?: number; per_page?: number }> = ref({}),
+  enabled: Ref<boolean> = ref(true),
+) {
+  return useQuery({
+    enabled,
+    queryKey: computed(() => mikrotikKeys.routers(params.value)),
+    queryFn: () => mikrotikApi.routers.list(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useRouterQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.router(id.value)),
+    queryFn: () => mikrotikApi.routers.get(id.value),
+  })
+}
+
+export function useRouterSummaryQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.routerSummary(id.value)),
+    queryFn: () => mikrotikApi.routers.summary(id.value),
+  })
+}
+
+// Stats memanggil RouterOS langsung: jangan diulang otomatis saat gagal atau fokus ulang.
+export function useRouterStatsQuery(id: Ref<string>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled: computed(() => enabled.value && !!id.value),
+    queryKey: computed(() => mikrotikKeys.routerStats(id.value)),
+    queryFn: () => mikrotikApi.routers.stats(id.value),
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function useCreateRouterMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (payload: CreateRouterPayload) => mikrotikApi.routers.create(payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateRouterMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { id: string; payload: UpdateRouterPayload }) =>
+      mikrotikApi.routers.update(v.id, v.payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteRouterMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (id: string) => mikrotikApi.routers.remove(id),
+    onSuccess: invalidate,
+  })
+}
+
+export function useCheckRouterMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (id: string) => mikrotikApi.routers.check(id),
+    onSuccess: invalidate,
+  })
+}
+
+// Preview tidak mengubah apa pun di router, jadi tidak perlu invalidasi.
+export function useSetupPreviewMutation() {
+  return useMutation({
+    mutationFn: (v: { routerId: string; payload: SetupPayload }) =>
+      mikrotikApi.setup.preview(v.routerId, v.payload),
+  })
+}
+
+export function useSetupApplyMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { routerId: string; payload: ApplySetupPayload }) =>
+      mikrotikApi.setup.apply(v.routerId, v.payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSecretsQuery(params: Ref<SecretListParams>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled,
+    queryKey: computed(() => mikrotikKeys.secrets(params.value)),
+    queryFn: () => mikrotikApi.secrets.list(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useSecretSummaryQuery(
+  params: Ref<{ router_id?: string }>,
+  enabled: Ref<boolean> = ref(true),
+) {
+  return useQuery({
+    enabled,
+    queryKey: computed(() => mikrotikKeys.secretSummary(params.value)),
+    queryFn: () => mikrotikApi.secrets.summary(params.value),
+  })
+}
+
+export function useSecretDetailQuery(id: Ref<string>) {
+  return useQuery({
+    enabled: computed(() => Boolean(id.value)),
+    queryKey: computed(() => mikrotikKeys.secretDetail(id.value)),
+    queryFn: () => mikrotikApi.secrets.detail(id.value),
+  })
+}
+
+// Preview tidak menulis apa pun.
+export function useOnboardPreviewMutation() {
+  return useMutation({
+    mutationFn: (v: { secretId: string; payload: OnboardPayload }) =>
+      mikrotikApi.onboard.preview(v.secretId, v.payload),
+  })
+}
+
+// Berhasil atau gagal di tengah, tahap yang selesai sudah tersimpan: segarkan semuanya.
+export function useOnboardRunMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { secretId: string; payload: OnboardPayload }) =>
+      mikrotikApi.onboard.run(v.secretId, v.payload),
+    onSettled: invalidate,
+  })
+}
+
+export function useImportSecretsMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (routerId: string) => mikrotikApi.secrets.import(routerId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useAnalyzeMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (routerId: string) => mikrotikApi.secrets.analyze(routerId),
+    onSuccess: invalidate,
+  })
+}
+
+export function usePairBulkMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (items: PairBulkItem[]) => mikrotikApi.secrets.pairBulk(items),
+    onSuccess: invalidate,
+  })
+}
+
+export function usePairSecretMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { id: string; accountId: string }) =>
+      mikrotikApi.secrets.pair(v.id, v.accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function usePairNewCustomerMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (id: string) => mikrotikApi.secrets.pairNewCustomer(id),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUnpairMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (id: string) => mikrotikApi.secrets.unpair(id),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetOriginalProfileMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { id: string; profile: string }) =>
+      mikrotikApi.secrets.setOriginalProfile(v.id, v.profile),
+    onSuccess: invalidate,
+  })
+}
+
+export function useAccountSearchQuery(q: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.accountSearch(q.value)),
+    queryFn: () => mikrotikApi.accounts.search(q.value),
+    enabled: computed(() => q.value.trim().length > 0),
+  })
+}
+
+export function useOnboardingQuery() {
+  return useQuery({
+    queryKey: mikrotikKeys.onboarding(),
+    queryFn: () => mikrotikApi.onboarding.get(),
+  })
+}
+
+export function useCustomerStatusQuery(accountIds: Ref<string[]>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.customerStatus(accountIds.value)),
+    queryFn: () => mikrotikApi.onboarding.customerStatus(accountIds.value),
+    enabled: computed(() => accountIds.value.length > 0),
+  })
+}
+
+export function usePolicyQuery(accountId: Ref<string | undefined>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.policy(accountId.value ?? '')),
+    queryFn: () => mikrotikApi.policy.get(accountId.value as string),
+    enabled: computed(() => Boolean(accountId.value)),
+  })
+}
+
+export function useSetPolicyMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { accountId: string; payload: SetPolicyPayload }) =>
+      mikrotikApi.policy.set(v.accountId, v.payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUnmarkedProductsQuery(enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled,
+    queryKey: mikrotikKeys.unmarkedProducts(),
+    queryFn: () => mikrotikApi.products.unmarked(),
+  })
+}
+
+export function useTriggersQuery(enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled,
+    queryKey: mikrotikKeys.triggers(),
+    queryFn: () => mikrotikApi.products.triggers(),
+  })
+}
+
+export function useTriggerPreviewQuery(productId: Ref<string | undefined>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.triggerPreview(productId.value ?? '')),
+    queryFn: () => mikrotikApi.products.triggerPreview(productId.value as string),
+    enabled: computed(() => Boolean(productId.value)),
+  })
+}
+
+export function useSetTriggerMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (v: { productId: string; enabled: boolean; effectiveFrom?: string }) =>
+      v.effectiveFrom
+        ? mikrotikApi.products.setTrigger(v.productId, v.enabled, v.effectiveFrom)
+        : mikrotikApi.products.setTrigger(v.productId, v.enabled),
+    onSuccess: invalidate,
+  })
+}
+
+export function useTasksQuery(params: Ref<TaskListParams>, enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    enabled,
+    queryKey: computed(() => mikrotikKeys.tasks(params.value)),
+    queryFn: () => mikrotikApi.tasks.list(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useTaskSummaryQuery() {
+  return useQuery({
+    queryKey: mikrotikKeys.taskSummary(),
+    queryFn: () => mikrotikApi.tasks.summary(),
+  })
+}
+
+export function useRetryTaskMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (id: string) => mikrotikApi.tasks.retry(id),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetupCleanupMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (routerId: string) => mikrotikApi.setup.cleanup(routerId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useControlQuery(enabled: Ref<boolean> = ref(true)) {
+  return useQuery({
+    queryKey: mikrotikKeys.control(),
+    queryFn: () => mikrotikApi.control.get(),
+    enabled,
+  })
+}
+
+// Mode, pilot, dan pengecualian memengaruhi kandidat, log, dan tugas, jadi semua mutation kendali
+// memakai invalidasi menyeluruh yang sama dengan mutation lain.
+export function useSetGraceDaysMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (graceDays: number) => mikrotikApi.control.setGraceDays(graceDays),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetModeMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (payload: SetModePayload) => mikrotikApi.control.setMode(payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function usePreviewSummaryQuery() {
+  return useQuery({
+    queryKey: mikrotikKeys.previewSummary(),
+    queryFn: () => mikrotikApi.control.previewSummary(),
+  })
+}
+
+export function usePreviewQuery(params: Ref<PreviewParams>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.preview(params.value)),
+    queryFn: () => mikrotikApi.control.preview(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function usePilotQuery() {
+  return useQuery({
+    queryKey: mikrotikKeys.pilot(),
+    queryFn: () => mikrotikApi.pilot.list(),
+  })
+}
+
+export function useAddPilotMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.add(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRemovePilotMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.remove(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStartPilotTestMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.startTest(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStopPilotTestMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: (accountId: string) => mikrotikApi.pilot.stopTest(accountId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRestoreAllMutation() {
+  const invalidate = useInvalidateMikrotik()
+  return useMutation({
+    mutationFn: () => mikrotikApi.control.restoreAll(),
+    onSuccess: invalidate,
+  })
+}
+
+export function useActivityQuery(params: Ref<ActivityParams> = ref({})) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.activity(params.value)),
+    queryFn: () => mikrotikApi.control.activity(params.value),
+    placeholderData: keepPreviousData,
+  })
+}
+
+// Each call logs in to the router and counts against the per-organization
+// probe limit (20/min), so it is cached for minutes and never refetched on focus.
+export function useAllowlistHealthQuery(routerId: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => mikrotikKeys.allowlistHealth(routerId.value)),
+    queryFn: () => mikrotikApi.setup.allowlistHealth(routerId.value),
+    enabled,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  })
+}

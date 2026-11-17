@@ -32,6 +32,8 @@ const feature = (over: Partial<PlatformFeature> = {}): PlatformFeature => ({
   unit: '',
   reset_strategy: 'never',
   is_active: true,
+  tenant_offerable: false,
+  tenant_max: null,
   created_at: '',
   updated_at: '',
   ...over,
@@ -82,6 +84,27 @@ describe('PlatformFeaturesPage', () => {
     expect(text).toContain('active')
     expect(text).toContain('inactive')
     expect(text).not.toContain('Product Catalog')
+  })
+
+  it('menampilkan badge penanda tenant per baris', async () => {
+    features.value = [
+      feature({ tenant_offerable: true }),
+      feature({
+        id: 'f2',
+        feature_key: 'user.max',
+        value_type: 'integer',
+        tenant_offerable: true,
+        tenant_max: 25,
+      }),
+      feature({ id: 'f3', feature_key: 'x.y' }),
+    ]
+    const wrapper = mountPage()
+    await flushPromises()
+    const text = wrapper.text()
+    expect(text).toContain('Tenant')
+    expect(text).toContain('Boleh ditawarkan, maks 25')
+    expect(wrapper.findAll('[data-test="tenant-badge"]')).toHaveLength(2)
+    expect(text).not.toContain('maks 0')
   })
 
   it('membuka modal tambah lalu mengirim fitur baru', async () => {

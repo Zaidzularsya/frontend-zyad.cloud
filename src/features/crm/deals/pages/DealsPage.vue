@@ -2,8 +2,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  CircleDollarSign,
   Plus,
+  CircleDollarSign,
   Search,
   Trash2,
   TrendingDown,
@@ -12,10 +12,17 @@ import {
 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import TextField from '@/components/form/TextField.vue'
+import DealContactField from '@/features/crm/components/DealContactField.vue'
 
 import { usePipelinesQuery } from '@/features/crm/pipelines/api/pipelines.queries'
 import type { Deal, DealPayload } from '@/features/crm/deals/api/deals.api'
@@ -214,6 +221,7 @@ const form = reactive<DealPayload>({
   stage_id: '',
   title: '',
   value: '',
+  contact_id: '',
 })
 
 function openCreateModal() {
@@ -221,6 +229,7 @@ function openCreateModal() {
   form.stage_id = stages.value[0]?.id ?? ''
   form.title = ''
   form.value = ''
+  form.contact_id = ''
   errorMessage.value = ''
   isModalOpen.value = true
 }
@@ -236,10 +245,12 @@ function extractError(error: unknown): string {
 async function submitForm() {
   errorMessage.value = ''
   try {
-    await createMutation.mutateAsync({ ...form })
+    await createMutation.mutateAsync({ ...form, contact_id: form.contact_id || undefined })
     isModalOpen.value = false
   } catch (error) {
-    errorMessage.value = extractError(error)
+    errorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('deal')
+      : extractError(error)
   }
 }
 </script>
@@ -247,11 +258,17 @@ async function submitForm() {
 <template>
   <div class="space-y-6">
     <PageHeader title="Deals" description="Kanban board deal berdasarkan tahapan pipeline.">
-      <BaseButton :disabled="!selectedPipelineId" @click="openCreateModal">
-        <Plus class="size-4" />
-        Deal Baru
-      </BaseButton>
+      <QuotaActionButton
+        feature-key="crm.max_deals"
+        label="Deal Baru"
+        upgrade-label="Upgrade untuk tambah deal"
+        :disabled="!selectedPipelineId"
+        @click="openCreateModal"
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_deals" noun="deal" />
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <BaseCard class="!p-4">
@@ -448,6 +465,17 @@ async function submitForm() {
               <option v-for="s in stages" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </label>
+        </div>
+
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kontak</span>
+          <DealContactField
+            :model-value="form.contact_id ?? ''"
+            @update:model-value="(id) => (form.contact_id = id)"
+          />
+          <p class="text-xs text-gray-500">
+            Kontak dipakai sebagai pelanggan saat penawaran disetujui menjadi sales order.
+          </p>
         </div>
 
         <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>

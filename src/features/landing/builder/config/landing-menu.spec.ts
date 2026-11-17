@@ -28,3 +28,28 @@ describe('Galeri Template (menu khusus platform)', () => {
     expect(route?.meta?.permissions).toEqual(['landing.page_template.manage'])
   })
 })
+
+describe('Invoice Halaman (menu khusus workspace reseller)', () => {
+  it('muncul di menu workspace dengan permission update halaman', () => {
+    const item = buildLandingManagementMenuItems('landing-pages').find(
+      (i) => i.label === 'Invoice Halaman',
+    )
+    expect(item?.route).toBe('landing-pages-invoices')
+    expect(item?.permission).toBe('landing.page.update')
+  })
+
+  it('tidak muncul di menu platform', () => {
+    const labels = buildLandingManagementMenuItems('platform-landing-pages').map((i) => i.label)
+    expect(labels).not.toContain('Invoice Halaman')
+  })
+
+  it('route hanya didaftarkan untuk workspace dan dilindungi permission', () => {
+    const routes = (prefix: string) => buildLandingManagementRoutes(prefix)
+    expect(routes('platform-landing-pages').map((r) => r.name)).not.toContain(
+      'platform-landing-pages-invoices',
+    )
+    const route = routes('landing-pages').find((r) => r.name === 'landing-pages-invoices')
+    expect(route?.path).toBe('landing-pages/invoices')
+    expect(route?.meta?.permissions).toEqual(['landing.page.update'])
+  })
+})

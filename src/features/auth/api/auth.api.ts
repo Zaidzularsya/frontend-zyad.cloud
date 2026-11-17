@@ -31,6 +31,8 @@ interface RawCurrentUserResponse {
   status: string
   roles: string[]
   permissions: string[]
+  /** Permission role org pada organisasi aktif sesi; tidak ada di response login. */
+  active_organization_permissions?: string[]
   profile?: {
     avatar_url?: string
   }
@@ -55,6 +57,27 @@ interface UserOrganizationRaw {
 
 interface CreateWorkspaceResponse {
   current_organization: UserOrganizationRaw
+}
+
+function mergePermissions(...lists: Array<string[] | undefined>): Permission[] {
+  return [...new Set(lists.flatMap((list) => list ?? []))] as Permission[]
+}
+
+/**
+ * Response login hanya memuat permission role global (mis. `member`), dihitung
+ * sebelum workspace/role organisasi ada. `/auth/me` menambahkan permission role
+ * org aktif, jadi dipakai untuk melengkapi `can()` (tombol aksi, menu).
+ */
+async function loadPermissions(accessToken: string, fallback: string[]): Promise<Permission[]> {
+  try {
+    const me = await apiClient.get<RawCurrentUserResponse>('/auth/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    return mergePermissions(me.permissions, me.active_organization_permissions)
+  } catch (err) {
+    console.error('Failed to load permissions after login:', err)
+    return mergePermissions(fallback)
+  }
 }
 
 function mapOrganizationToTenant(org: UserOrganizationRaw): Tenant {
@@ -143,7 +166,7 @@ async function finalizeGoogleSession(raw: RawGoogleLoginResponse): Promise<Sessi
       id: raw.user.id,
       name: raw.user.name,
       email: raw.user.email,
-      permissions: raw.user.permissions as Permission[],
+      permissions: await loadPermissions(raw.access_token, raw.user.permissions),
       roles: raw.user.roles,
     },
     accessToken: raw.access_token,
@@ -178,7 +201,7 @@ export const authApi = {
         id: raw.user.id,
         name: raw.user.name,
         email: raw.user.email,
-        permissions: raw.user.permissions as Permission[],
+        permissions: await loadPermissions(raw.access_token, raw.user.permissions),
         roles: raw.user.roles,
       },
       accessToken: raw.access_token,
@@ -224,12 +247,18 @@ export const authApi = {
         name: raw.name,
         email: raw.email,
         avatarUrl: raw.profile?.avatar_url,
-        permissions: raw.permissions as Permission[],
+        permissions: mergePermissions(raw.permissions, raw.active_organization_permissions),
         roles: raw.roles,
       },
       tenants,
       activeTenantId,
     }
+  },
+
+  /** Permission efektif (global + role org aktif); dipanggil ulang setelah ganti organisasi. */
+  async permissions(): Promise<Permission[]> {
+    const raw = await apiClient.get<RawCurrentUserResponse>('/auth/me')
+    return mergePermissions(raw.permissions, raw.active_organization_permissions)
   },
 
   logout: () => apiClient.post<void>('/auth/logout'),

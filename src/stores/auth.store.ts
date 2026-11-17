@@ -29,6 +29,11 @@ export const useAuthStore = defineStore('auth', () => {
     useTenantStore().hydrate(session.tenants, session.activeTenantId)
   }
 
+  async function refreshPermissions() {
+    if (!user.value) return
+    user.value = { ...user.value, permissions: await authApi.permissions() }
+  }
+
   async function bootstrap() {
     if (initialized.value) return
     try {
@@ -76,6 +81,7 @@ export const useAuthStore = defineStore('auth', () => {
     initialized,
     isAuthenticated,
     can,
+    refreshPermissions,
     bootstrap,
     login,
     loginWithGoogle,

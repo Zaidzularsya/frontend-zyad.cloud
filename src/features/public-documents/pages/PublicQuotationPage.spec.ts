@@ -205,4 +205,42 @@ describe('PublicQuotationPage', () => {
     expect(document.body.textContent).toContain('<script>x</script>')
     expect(document.body.querySelector('script')).toBeNull()
   })
+
+  describe('approve failures', () => {
+    async function approveWith(error: unknown) {
+      get.mockResolvedValue(quotation())
+      approve.mockRejectedValue(error)
+      const wrapper = await mountPage()
+      await button(wrapper, 'Setujui')!.trigger('click')
+      const name = document.body.querySelector('input[name="responder_name"]') as HTMLInputElement
+      name.value = 'Budi Santoso'
+      name.dispatchEvent(new Event('input'))
+      ;(document.body.querySelector('input[type="checkbox"]') as HTMLInputElement).click()
+      await flushPromises()
+      ;[...document.body.querySelectorAll('button')]
+        .find((b) => b.textContent?.includes('Setujui penawaran'))!
+        .click()
+      await flushPromises()
+      return wrapper
+    }
+
+    it('shows neutral seller-contact copy on QUOTA_EXCEEDED and keeps the dialog open', async () => {
+      const wrapper = await approveWith({
+        response: { status: 409, data: { code: 'QUOTA_EXCEEDED', message: 'x' } },
+      })
+      expect(document.body.textContent).toContain(
+        'Penawaran belum dapat disetujui saat ini. Silakan hubungi penjual.',
+      )
+      expect(document.body.textContent).not.toContain('sudah direspons')
+      expect(document.body.querySelector('input[name="responder_name"]')).not.toBeNull()
+      expect(get).toHaveBeenCalledTimes(1)
+      expect(wrapper.text()).not.toContain('Terima kasih')
+    })
+
+    it('keeps the already-responded behaviour for other 409s', async () => {
+      await approveWith({ response: { status: 409, data: { code: 'ALREADY_RESPONDED' } } })
+      expect(document.body.querySelector('input[name="responder_name"]')).toBeNull()
+      expect(get).toHaveBeenCalledTimes(2)
+    })
+  })
 })

@@ -15,6 +15,10 @@ export interface CatalogFeatureDef {
   module: string
   value_type: 'boolean' | 'integer' | 'decimal' | 'string'
   unit?: string
+  // never|monthly|yearly|custom; read-only registry metadata.
+  reset_strategy?: string
+  // Batas atas integer untuk produk tenant; hanya ada pada daftar fitur org non-platform.
+  tenant_max?: number
 }
 
 export interface ProductFeature {
@@ -45,6 +49,8 @@ export interface CatalogProduct {
   listing_code?: string | null
   listing_order?: number
   features?: ProductFeature[]
+  // Produk tidak lagi sesuai katalog/batas fitur; dihitung backend saat dibaca.
+  needs_update?: boolean
   created_at: string
   updated_at: string
 }

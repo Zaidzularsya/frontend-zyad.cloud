@@ -27,8 +27,13 @@ let pipelineData = [
 vi.mock('@/features/crm/pipelines/api/pipelines.api', () => ({
   pipelinesApi: { list: vi.fn(() => Promise.resolve({ data: pipelineData, meta: {} })) },
 }))
+const contactMatches = vi.hoisted(() => vi.fn().mockResolvedValue([]))
 vi.mock('@/features/crm/leads/api/leads.api', () => ({
-  leadsApi: { convert, members: vi.fn().mockResolvedValue([{ user_id: 'u1', name: 'Andi' }]) },
+  leadsApi: {
+    convert,
+    contactMatches,
+    members: vi.fn().mockResolvedValue([{ user_id: 'u1', name: 'Andi' }]),
+  },
 }))
 vi.mock('@/features/crm/companies/api/companies.api', () => ({
   companiesApi: { lookup: vi.fn().mockResolvedValue([{ id: 'co1', name: 'PT Maju Jaya Abadi' }]) },
@@ -110,5 +115,50 @@ describe('LeadConvertDialog', () => {
         updated_at: '',
       },
     ]
+  })
+
+  it('dialog convert menawarkan kontak yang cocok', async () => {
+    contactMatches.mockResolvedValueOnce([
+      { id: 'c-old', first_name: 'Budi', last_name: 'Lama', email: 'budi@b.com', phone: '0812' },
+    ])
+    convert.mockClear()
+    const w = mountDialog()
+    await flushPromises()
+    expect(contactMatches).toHaveBeenCalledWith('l1')
+    expect(w.text()).toContain('Budi Lama')
+    // Kontak yang cocok dipilih default agar tidak lahir kontak ganda.
+    const existing = w.get('input[name="contact-mode"][value="existing:c-old"]')
+    expect((existing.element as HTMLInputElement).checked).toBe(true)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(convert).toHaveBeenLastCalledWith(
+      'l1',
+      expect.objectContaining({ contact: { mode: 'existing', contact_id: 'c-old' } }),
+    )
+  })
+
+  it('galat duplikat menampilkan kontak lama', async () => {
+    convert.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          code: 'CONTACT_DUPLICATE',
+          message: 'Kontak dengan email atau nomor WhatsApp yang sama sudah ada.',
+          data: { existing: { id: 'c9', name: 'Budi Dobel', email: 'b@b.com', phone: '' } },
+        },
+      },
+    })
+    const w = mountDialog()
+    await flushPromises()
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.text()).toContain('Budi Dobel')
+    await w.get('button[data-testid="use-duplicate-contact"]').trigger('click')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(convert).toHaveBeenLastCalledWith(
+      'l1',
+      expect.objectContaining({ contact: { mode: 'existing', contact_id: 'c9' } }),
+    )
   })
 })

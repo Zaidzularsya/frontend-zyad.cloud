@@ -3,6 +3,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Building2, Plus, RotateCcw, Search, Trash2 } from 'lucide-vue-next'
 
 import PageHeader from '@/components/common/PageHeader.vue'
+import QuotaActionButton from '@/features/entitlements/components/QuotaActionButton.vue'
+import QuotaLimitBanner from '@/features/entitlements/components/QuotaLimitBanner.vue'
+import {
+  isQuotaExceededError,
+  quotaExceededMessage,
+} from '@/features/entitlements/utils/quota-error'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -101,7 +107,9 @@ async function submitForm() {
     }
     isModalOpen.value = false
   } catch (error) {
-    errorMessage.value = extractError(error)
+    errorMessage.value = isQuotaExceededError(error)
+      ? quotaExceededMessage('company')
+      : extractError(error)
   }
 }
 
@@ -123,11 +131,16 @@ const isSaving = computed(() => createMutation.isPending.value || updateMutation
       title="Companies"
       description="Kelola data perusahaan prospek dan pelanggan tenant."
     >
-      <BaseButton @click="openCreateModal">
-        <Plus class="size-4" />
-        Company Baru
-      </BaseButton>
+      <QuotaActionButton
+        feature-key="crm.max_companies"
+        label="Company Baru"
+        upgrade-label="Upgrade untuk tambah company"
+        @click="openCreateModal"
+      >
+        <template #icon><Plus class="size-4" /></template>
+      </QuotaActionButton>
     </PageHeader>
+    <QuotaLimitBanner feature-key="crm.max_companies" noun="company" />
 
     <BaseCard class="!p-0">
       <div class="flex flex-col gap-4 border-b p-5 lg:flex-row lg:items-center lg:justify-between">

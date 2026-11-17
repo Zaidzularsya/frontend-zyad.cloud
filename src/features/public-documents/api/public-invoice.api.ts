@@ -45,6 +45,27 @@ export interface PublicInvoiceCheckout {
   expires_at: string
 }
 
+/** Tahap pemulihan internet setelah invoice isolir dibayar. */
+export type ProvisioningStage =
+  | 'received'
+  | 'restoring'
+  | 'active'
+  | 'needs_help'
+  | 'other_invoices'
+
+/** Kontak CS tenant; hanya dikirim backend saat stage = needs_help. */
+export interface ProvisioningContact {
+  name?: string
+  phone?: string
+  email?: string
+}
+
+export interface PublicInvoiceProvisioning {
+  applicable: boolean
+  stage?: ProvisioningStage
+  contact?: ProvisioningContact
+}
+
 interface Envelope<T> {
   success: boolean
   data: T
@@ -64,6 +85,10 @@ export const publicInvoiceApi = {
   status: async (token: string): Promise<{ status: PublicInvoice['status'] }> =>
     (await http.get<Envelope<{ status: PublicInvoice['status'] }>>(`${base(token)}/status`)).data
       .data,
+
+  /** Tahap pemulihan; rate limit bersama 30/menit/IP, jadi pemanggil wajib polling >= 5 detik. */
+  provisioning: async (token: string): Promise<PublicInvoiceProvisioning> =>
+    (await http.get<Envelope<PublicInvoiceProvisioning>>(`${base(token)}/provisioning`)).data.data,
 
   /** URL same-origin untuk <object>; backend melayani inline tanpa cache. */
   pdfUrl: (token: string): string => `/api/v1${base(token)}/pdf`,

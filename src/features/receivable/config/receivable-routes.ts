@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 
+import { MANUAL_CREATION_ENABLED } from '@/features/receivable/config/manual-creation'
+
 // Penagihan tenant ke pelanggannya. namePrefix dipisah dari pathPrefix supaya halaman yang sama bisa
 // dipasang di tree platform (/platform/billing/*) tanpa bentrok nama dengan route tenant.
 export function buildReceivableRoutes(
@@ -16,7 +18,10 @@ export function buildReceivableRoutes(
     {
       path: `${pathPrefix}/invoices/new`,
       name: `${namePrefix}-invoice-new`,
-      component: () => import('@/features/receivable/pages/InvoiceFormPage.vue'),
+      // Saat pembuatan manual dimatikan, URL lama/bookmark kembali ke daftar invoice.
+      ...(MANUAL_CREATION_ENABLED
+        ? { component: () => import('@/features/receivable/pages/InvoiceFormPage.vue') }
+        : { redirect: { name: `${namePrefix}-invoices` } }),
       meta: { title: 'Invoice baru', permissions: ['invoice.create'] },
     },
     {

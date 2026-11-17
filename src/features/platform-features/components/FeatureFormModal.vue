@@ -45,19 +45,33 @@ const resetStrategyOptions: Array<{ value: PlatformFeatureResetStrategy; label: 
 ]
 
 const schema = toTypedSchema(
-  z.object({
-    feature_key: z
-      .string()
-      .min(2, 'Feature key minimal 2 karakter')
-      .regex(/^[a-z0-9._-]+$/i, 'Hanya huruf, angka, titik, - dan _'),
-    module: z.string().min(1, 'Module wajib diisi'),
-    name: z.string().min(2, 'Nama minimal 2 karakter'),
-    description: z.string().optional().or(z.literal('')),
-    value_type: z.enum(['boolean', 'integer', 'decimal', 'string']),
-    unit: z.string().optional().or(z.literal('')),
-    reset_strategy: z.enum(['never', 'monthly', 'yearly', 'custom']),
-    is_active: z.boolean(),
-  }),
+  z
+    .object({
+      feature_key: z
+        .string()
+        .min(2, 'Feature key minimal 2 karakter')
+        .regex(/^[a-z0-9._-]+$/i, 'Hanya huruf, angka, titik, - dan _'),
+      module: z.string().min(1, 'Module wajib diisi'),
+      name: z.string().min(2, 'Nama minimal 2 karakter'),
+      description: z.string().optional().or(z.literal('')),
+      value_type: z.enum(['boolean', 'integer', 'decimal', 'string']),
+      unit: z.string().optional().or(z.literal('')),
+      reset_strategy: z.enum(['never', 'monthly', 'yearly', 'custom']),
+      is_active: z.boolean(),
+      tenant_offerable: z.boolean(),
+      tenant_max: z.string().optional().or(z.literal('')),
+    })
+    .superRefine((values, ctx) => {
+      if (values.value_type !== 'integer' || !values.tenant_offerable) return
+      const max = Number(values.tenant_max)
+      if (!values.tenant_max?.trim() || !Number.isInteger(max) || max <= 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['tenant_max'],
+          message: 'Batas maksimum wajib untuk fitur angka',
+        })
+      }
+    }),
 )
 
 const { defineField, errors, handleSubmit, resetForm } = useForm({
@@ -71,6 +85,8 @@ const { defineField, errors, handleSubmit, resetForm } = useForm({
     unit: '',
     reset_strategy: 'never',
     is_active: true,
+    tenant_offerable: false,
+    tenant_max: '',
   },
 })
 
@@ -82,6 +98,10 @@ const [valueType] = defineField('value_type')
 const [unit, unitAttrs] = defineField('unit')
 const [resetStrategy] = defineField('reset_strategy')
 const [isActive] = defineField('is_active')
+const [tenantOfferable] = defineField('tenant_offerable')
+const [tenantMax, tenantMaxAttrs] = defineField('tenant_max')
+
+const showTenantMax = computed(() => valueType.value === 'integer' && tenantOfferable.value)
 
 const isEdit = computed(() => props.mode === 'edit')
 
@@ -101,6 +121,8 @@ watch(
           unit: feature.unit ?? '',
           reset_strategy: feature.reset_strategy,
           is_active: feature.is_active,
+          tenant_offerable: feature.tenant_offerable ?? false,
+          tenant_max: feature.tenant_max != null ? String(feature.tenant_max) : '',
         },
       })
     } else {
@@ -114,6 +136,8 @@ watch(
           unit: '',
           reset_strategy: 'never',
           is_active: true,
+          tenant_offerable: false,
+          tenant_max: '',
         },
       })
     }
@@ -122,6 +146,14 @@ watch(
 )
 
 const onSubmit = handleSubmit((formValues) => {
+  // tenant_max hanya bermakna untuk fitur integer yang boleh ditawarkan.
+  const tenantFields = {
+    tenant_offerable: formValues.tenant_offerable,
+    tenant_max:
+      formValues.value_type === 'integer' && formValues.tenant_offerable
+        ? Number(formValues.tenant_max)
+        : null,
+  }
   if (props.mode === 'create') {
     emit('create', {
       feature_key: formValues.feature_key.trim(),
@@ -132,6 +164,7 @@ const onSubmit = handleSubmit((formValues) => {
       unit: formValues.unit?.trim() || undefined,
       reset_strategy: formValues.reset_strategy,
       is_active: formValues.is_active,
+      ...tenantFields,
     })
   } else {
     emit('update', {
@@ -142,6 +175,7 @@ const onSubmit = handleSubmit((formValues) => {
       unit: formValues.unit?.trim() || undefined,
       reset_strategy: formValues.reset_strategy,
       is_active: formValues.is_active,
+      ...tenantFields,
     })
   }
 })
@@ -249,6 +283,34 @@ const onSubmit = handleSubmit((formValues) => {
           <input v-model="isActive" type="checkbox" class="size-4 rounded border-gray-300" />
           <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Feature aktif</span>
         </label>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <label
+          class="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+        >
+          <input
+            v-model="tenantOfferable"
+            type="checkbox"
+            data-test="tenant-offerable"
+            class="size-4 rounded border-gray-300"
+          />
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+            Boleh ditawarkan tenant
+          </span>
+        </label>
+
+        <TextField
+          v-if="showTenantMax"
+          v-model="tenantMax"
+          v-bind="tenantMaxAttrs"
+          name="feature-tenant-max"
+          data-test="tenant-max"
+          type="number"
+          label="Batas maksimum"
+          placeholder="25"
+          :error="errors.tenant_max"
+        />
       </div>
 
       <div class="flex justify-end gap-3 pt-2">
