@@ -68,6 +68,22 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    // Redirect URI app registration Microsoft (MICROSOFT_OAUTH_REDIRECT_URL backend) untuk
+    // menghubungkan mailbox Outlook/Microsoft 365. Di luar /app dan /platform karena satu URL
+    // dipakai keduanya; dua segmen path supaya tidak tertangkap `/:slug` landing page.
+    path: '/oauth/microsoft/callback',
+    component: () => import('@/layouts/PublicLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'microsoft-mail-callback',
+        component: () => import('@/features/email/pages/MicrosoftMailCallbackPage.vue'),
+        meta: { title: 'Menghubungkan Microsoft' },
+      },
+    ],
+  },
+  {
     // Link penawaran untuk customer: tanpa login/tenant. Dua segmen path, jadi tidak
     // bertabrakan dengan `/:slug` landing page di bawah MarketingLayout.
     path: '/q/:token',
