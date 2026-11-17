@@ -6,6 +6,7 @@ import type {
   EmailMessage,
   Mailbox,
   MailboxPayload,
+  MicrosoftOAuthStartPayload,
   SendEmailPayload,
 } from '@/features/email/types'
 
@@ -26,6 +27,25 @@ export const emailApi = {
     http
       .patch<Envelope<Mailbox>>(`${mailboxesBase}/${id}`, payload)
       .then((response) => response.data.data),
+
+  /** Whether the server has a Microsoft app registration configured. */
+  microsoftOAuthStatus: () =>
+    http
+      .get<Envelope<{ enabled: boolean }>>(`${mailboxesBase}/oauth/microsoft`)
+      .then((response) => response.data.data.enabled),
+
+  startMicrosoftOAuth: (payload: MicrosoftOAuthStartPayload) =>
+    http
+      .post<
+        Envelope<{ authorization_url: string }>
+      >(`${mailboxesBase}/oauth/microsoft/start`, payload)
+      .then((response) => response.data.data.authorization_url),
+
+  /** Finishes the Microsoft redirect; 201 = new mailbox, 200 = existing one updated. */
+  completeMicrosoftOAuth: (code: string, state: string) =>
+    http
+      .post<Envelope<Mailbox>>(`${mailboxesBase}/oauth/microsoft/complete`, { code, state })
+      .then((response) => ({ mailbox: response.data.data, created: response.status === 201 })),
 
   deleteMailbox: (id: string) => http.delete(`${mailboxesBase}/${id}`).then(() => undefined),
 

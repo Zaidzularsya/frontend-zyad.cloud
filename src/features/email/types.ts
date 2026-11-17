@@ -1,11 +1,14 @@
 export type MailSecurity = 'ssl' | 'starttls'
 export type MailboxStatus = 'active' | 'error' | 'disabled'
+/** microsoft_oauth: connected with "Masuk dengan Microsoft" (no password stored). */
+export type MailboxAuthMethod = 'password' | 'microsoft_oauth'
 
 export interface Mailbox {
   id: string
   email_address: string
   display_name: string
   username: string
+  auth_method: MailboxAuthMethod
   smtp_host: string
   smtp_port: number
   smtp_security: MailSecurity
@@ -33,6 +36,12 @@ export interface MailboxPayload {
   imap_host?: string
   imap_port?: number
   imap_security?: MailSecurity | ''
+}
+
+export interface MicrosoftOAuthStartPayload {
+  /** Reconnect this mailbox; omit to connect a new one. */
+  mailbox_id?: string
+  display_name?: string
 }
 
 export type EmailDirection = 'inbound' | 'outbound'
