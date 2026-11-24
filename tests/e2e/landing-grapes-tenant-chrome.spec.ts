@@ -86,12 +86,17 @@ async function dragBlockToTop(page: import('@playwright/test').Page, label: stri
   await page.waitForTimeout(400)
 }
 
+// The builder is a desktop 3-pane layout; palette drag with raw mouse events isn't
+// meaningful at the Pixel 7 viewport.
+test.skip(({ isMobile }) => Boolean(isMobile), 'Desktop layout only')
+
 test('drag in a header, delete it, publish — no sentinel left in the saved document', async ({
   page,
 }) => {
   await page.goto('/app/landing-pages/content')
   await page.waitForTimeout(1500)
-  await page.getByText('Lewati, mulai dari kanvas kosong').click()
+  // Gallery opens by itself on an empty canvas; start from the blank template.
+  await page.getByRole('button', { name: /Mulai dari kosong/ }).click()
   await page.waitForTimeout(300)
 
   await dragBlockToTop(page, 'Header tenant')
@@ -120,9 +125,9 @@ test('a custom background/opacity/position set via the Style tab survives publis
 }) => {
   await page.goto('/app/landing-pages/content')
   await page.waitForTimeout(1500)
-  // A starter with an actual hero section, so the header is dropped on top
-  // of real content instead of an empty canvas.
-  await page.getByText('SaaS landing').click()
+  // Gallery opens by itself on an empty canvas; start from the blank template.
+  // (Templates now come from the API, so the test doesn't depend on a seeded one.)
+  await page.getByRole('button', { name: /Mulai dari kosong/ }).click()
   await page.waitForTimeout(300)
 
   await dragBlockToTop(page, 'Header tenant')
