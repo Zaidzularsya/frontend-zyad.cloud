@@ -3,7 +3,7 @@ import { expect, test, type Route } from '@playwright/test'
 /**
  * Public render path for GrapesJS-authored landing pages, against a stubbed
  * `/public/landing/resolve`. Covers what unit tests cannot: the page really
- * renders inside an <iframe srcdoc>, the sandbox has no `allow-scripts`, and a
+ * renders inside an open shadow root (default renderer), and a
  * <script> smuggled into the stored HTML never executes in the top document.
  *
  * Needs Chromium once: `npx playwright install chromium`.
@@ -57,27 +57,25 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
-test('renders a grapesjs page inside a script-less iframe', async ({ page }) => {
+test('renders a grapesjs page inside a sanitized shadow root', async ({ page }) => {
   await page.goto('/grapes-demo')
 
-  const frame = page.locator('iframe[title="Halaman GrapesJS"]')
-  await expect(frame).toBeVisible()
+  // Default renderer is Shadow DOM (VITE_LANDING_RENDERER=shadow); Playwright CSS
+  // locators pierce open shadow roots, so `host` scopes the page content.
+  const host = page.locator('.zy-page-host')
+  await expect(host).toBeVisible()
+  await expect(host).toHaveAttribute('role', 'document')
+  await expect(host).toHaveAttribute('aria-label', 'Halaman GrapesJS')
+  await expect(page.locator('iframe')).toHaveCount(0)
 
-  const sandbox = (await frame.getAttribute('sandbox')) ?? ''
-  expect(sandbox).toContain('allow-forms')
-  expect(sandbox).not.toContain('allow-scripts')
-
-  const inner = page.frameLocator('iframe[title="Halaman GrapesJS"]')
+  const inner = host
   await expect(inner.locator('h1.hero-title')).toHaveText('Halaman GrapesJS')
-  // CSS from the document blob is applied inside the frame.
+  // CSS from the document blob is applied inside the shadow root.
   await expect(inner.locator('h1.hero-title')).toHaveCSS('color', 'rgb(10, 20, 30)')
 
-  // The tenant-header sentinel is stripped from the iframe entirely — the
-  // header is rendered as a real element in the parent document instead, so
-  // position:sticky/fixed and the hide-on-scroll listener actually work
-  // (the iframe is auto-height and never scrolls internally; see
-  // GrapesPageFrame.vue's doc comment).
-  await expect(inner.locator('[data-zyad-slot="tenant-nav"]')).toHaveCount(0)
+  // Shadow renderer keeps the [data-zyad-slot] sentinel in the page and teleports
+  // the live header component into it; the static placeholder markup is replaced.
+  await expect(inner.locator('[data-zyad-slot="tenant-nav"]')).toHaveCount(1)
   await expect(inner.locator('text=placeholder nav')).toHaveCount(0)
 
   // The header is filled live from the resolve payload: brand + nav + action.

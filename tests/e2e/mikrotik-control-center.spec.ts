@@ -251,9 +251,9 @@ test.describe('Mikrotik control center', () => {
 
     await expect(page).toHaveURL(/\/app\/mikrotik\/isolation\?tab=control$/)
     await expect(page.getByRole('heading', { name: 'Isolir', level: 1 })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Kendali' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    await expect(page.getByRole('link', { name: 'Kendali' })).toHaveAttribute(
+      'aria-current',
+      'page',
     )
     await expect(page.getByRole('switch', { name: 'Isolir otomatis' })).toBeVisible()
     expect(unmocked).toEqual([])
@@ -327,9 +327,9 @@ test.describe('Mikrotik control center', () => {
       .getByRole('button', { name: 'Aktifkan', exact: true })
       .click()
     // Isolir switches from the launch wizard to the Kendali tab once the mode is active.
-    await expect(page.getByRole('tab', { name: 'Kendali' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    await expect(page.getByRole('link', { name: 'Kendali' })).toHaveAttribute(
+      'aria-current',
+      'page',
     )
     await expect(page.getByTestId('mode-label')).toHaveText('ON')
     expect(server.modeBodies).toEqual([{ mode: 'pilot' }, { mode: 'active' }, { mode: 'active' }])
