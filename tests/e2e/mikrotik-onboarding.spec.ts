@@ -161,6 +161,9 @@ test.describe('Mikrotik onboarding', () => {
       return json(route, routers, paged(routers.length))
     })
     await page.route('**/api/v1/app/mikrotik/secrets?**', (route) => json(route, [], paged(0)))
+    await page.route('**/api/v1/app/mikrotik/routers/r1/setup/allowlist-health', (route) =>
+      json(route, { total: 0, unresolved: 0 }),
+    )
     await page.route('**/api/v1/app/mikrotik/routers/r1/setup/preview', (route) => {
       previewCalls += 1
       previewBody = route.request().postDataJSON()
@@ -217,10 +220,11 @@ test.describe('Mikrotik onboarding', () => {
     await row.getByRole('button', { name: 'Setup isolir' }).click()
     const setup = page.getByRole('dialog', { name: 'Setup isolir: Core-1' })
     await expect(setup.getByTestId('plan-actions').locator('li')).toHaveCount(2)
-    await expect(setup.getByText('Objek ini akan dibuat di router.')).toBeVisible()
+    await expect(setup.getByTestId('plan-summary')).toHaveText('1 sudah sesuai, 1 perlu dieksekusi')
     await expect(setup.getByText('profil isolir')).toBeVisible()
     expect(previewCalls).toBe(1)
-    expect(previewBody).toEqual({})
+    // The wizard sends its default pool CIDR (DEFAULT_POOL_CIDR) with every preview.
+    expect(previewBody).toEqual({ pool_cidr: '10.255.254.0/24' })
 
     await setup.getByRole('button', { name: 'Terapkan' }).click()
     await expect(
@@ -309,6 +313,9 @@ test.describe('Mikrotik onboarding', () => {
         )
       return json(route, data, paged(filtered.length))
     })
+    await page.route('**/api/v1/app/mikrotik/secrets/summary*', (route) =>
+      json(route, { active: 4, inactive: 1 }),
+    )
     await page.route('**/api/v1/app/mikrotik/routers/r1/secrets/analyze', (route) => {
       analyzeCalls += 1
       return json(route, { total: 5, suggested: 3, needs_decision: 1 })
@@ -337,8 +344,10 @@ test.describe('Mikrotik onboarding', () => {
     await expect(page.getByRole('checkbox', { name: 'Pilih budi' })).toBeChecked()
     await expect(page.getByRole('checkbox', { name: 'Pilih andi' })).toBeDisabled()
     await expect(page.getByRole('checkbox', { name: 'Pilih joko' })).toBeDisabled()
-    await expect(page.getByTestId('summary')).toContainText('3 diusulkan')
-    await expect(page.getByTestId('summary')).toContainText('1 butuh keputusan')
+    // Counts live in the "Status pemetaan" filter labels.
+    const mapping = page.locator('select[name="mapping_status"]')
+    await expect(mapping.getByRole('option', { name: 'Diusulkan (3)' })).toBeAttached()
+    await expect(mapping.getByRole('option', { name: 'Butuh keputusan (1)' })).toBeAttached()
 
     await page.getByRole('button', { name: 'Analisis ulang' }).click()
     await expect(page.getByText('Analisis selesai: 3 diusulkan, 1 butuh keputusan.')).toBeVisible()
